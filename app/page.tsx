@@ -16,7 +16,6 @@ export const metadata: Metadata = {
     "webp to png",
     "heic to jpg",
     "jpg to pdf",
-    "pdf to jpg",
     "favicon generator",
     "image compressor",
     "image resizer",
@@ -68,11 +67,6 @@ export default function Home() {
       link: "/jpg-to-pdf",
     },
     {
-      title: "PDF → JPG",
-      description: "Convert PDF pages into JPG images.",
-      link: "/pdf-to-jpg",
-    },
-    {
       title: "Favicon Generator",
       description:
         "Generate favicon.ico, Apple Touch Icons and Android icons.",
@@ -102,14 +96,15 @@ export default function Home() {
       <section
         style={{
           textAlign: "center",
-          marginBottom: "60px",
+          marginBottom: "70px",
         }}
       >
         <h1
           style={{
-            fontSize: "56px",
-            fontWeight: "bold",
-            color: "#2563eb",
+            fontSize: "clamp(38px, 6vw, 64px)",
+            fontWeight: 800,
+            color: "#0F172A",
+            lineHeight: 1.1,
             marginBottom: "20px",
           }}
         >
@@ -118,14 +113,16 @@ export default function Home() {
 
         <p
           style={{
-            fontSize: "22px",
-            color: "#555",
-            maxWidth: "800px",
+            fontSize: "clamp(18px, 3vw, 24px)",
+            color: "#475569",
+            maxWidth: "850px",
             margin: "0 auto",
+            lineHeight: 1.7,
           }}
         >
-          Free tools for image conversion, compression,
-          resizing and favicon generation.
+          Free online tools for image conversion,
+          compression, resizing and favicon generation.
+          Fast, secure and easy to use on any device.
         </p>
       </section>
 
@@ -133,7 +130,7 @@ export default function Home() {
         style={{
           display: "grid",
           gridTemplateColumns:
-            "repeat(auto-fit, minmax(300px, 1fr))",
+            "repeat(auto-fit, minmax(280px, 1fr))",
           gap: "24px",
         }}
       >
@@ -148,19 +145,21 @@ export default function Home() {
           >
             <div
               style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: "12px",
+                border: "1px solid #e2e8f0",
+                borderRadius: "16px",
                 padding: "24px",
                 backgroundColor: "#ffffff",
                 boxShadow:
-                  "0 2px 8px rgba(0,0,0,0.05)",
-                transition: "0.2s",
+                  "0 4px 12px rgba(0,0,0,0.06)",
+                transition: "all 0.2s ease",
                 height: "100%",
               }}
             >
               <h2
                 style={{
                   fontSize: "28px",
+                  fontWeight: 700,
+                  color: "#0F172A",
                   marginBottom: "12px",
                 }}
               >
@@ -169,8 +168,9 @@ export default function Home() {
 
               <p
                 style={{
-                  color: "#64748b",
-                  lineHeight: "1.6",
+                  color: "#475569",
+                  lineHeight: "1.7",
+                  fontSize: "16px",
                 }}
               >
                 {tool.description}
@@ -182,20 +182,27 @@ export default function Home() {
 
       <section
         style={{
-          marginTop: "80px",
-          lineHeight: "1.8",
+          marginTop: "90px",
+          lineHeight: "1.9",
         }}
       >
         <h2
           style={{
-            fontSize: "32px",
-            marginBottom: "20px",
+            fontSize: "clamp(30px, 4vw, 40px)",
+            color: "#0F172A",
+            fontWeight: 700,
+            marginBottom: "24px",
           }}
         >
           Free Online Image Conversion Tools
         </h2>
 
-        <p>
+        <p
+          style={{
+            color: "#334155",
+            fontSize: "18px",
+          }}
+        >
           Pixores provides free online tools to convert
           images between JPG, PNG, WebP, HEIC and PDF
           formats. You can also compress images, resize
@@ -203,13 +210,23 @@ export default function Home() {
           for websites.
         </p>
 
-        <p>
+        <p
+          style={{
+            color: "#334155",
+            fontSize: "18px",
+          }}
+        >
           All file processing is performed automatically
           to deliver the best possible quality while
           keeping files optimized and lightweight.
         </p>
 
-        <p>
+        <p
+          style={{
+            color: "#334155",
+            fontSize: "18px",
+          }}
+        >
           Our mission is to provide simple, fast and
           free tools for content creators, developers,
           designers, marketers and businesses around
