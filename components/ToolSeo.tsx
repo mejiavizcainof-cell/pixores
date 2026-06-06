@@ -1,3 +1,8 @@
+import {
+  COLORS,
+  FONT_SIZES,
+} from "@/lib/theme";
+
 type ToolSeoProps = {
   title: string;
   description: string;
@@ -12,24 +17,36 @@ export default function ToolSeo({
   return (
     <section
       style={{
-        marginTop: "60px",
-        lineHeight: "1.8",
+        marginTop: "80px",
+        lineHeight: "1.9",
       }}
     >
       <h2
         style={{
-          fontSize: "32px",
+          fontSize: FONT_SIZES.h2,
+          color: COLORS.title,
+          fontWeight: 700,
           marginBottom: "20px",
         }}
       >
         {title}
       </h2>
 
-      <p>{description}</p>
+      <p
+        style={{
+          color: COLORS.text,
+          fontSize: FONT_SIZES.body,
+          marginBottom: "30px",
+        }}
+      >
+        {description}
+      </p>
 
       <h3
         style={{
-          marginTop: "30px",
+          color: COLORS.title,
+          fontSize: "24px",
+          fontWeight: 600,
           marginBottom: "15px",
         }}
       >
@@ -38,7 +55,9 @@ export default function ToolSeo({
 
       <ul
         style={{
-          paddingLeft: "20px",
+          paddingLeft: "24px",
+          color: COLORS.text,
+          fontSize: FONT_SIZES.body,
         }}
       >
         {(benefits ?? [
@@ -48,7 +67,14 @@ export default function ToolSeo({
           "Secure file conversion",
           "Works on desktop and mobile",
         ]).map((benefit) => (
-          <li key={benefit}>{benefit}</li>
+          <li
+            key={benefit}
+            style={{
+              marginBottom: "10px",
+            }}
+          >
+            {benefit}
+          </li>
         ))}
       </ul>
     </section>

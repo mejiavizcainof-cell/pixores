@@ -1,10 +1,13 @@
+import { COLORS } from "@/lib/theme";
+
 export default function Footer() {
   return (
     <footer
       style={{
-        marginTop: "60px",
-        padding: "30px",
-        borderTop: "1px solid #ddd",
+        marginTop: "80px",
+        padding: "40px 20px",
+        borderTop: `1px solid ${COLORS.border}`,
+        backgroundColor: COLORS.white,
         textAlign: "center",
       }}
     >
@@ -14,31 +17,92 @@ export default function Footer() {
           justifyContent: "center",
           gap: "20px",
           flexWrap: "wrap",
-          marginBottom: "15px",
+          marginBottom: "20px",
         }}
       >
-        <a href="/privacy-policy">
+        <a
+          href="/about"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          About Us
+        </a>
+
+        <a
+          href="/tools"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Tools
+        </a>
+
+        <a
+          href="/faq"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          FAQ
+        </a>
+
+        <a
+          href="/privacy-policy"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
           Privacy Policy
         </a>
 
-        <a href="/terms-of-service">
+        <a
+          href="/terms-of-service"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
           Terms of Service
         </a>
-        <a href="/cookie-policy">
-  Cookie Policy
-</a>
 
-        <a href="/contact">
+        <a
+          href="/cookie-policy"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Cookie Policy
+        </a>
+
+        <a
+          href="/contact"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
           Contact
         </a>
-        <a href="/tools">Tools</a>
-
-<a href="/faq">FAQ</a>
       </div>
 
       <p
         style={{
-          color: "#666",
+          color: COLORS.muted,
+          fontSize: "14px",
+          margin: 0,
         }}
       >
         © {new Date().getFullYear()} Pixores.
