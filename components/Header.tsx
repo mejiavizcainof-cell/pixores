@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 
 export default function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header
       style={{
@@ -15,12 +20,10 @@ export default function Header() {
         style={{
           maxWidth: "1200px",
           margin: "0 auto",
-          padding: "8px 20px",
+          padding: "12px 20px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          flexWrap: "wrap",
-          gap: "20px",
         }}
       >
         <a
@@ -35,15 +38,15 @@ export default function Header() {
           <Image
             src="/logo.png"
             alt="Pixores"
-            width={48}
-            height={48}
+            width={42}
+            height={42}
             priority
           />
 
           <div>
             <div
               style={{
-                fontSize: "28px",
+                fontSize: "26px",
                 fontWeight: "bold",
                 color: "#2563eb",
                 lineHeight: 1,
@@ -56,7 +59,6 @@ export default function Header() {
               style={{
                 fontSize: "12px",
                 color: "#64748b",
-                marginTop: "2px",
               }}
             >
               Convert • Compress • Optimize
@@ -64,117 +66,54 @@ export default function Header() {
           </div>
         </a>
 
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          style={{
+            fontSize: "28px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#0f172a",
+          }}
+        >
+          ☰
+        </button>
+      </div>
+
+      {menuOpen && (
         <nav
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: "24px",
-            flexWrap: "wrap",
+            flexDirection: "column",
+            gap: "16px",
+            padding: "20px",
+            borderTop: "1px solid #e5e7eb",
+            backgroundColor: "#fff",
           }}
         >
-          <a
-            href="/"
-            style={{
-              textDecoration: "none",
-              color: "#0f172a",
-              fontWeight: 500,
-            }}
-          >
-            Home
-          </a>
+          <a href="/">Home</a>
 
-          <a
-            href="/jpg-to-png"
-            style={{
-              textDecoration: "none",
-              color: "#0f172a",
-            }}
-          >
-            Convert
-          </a>
+          <a href="/jpg-to-png">Convert</a>
 
-          <a
-            href="/favicon-generator"
-            style={{
-              textDecoration: "none",
-              color: "#0f172a",
-            }}
-          >
-            Favicons
-          </a>
+          <a href="/favicon-generator">Favicons</a>
 
-          <a
-            href="/compress-image"
-            style={{
-              textDecoration: "none",
-              color: "#0f172a",
-            }}
-          >
-            Compress
-          </a>
+          <a href="/compress-image">Compress</a>
 
-          <a
-            href="/resize-image"
-            style={{
-              textDecoration: "none",
-              color: "#0f172a",
-            }}
-          >
-            Resize
-          </a>
+          <a href="/resize-image">Resize</a>
 
-          <a
-            href="/contact"
-            style={{
-              textDecoration: "none",
-              color: "#0f172a",
-            }}
-          >
-            Contact
-          </a>
           <a href="/tools">Tools</a>
 
-<a href="/faq">FAQ</a>
+          <a href="/faq">FAQ</a>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              paddingLeft: "10px",
-              borderLeft: "1px solid #e5e7eb",
-            }}
-          >
-            <a
-              href="/"
-              style={{
-                textDecoration: "none",
-                fontWeight: "bold",
-              }}
-            >
-              🇺🇸 EN
-            </a>
+          <a href="/contact">Contact</a>
 
-            <span
-              style={{
-                color: "#cbd5e1",
-              }}
-            >
-              |
-            </span>
+          <hr />
 
-            <a
-              href="/es"
-              style={{
-                textDecoration: "none",
-                fontWeight: "bold",
-              }}
-            >
-              🇪🇸 ES
-            </a>
-          </div>
+          <a href="/">🇺🇸 English</a>
+
+          <a href="/es">🇪🇸 Español</a>
         </nav>
-      </div>
+      )}
     </header>
   );
 }
