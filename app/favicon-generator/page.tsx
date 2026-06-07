@@ -95,7 +95,7 @@ export default function FaviconGeneratorPage() {
 
       <p
         style={{
-          color: "#666",
+          color: "COLORS.text",
           fontSize: "18px",
           marginBottom: "30px",
         }}

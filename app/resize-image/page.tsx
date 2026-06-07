@@ -3,6 +3,12 @@
 import { useState } from "react";
 import ImageUploader from "@/components/ImageUploader";
 import ToolSeo from "@/components/ToolSeo";
+import {
+  COLORS,
+  FONT_SIZES,
+  SHADOWS,
+  RADIUS,
+} from "@/lib/theme";
 
 export default function ResizeImagePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -121,7 +127,7 @@ export default function ResizeImagePage() {
 
       <p
         style={{
-          color: "#666",
+          color: "COLORS.text",
           marginBottom: "30px",
           fontSize: "18px",
         }}

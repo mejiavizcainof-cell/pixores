@@ -63,7 +63,7 @@ export default function WebpToPngPage() {
 
       <p
         style={{
-          color: "#666",
+          color: "COLORS.text",
           marginBottom: "30px",
           fontSize: "18px",
         }}
