@@ -74,7 +74,7 @@ export default function Toolbar({ selectedLayer, onChange }: ToolbarProps) {
 
       {/* Selector de Color Integrado (Estilo Canva Arcoíris) */}
       <label style={{ display: "flex", alignItems: "center", cursor: "pointer", position: "relative" }}>
-        <span style={{ fontSize: "16px", fontWeight: "bold", textDecoration: "underline", decorationColor: selectedLayer.color, WebkitTextStroke: "1px #ccc" }}>A</span>
+        <span style={{ fontSize: "16px", fontWeight: "bold", textDecoration: "underline", textDecorationColor: selectedLayer.color, WebkitTextStroke: "1px #ccc" }}>A</span>
         <div style={{ height: "4px", width: "16px", background: "linear-gradient(to right, red, orange, yellow, green, blue, purple)", position: "absolute", bottom: "-2px", borderRadius: "2px" }} />
         <input 
           type="color" 

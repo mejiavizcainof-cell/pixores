@@ -303,7 +303,7 @@ export default function ThumbnailEditorV2() {
                   newHeight = Math.max(20, resizeState.initialHeight + deltaY);
                 }
               } else if (layer.type === "text") {
-                const currentDelta = resizeState.corner.includes("Left") ? -deltaX : deltaX;
+                const currentDelta = resizeState.corner?.includes("Left") ? -deltaX : deltaX;
                 const scaleFactor = 1 + (currentDelta / resizeState.initialWidth);
                 newFontSize = Math.max(10, Math.round(resizeState.initialFontSize * scaleFactor));
               }
@@ -491,7 +491,46 @@ export default function ThumbnailEditorV2() {
     const w = layer.imageStrokeWidth;
     return `drop-shadow(${w}px 0 0 ${color}) drop-shadow(-${w}px 0 0 ${color}) drop-shadow(0 ${w}px 0 ${color}) drop-shadow(0 -${w}px 0 ${color})`;
   };
+const duplicateLayer = () => {
+  if (!selectedLayer) return;
 
+  const copy = {
+    ...selectedLayer,
+    id: `copy-${Date.now()}`,
+    name: `${selectedLayer.name} Copy`,
+    x: selectedLayer.x + 3,
+    y: selectedLayer.y + 3,
+  };
+
+  setLayers([...layers, copy]);
+  setSelectedLayerId(copy.id);
+};
+
+const downloadPNG = async () => {
+  if (!workspaceRef.current) return;
+
+  try {
+    const dataUrl = await toPng(
+      workspaceRef.current,
+      {
+        cacheBust: true,
+        pixelRatio: 2,
+      }
+    );
+
+    const link =
+      document.createElement("a");
+
+    link.download =
+      "pixores-design.png";
+
+    link.href = dataUrl;
+
+    link.click();
+  } catch (err) {
+    console.error(err);
+  }
+};
   const updateSelectedLayer = (fields: Partial<Layer>) => {
     if (!selectedLayerId) return;
     setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
