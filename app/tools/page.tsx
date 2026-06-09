@@ -9,6 +9,12 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+  title: "Thumbnail Creator Pro",
+  href: "/thumbnail-creator",
+  description:
+    "Create professional YouTube thumbnails with layers, drag & drop, custom fonts and advanced editing tools.",
+},
+  {
     title: "JPG to PNG",
     href: "/jpg-to-png",
     description: "Convert JPG images to PNG format.",

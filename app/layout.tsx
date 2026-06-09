@@ -6,6 +6,8 @@ import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import "./globals.css";
 
+
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -55,9 +57,10 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
-    >
+  lang="es"
+  className={`${geistSans.variable} ${geistMono.variable}`}
+  suppressHydrationWarning
+>
       <body
         style={{
           margin: 0,

@@ -101,6 +101,10 @@ export default function Header() {
 
           <a href="/resize-image">Resize</a>
 
+          <a href="/thumbnail-creator">
+  Thumbnail Creator
+</a>
+
           <a href="/tools">Tools</a>
 
           <a href="/faq">FAQ</a>

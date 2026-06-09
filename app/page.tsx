@@ -83,6 +83,12 @@ export default function Home() {
       description: "Change image dimensions instantly.",
       link: "/resize-image",
     },
+    {
+  title: "Thumbnail Creator Pro",
+  description:
+    "Create professional YouTube thumbnails with layers, drag & drop, custom fonts and advanced editing tools.",
+  link: "/thumbnail-creator",
+},
   ];
 
   return (
@@ -125,6 +131,56 @@ export default function Home() {
           Fast, secure and easy to use on any device.
         </p>
       </section>
+
+      <section
+  style={{
+    marginBottom: "50px",
+    background:
+      "linear-gradient(135deg,#2563EB,#7C3AED)",
+    color: "#fff",
+    padding: "40px",
+    borderRadius: "24px",
+    textAlign: "center",
+  }}
+>
+  <h2
+    style={{
+      marginTop: 0,
+      fontSize: "42px",
+      fontWeight: 800,
+    }}
+  >
+    🎨 New: Thumbnail Creator Pro
+  </h2>
+
+  <p
+    style={{
+      fontSize: "20px",
+      maxWidth: "800px",
+      margin: "0 auto 24px",
+      lineHeight: 1.7,
+    }}
+  >
+    Create professional YouTube thumbnails with
+    layers, drag & drop, custom fonts and
+    advanced editing tools.
+  </p>
+
+  <a
+    href="/thumbnail-creator"
+    style={{
+      display: "inline-block",
+      background: "#fff",
+      color: "#000000",
+      padding: "14px 24px",
+      borderRadius: "12px",
+      textDecoration: "none",
+      fontWeight: 700,
+    }}
+  >
+    Open Thumbnail Creator →
+  </a>
+</section>
 
       <div
         style={{
