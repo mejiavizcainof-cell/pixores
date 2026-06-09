@@ -81,6 +81,7 @@ export default function ThumbnailEditorV2() {
   const [preview, setPreview] = useState<string | null>(null);
   const [canvasBgColor, setCanvasBgColor] = useState<string>("#FFFFFF");
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false);
   
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(1);
   const [backgroundBlur, setBackgroundBlur] = useState<number>(0);
@@ -146,6 +147,16 @@ export default function ThumbnailEditorV2() {
   });
 
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
+
+  useEffect(() => {
+    const updateLayout = () => {
+      setIsMobileLayout(window.innerWidth < 900);
+    };
+
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
+  }, []);
 
   const deleteLayer = () => {
     if (layers.length === 0 || !selectedLayerId) return;
@@ -600,26 +611,26 @@ const downloadPNG = async () => {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "auto" : "100vh", height: isMobileLayout ? "auto" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflowX: "hidden" }}>
       
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@700;900&family=Poppins:wght@600;900&family=Inter:wght@400;800&display=swap" />
 
       {/* HEADER */}
-      <header style={{ height: "56px", background: "#0F172A", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <header style={{ minHeight: "56px", background: "#0F172A", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: isMobileLayout ? "10px 12px" : "0 20px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", zIndex: 10, flexWrap: isMobileLayout ? "wrap" : "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 180px" }}>
           <span style={{ fontSize: "20px" }}>🎨</span>
-          <h1 style={{ fontSize: "16px", fontWeight: 600, margin: 0 }}>Pixores Studio V2</h1>
+          <h1 style={{ fontSize: isMobileLayout ? "15px" : "16px", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis" }}>Pixores Studio V2</h1>
         </div>
-        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer" }}>
+        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 140px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
           📥 Download PNG HD
         </button>
       </header>
 
       {/* MAIN LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr 340px", flex: 1, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobileLayout ? "minmax(0, 1fr)" : "320px 1fr 340px", flex: 1, overflow: isMobileLayout ? "visible" : "hidden" }}>
         
         {/* LEFT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderRight: "1px solid #E2E8F0", padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "18px" }}>
+        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: isMobileLayout ? "visible" : "auto", display: "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 2 : 0 }}>
           
           {/* CANVAS RESIZER */}
           <div style={{ background: "#F8FAFC", padding: "12px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
@@ -637,7 +648,7 @@ const downloadPNG = async () => {
                 <option value="custom">Custom Dimensions</option>
               </select>
 
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: "10px", color: "#64748B" }}>Width (px)</label>
                   <input type="number" value={canvasWidth} onChange={(e) => { setCurrentPreset("custom"); setCanvasWidth(Math.max(100, Number(e.target.value))); }} style={{ width: "100%", padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #CBD5E1" }} />
@@ -668,10 +679,10 @@ const downloadPNG = async () => {
               🔤 Add Text Block
             </button>
             
-            <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
-              <button onClick={() => addShapeLayer("rectangle")} style={{ flex: 1, padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>⬛ Square</button>
-              <button onClick={() => addShapeLayer("circle")} style={{ flex: 1, padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>🟡 Circle</button>
-              <button onClick={() => addShapeLayer("triangle")} style={{ flex: 1, padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>🔺 Triangle</button>
+            <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
+              <button onClick={() => addShapeLayer("rectangle")} style={{ flex: "1 1 90px", padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>⬛ Square</button>
+              <button onClick={() => addShapeLayer("circle")} style={{ flex: "1 1 90px", padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>🟡 Circle</button>
+              <button onClick={() => addShapeLayer("triangle")} style={{ flex: "1 1 90px", padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>🔺 Triangle</button>
             </div>
 
             <label style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px dashed #8B5CF6", color: "#8B5CF6", fontWeight: 500, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px" }}>
@@ -716,10 +727,10 @@ const downloadPNG = async () => {
         </aside>
 
         {/* CENTER WORKSPACE */}
-        <section style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "auto", padding: "30px", background: "#F8FAFC" }}>
+        <section style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: isMobileLayout ? "visible" : "auto", padding: isMobileLayout ? "16px" : "30px", background: "#F8FAFC", minWidth: 0, order: isMobileLayout ? 1 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: "6px 20px", borderRadius: "30px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: isMobileLayout ? "8px 10px" : "6px 20px", borderRadius: isMobileLayout ? "10px" : "30px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: "100%", overflowX: "auto" }}>
               <select value={selectedLayer.fontFamily} onChange={(e) => updateSelectedLayer({ fontFamily: e.target.value })} style={{ border: "none", fontSize: "13px", fontWeight: 600, outline: "none", cursor: "pointer" }}>
                 <option value="Arial">Arial</option>
                 <option value="Impact">Impact</option>
@@ -760,7 +771,7 @@ const downloadPNG = async () => {
             style={{ 
               position: "relative", 
               width: "100%", 
-              maxWidth: "820px", 
+              maxWidth: isMobileLayout ? "100%" : "820px", 
               aspectRatio: `${canvasWidth} / ${canvasHeight}`, 
               backgroundColor: canvasBgColor, 
               borderRadius: "4px", 
@@ -917,7 +928,7 @@ const downloadPNG = async () => {
         </section>
 
         {/* RIGHT PROPERTY EDIT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderLeft: "1px solid #E2E8F0", padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
+        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: isMobileLayout ? "visible" : "auto", display: "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0 }}>
           
           {/* CANVAS BACKGROUND IMAGE ADJUSTMENTS */}
           {preview && (
