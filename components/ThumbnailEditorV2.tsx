@@ -80,6 +80,7 @@ const PRESET_SIZES = {
 export default function ThumbnailEditorV2() {
   const [preview, setPreview] = useState<string | null>(null);
   const [canvasBgColor, setCanvasBgColor] = useState<string>("#FFFFFF");
+  const [isExporting, setIsExporting] = useState<boolean>(false);
   
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(1);
   const [backgroundBlur, setBackgroundBlur] = useState<number>(0);
@@ -491,6 +492,25 @@ export default function ThumbnailEditorV2() {
     const w = layer.imageStrokeWidth;
     return `drop-shadow(${w}px 0 0 ${color}) drop-shadow(-${w}px 0 0 ${color}) drop-shadow(0 ${w}px 0 ${color}) drop-shadow(0 -${w}px 0 ${color})`;
   };
+
+  const waitForCanvasImages = async (node: HTMLElement) => {
+    const images = Array.from(node.querySelectorAll("img"));
+
+    await Promise.all(
+      images.map(
+        (image) =>
+          new Promise<void>((resolve, reject) => {
+            if (image.complete && image.naturalWidth > 0) {
+              resolve();
+              return;
+            }
+
+            image.onload = () => resolve();
+            image.onerror = () => reject(new Error("One image could not be loaded for export."));
+          })
+      )
+    );
+  };
 const duplicateLayer = () => {
   if (!selectedLayer) return;
 
@@ -507,16 +527,29 @@ const duplicateLayer = () => {
 };
 
 const downloadPNG = async () => {
-  if (!workspaceRef.current) return;
+  const workspace = workspaceRef.current;
+  if (!workspace || isExporting) return;
 
   try {
-    const dataUrl = await toPng(
-      workspaceRef.current,
-      {
-        cacheBust: true,
-        pixelRatio: 2,
-      }
+    setIsExporting(true);
+    setIsCropMode(false);
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
+    await waitForCanvasImages(workspace);
+
+    const dataUrl = await toPng(workspace, {
+      cacheBust: false,
+      canvasWidth,
+      canvasHeight,
+      pixelRatio: 1,
+      skipFonts: true,
+      backgroundColor: canvasBgColor,
+      style: {
+        boxShadow: "none",
+      },
+    });
 
     const link =
       document.createElement("a");
@@ -526,9 +559,14 @@ const downloadPNG = async () => {
 
     link.href = dataUrl;
 
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   } catch (err) {
     console.error(err);
+    alert("The PNG could not be generated. Please check that all images are loaded and try again.");
+  } finally {
+    setIsExporting(false);
   }
 };
   const updateSelectedLayer = (fields: Partial<Layer>) => {
@@ -572,7 +610,7 @@ const downloadPNG = async () => {
           <span style={{ fontSize: "20px" }}>🎨</span>
           <h1 style={{ fontSize: "16px", fontWeight: 600, margin: 0 }}>Pixores Studio V2</h1>
         </div>
-        <button onClick={() => downloadPNG()} style={{ padding: "8px 16px", background: "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>
+        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer" }}>
           📥 Download PNG HD
         </button>
       </header>
@@ -772,8 +810,8 @@ const downloadPNG = async () => {
                     userSelect: "none",
                     cursor: isCropMode ? "default" : (draggingLayerId === layer.id ? "grabbing" : "move"),
                     padding: "4px",
-                    outline: isSelected ? (isCropMode ? "2px dashed #000" : "2px solid #3B82F6") : "none",
-                    zIndex: isSelected ? 100 : index + 10, 
+                    outline: !isExporting && isSelected ? (isCropMode ? "2px dashed #000" : "2px solid #3B82F6") : "none",
+                    zIndex: !isExporting && isSelected ? 100 : index + 10, 
                     display: "flex",
                     whiteSpace: "nowrap",
                     alignItems: "center",
@@ -836,7 +874,7 @@ const downloadPNG = async () => {
                   )}
 
                   {/* TRANSFORM ANCHORS (CORNER HANDLERS) */}
-                  {isSelected && (
+                  {!isExporting && isSelected && (
                     <>
                       <div onMouseDown={(e) => startResizing(e, layer, "topLeft")} style={{ position: "absolute", width: isCropMode ? "12px" : "8px", height: isCropMode ? "12px" : "8px", background: isCropMode ? "#000" : "#FFF", border: isCropMode ? "none" : "2px solid #3B82F6", top: "-5px", left: "-5px", borderRadius: isCropMode ? "0%" : "50%", cursor: "nwse-resize", zIndex: 15 }} />
                       <div onMouseDown={(e) => startResizing(e, layer, "topRight")} style={{ position: "absolute", width: isCropMode ? "12px" : "8px", height: isCropMode ? "12px" : "8px", background: isCropMode ? "#000" : "#FFF", border: isCropMode ? "none" : "2px solid #3B82F6", top: "-5px", right: "-5px", borderRadius: isCropMode ? "0%" : "50%", cursor: "nesw-resize", zIndex: 15 }} />
