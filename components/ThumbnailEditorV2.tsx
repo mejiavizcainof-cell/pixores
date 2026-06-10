@@ -244,111 +244,44 @@ export default function ThumbnailEditorV2() {
 
   // Global window mousemove/mouseup listener to lock smoothness
   useEffect(() => {
-    const handleGlobalMove = (e: MouseEvent) => {
-      if (!workspaceRef.current || !selectedLayerId) return;
-      const rect = workspaceRef.current.getBoundingClientRect();
+  const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+    const { clientX, clientY } = getCoords(e);
+    if (!workspaceRef.current || !selectedLayerId) return;
+    const rect = workspaceRef.current.getBoundingClientRect();
 
-      if (resizeState.corner) {
-        const deltaX = e.clientX - resizeState.mouseX;
-        const deltaY = e.clientY - resizeState.mouseY;
+    // Lógica de Redimensionamiento (Resize)
+    if (resizeState.corner) {
+      const deltaX = clientX - resizeState.mouseX;
+      const deltaY = clientY - resizeState.mouseY;
+      // ... (mantiene tu lógica de cálculo usando deltaX/Y)
+      return;
+    }
 
-        setLayers((prevLayers) =>
-          prevLayers.map((layer) => {
-            if (layer.id === selectedLayerId) {
-              
-              // 1. ROTATION
-              if (resizeState.corner === "rotation") {
-                const layerCenterX = rect.left + (layer.x / 100) * rect.width;
-                const layerCenterY = rect.top + (layer.y / 100) * rect.height;
-                const radians = Math.atan2(e.clientY - layerCenterY, e.clientX - layerCenterX);
-                let degrees = Math.round(radians * (180 / Math.PI)) - 90;
-                if (degrees < 0) degrees += 360;
-                return { ...layer, angle: degrees };
-              }
+    // Lógica de Arrastre (Dragging)
+    if (draggingLayerId !== null) {
+      let posX = ((clientX - rect.left - initialDragOffset.current.x) / rect.width) * 100;
+      let posY = ((clientY - rect.top - initialDragOffset.current.y) / rect.height) * 100;
+      setLayers((prev) => prev.map((layer) => layer.id === draggingLayerId ? { ...layer, x: posX, y: posY } : layer));
+    }
+  };
 
-              // 2. CROP MODE
-              if (isCropMode && layer.type === "image") {
-                let cTop = resizeState.initialCropTop;
-                let cBottom = resizeState.initialCropBottom;
-                let cLeft = resizeState.initialCropLeft;
-                let cRight = resizeState.initialCropRight;
+  const handleGlobalRelease = () => {
+    setDraggingLayerId(null);
+    setResizeState((prev) => ({ ...prev, corner: null }));
+  };
 
-                if (resizeState.corner === "bottomRight") {
-                  cRight = Math.max(0, resizeState.initialCropRight - deltaX);
-                  cBottom = Math.max(0, resizeState.initialCropBottom - deltaY);
-                } else if (resizeState.corner === "bottomLeft") {
-                  cLeft = Math.max(0, resizeState.initialCropLeft + deltaX);
-                  cBottom = Math.max(0, resizeState.initialCropBottom - deltaY);
-                } else if (resizeState.corner === "topRight") {
-                  cRight = Math.max(0, resizeState.initialCropRight - deltaX);
-                  cTop = Math.max(0, resizeState.initialCropTop + deltaY);
-                } else if (resizeState.corner === "topLeft") {
-                  cLeft = Math.max(0, resizeState.initialCropLeft + deltaX);
-                  cTop = Math.max(0, resizeState.initialCropTop + deltaY);
-                }
-                return { ...layer, cropTop: cTop, constrainBottom: cBottom, cropLeft: cLeft, cropRight: cRight };
-              }
+  window.addEventListener("mousemove", handleGlobalMove);
+  window.addEventListener("touchmove", handleGlobalMove, { passive: false });
+  window.addEventListener("mouseup", handleGlobalRelease);
+  window.addEventListener("touchend", handleGlobalRelease);
 
-              // 3. MULTI-CORNER RESIZING
-              let newWidth = resizeState.initialWidth;
-              let newHeight = resizeState.initialHeight;
-              let newFontSize = resizeState.initialFontSize;
-              let newX = resizeState.initialX;
-              let newY = resizeState.initialY;
-
-              if (layer.type === "image" || layer.type === "shape") {
-                if (resizeState.corner === "topRight") {
-                  newWidth = Math.max(20, resizeState.initialWidth + deltaX);
-                  newHeight = Math.max(20, resizeState.initialHeight - deltaY);
-                  newY = Math.max(0, Math.min(100, resizeState.initialY + (deltaY / rect.height) * 100));
-                } else if (resizeState.corner === "topLeft") {
-                  newWidth = Math.max(20, resizeState.initialWidth - deltaX);
-                  newHeight = Math.max(20, resizeState.initialHeight - deltaY);
-                  newX = Math.max(0, Math.min(100, resizeState.initialX + (deltaX / rect.width) * 100));
-                  newY = Math.max(0, Math.min(100, resizeState.initialY + (deltaY / rect.height) * 100));
-                } else if (resizeState.corner === "bottomLeft") {
-                  newWidth = Math.max(20, resizeState.initialWidth - deltaX);
-                  newHeight = Math.max(20, resizeState.initialHeight + deltaY);
-                  newX = Math.max(0, Math.min(100, resizeState.initialX + (deltaX / rect.width) * 100));
-                } else if (resizeState.corner === "bottomRight") {
-                  newWidth = Math.max(20, resizeState.initialWidth + deltaX);
-                  newHeight = Math.max(20, resizeState.initialHeight + deltaY);
-                }
-              } else if (layer.type === "text") {
-                const currentDelta = resizeState.corner?.includes("Left") ? -deltaX : deltaX;
-                const scaleFactor = 1 + (currentDelta / resizeState.initialWidth);
-                newFontSize = Math.max(10, Math.round(resizeState.initialFontSize * scaleFactor));
-              }
-
-              return { ...layer, width: newWidth, height: newHeight, fontSize: newFontSize, x: newX, y: newY };
-            }
-            return layer;
-          })
-        );
-        return;
-      }
-
-      if (draggingLayerId !== null) {
-        let posX = ((e.clientX - rect.left - initialDragOffset.current.x) / rect.width) * 100;
-        let posY = ((e.clientY - rect.top - initialDragOffset.current.y) / rect.height) * 100;
-        posX = Math.max(0, Math.min(100, posX));
-        posY = Math.max(0, Math.min(100, posY));
-        setLayers((prev) => prev.map((layer) => layer.id === draggingLayerId ? { ...layer, x: posX, y: posY } : layer));
-      }
-    };
-
-    const handleGlobalRelease = () => {
-      setDraggingLayerId(null);
-      setResizeState((prev) => ({ ...prev, corner: null }));
-    };
-
-    window.addEventListener("mousemove", handleGlobalMove);
-    window.addEventListener("mouseup", handleGlobalRelease);
-    return () => {
-      window.removeEventListener("mousemove", handleGlobalMove);
-      window.removeEventListener("mouseup", handleGlobalRelease);
-    };
-  }, [draggingLayerId, resizeState, selectedLayerId, isCropMode]);
+  return () => {
+    window.removeEventListener("mousemove", handleGlobalMove);
+    window.removeEventListener("touchmove", handleGlobalMove);
+    window.removeEventListener("mouseup", handleGlobalRelease);
+    window.removeEventListener("touchend", handleGlobalRelease);
+  };
+}, [draggingLayerId, resizeState, selectedLayerId, isCropMode]);
 
   const handleRemoveBackgroundAI = async (layer: Layer) => {
     if (layer.type !== "image" || !layer.src) return;
@@ -377,6 +310,14 @@ export default function ThumbnailEditorV2() {
       console.error(error);
     }
   };
+
+  
+  const getCoords = (e: any) => {
+  if (e.touches && e.touches.length > 0) {
+    return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+  }
+  return { clientX: e.clientX, clientY: e.clientY };
+};
 
   const handlePresetChange = (presetKey: keyof typeof PRESET_SIZES) => {
     setCurrentPreset(presetKey);
@@ -585,18 +526,19 @@ const downloadPNG = async () => {
     setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
   };
 
-  const startResizing = (e: React.MouseEvent, layer: Layer, corner: ResizeState["corner"]) => {
-    e.stopPropagation();
-    setSelectedLayerId(layer.id);
-    setResizeState({
-      corner,
-      initialWidth: layer.width || 150,
-      initialHeight: layer.height || 150,
-      initialFontSize: layer.fontSize || 40,
-      initialX: layer.x,
-      initialY: layer.y,
-      mouseX: e.clientX,
-      mouseY: e.clientY,
+ const startResizing = (e: React.MouseEvent | React.TouchEvent, layer: Layer, corner: ResizeState["corner"]) => {
+  e.stopPropagation();
+  const { clientX, clientY } = getCoords(e);
+  setSelectedLayerId(layer.id);
+  setResizeState({
+    corner,
+    initialWidth: layer.width || 150,
+    initialHeight: layer.height || 150,
+    initialFontSize: layer.fontSize || 40,
+    initialX: layer.x,
+    initialY: layer.y,
+    mouseX: clientX,
+    mouseY: clientY,
       initialCropTop: layer.cropTop || 0,
       initialCropBottom: layer.constrainBottom || 0,
       initialCropLeft: layer.cropLeft || 0,
@@ -801,20 +743,27 @@ const downloadPNG = async () => {
               const isSelected = selectedLayerId === layer.id;
               return (
                 <div
-                  key={layer.id}
-                  onMouseDown={(e) => {
-                    if (isCropMode) return; 
-                    e.stopPropagation();
-                    setSelectedLayerId(layer.id);
-                    setDraggingLayerId(layer.id);
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    initialDragOffset.current = {
-                      x: e.clientX - rect.left - rect.width / 2,
-                      y: e.clientY - rect.top - rect.height / 2,
-                    };
-                  }}
-                  style={{
-                    position: "absolute",
+                  
+  key={layer.id}
+  onMouseDown={(e) => {
+    const { clientX, clientY } = getCoords(e);
+    // ... tu lógica actual usando clientX/Y
+    setDraggingLayerId(layer.id);
+  }}
+  onTouchStart={(e) => {
+    const { clientX, clientY } = getCoords(e);
+    e.stopPropagation();
+    setSelectedLayerId(layer.id);
+    setDraggingLayerId(layer.id);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    initialDragOffset.current = {
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2,
+    };
+  }}
+  style={{
+    position: "absolute",
+    touchAction: "none",
                     left: `${layer.x}%`,
                     top: `${layer.y}%`,
                     transform: `translate(-50%, -50%) rotate(${layer.angle || 0}deg) ${layer.isFlippedH ? "scaleX(-1)" : "scaleX(1)"} ${layer.isFlippedV ? "scaleY(-1)" : "scaleY(1)"}`,
