@@ -244,26 +244,64 @@ export default function ThumbnailEditorV2() {
 
   // Global window mousemove/mouseup listener to lock smoothness
   useEffect(() => {
-  const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
-    const { clientX, clientY } = getCoords(e);
-    if (!workspaceRef.current || !selectedLayerId) return;
-    const rect = workspaceRef.current.getBoundingClientRect();
+ const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+  const { clientX, clientY } = getCoords(e);
+  if (!workspaceRef.current || !selectedLayerId) return;
+  const rect = workspaceRef.current.getBoundingClientRect();
 
-    // Lógica de Redimensionamiento (Resize)
-    if (resizeState.corner) {
-      const deltaX = clientX - resizeState.mouseX;
-      const deltaY = clientY - resizeState.mouseY;
-      // ... (mantiene tu lógica de cálculo usando deltaX/Y)
-      return;
-    }
+  // 1. Lógica de Redimensionamiento (Resize & Rotation)
+  if (resizeState.corner) {
+    const deltaX = clientX - resizeState.mouseX;
+    const deltaY = clientY - resizeState.mouseY;
 
-    // Lógica de Arrastre (Dragging)
-    if (draggingLayerId !== null) {
-      let posX = ((clientX - rect.left - initialDragOffset.current.x) / rect.width) * 100;
-      let posY = ((clientY - rect.top - initialDragOffset.current.y) / rect.height) * 100;
-      setLayers((prev) => prev.map((layer) => layer.id === draggingLayerId ? { ...layer, x: posX, y: posY } : layer));
-    }
-  };
+    setLayers((prevLayers) =>
+      prevLayers.map((layer) => {
+        if (layer.id === selectedLayerId) {
+          // --- COPIA AQUÍ LA LÓGICA DE TU CÓDIGO ORIGINAL ---
+          
+          // 1. ROTATION
+          if (resizeState.corner === "rotation") {
+            const layerCenterX = rect.left + (layer.x / 100) * rect.width;
+            const layerCenterY = rect.top + (layer.y / 100) * rect.height;
+            const radians = Math.atan2(clientY - layerCenterY, clientX - layerCenterX);
+            let degrees = Math.round(radians * (180 / Math.PI)) - 90;
+            if (degrees < 0) degrees += 360;
+            return { ...layer, angle: degrees };
+          }
+
+          // 2. CROP MODE
+          if (isCropMode && layer.type === "image") {
+            // ... (tu lógica de crop existente)
+            return { ...layer, /* valores de crop */ };
+          }
+
+          // 3. RESIZING (Multi-corner)
+          let newWidth = resizeState.initialWidth;
+          let newHeight = resizeState.initialHeight;
+          let newFontSize = resizeState.initialFontSize;
+          let newX = resizeState.initialX;
+          let newY = resizeState.initialY;
+
+          // ... (aquí va tu lógica de if (resizeState.corner === "topRight")...)
+          // Asegúrate de usar los cálculos que ya tenías:
+          // newWidth = Math.max(20, resizeState.initialWidth + deltaX);
+          
+          return { ...layer, width: newWidth, height: newHeight, fontSize: newFontSize, x: newX, y: newY };
+        }
+        return layer;
+      })
+    );
+    return;
+  }
+  // 2. Lógica de Arrastre (Dragging)
+  if (draggingLayerId !== null) {
+    let posX = ((clientX - rect.left - initialDragOffset.current.x) / rect.width) * 100;
+    let posY = ((clientY - rect.top - initialDragOffset.current.y) / rect.height) * 100;
+    posX = Math.max(0, Math.min(100, posX));
+    posY = Math.max(0, Math.min(100, posY));
+    setLayers((prev) => prev.map((layer) => layer.id === draggingLayerId ? { ...layer, x: posX, y: posY } : layer));
+  }
+};
 
   const handleGlobalRelease = () => {
     setDraggingLayerId(null);
@@ -311,7 +349,7 @@ export default function ThumbnailEditorV2() {
     }
   };
 
-  
+
   const getCoords = (e: any) => {
   if (e.touches && e.touches.length > 0) {
     return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
@@ -833,43 +871,74 @@ const downloadPNG = async () => {
                     />
                   )}
 
-                  {/* TRANSFORM ANCHORS (CORNER HANDLERS) */}
-                  {!isExporting && isSelected && (
-                    <>
-                      <div onMouseDown={(e) => startResizing(e, layer, "topLeft")} style={{ position: "absolute", width: isCropMode ? "12px" : "8px", height: isCropMode ? "12px" : "8px", background: isCropMode ? "#000" : "#FFF", border: isCropMode ? "none" : "2px solid #3B82F6", top: "-5px", left: "-5px", borderRadius: isCropMode ? "0%" : "50%", cursor: "nwse-resize", zIndex: 15 }} />
-                      <div onMouseDown={(e) => startResizing(e, layer, "topRight")} style={{ position: "absolute", width: isCropMode ? "12px" : "8px", height: isCropMode ? "12px" : "8px", background: isCropMode ? "#000" : "#FFF", border: isCropMode ? "none" : "2px solid #3B82F6", top: "-5px", right: "-5px", borderRadius: isCropMode ? "0%" : "50%", cursor: "nesw-resize", zIndex: 15 }} />
-                      <div onMouseDown={(e) => startResizing(e, layer, "bottomLeft")} style={{ position: "absolute", width: isCropMode ? "12px" : "8px", height: isCropMode ? "12px" : "8px", background: isCropMode ? "#000" : "#FFF", border: isCropMode ? "none" : "2px solid #3B82F6", bottom: "-5px", left: "-5px", borderRadius: isCropMode ? "0%" : "50%", cursor: "nesw-resize", zIndex: 15 }} />
-                      <div onMouseDown={(e) => startResizing(e, layer, "bottomRight")} style={{ position: "absolute", width: isCropMode ? "12px" : "10px", height: isCropMode ? "12px" : "10px", background: isCropMode ? "#000" : "#3B82F6", border: isCropMode ? "none" : "2px solid #FFFFFF", bottom: "-6px", right: "-6px", borderRadius: isCropMode ? "0%" : "50%", cursor: "nwse-resize", zIndex: 15 }} />
-                      
-                      {/* ROTATION ANCHOR WHEEL */}
-                      {!isCropMode && (
-                        <div 
-                          onMouseDown={(e) => startResizing(e, layer, "rotation")}
-                          style={{
-                            position: "absolute",
-                            bottom: "-24px",
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                            width: "20px",
-                            height: "20px",
-                            background: "#FFFFFF",
-                            border: "1px solid #CBD5E1",
-                            borderRadius: "50%",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                            cursor: "grab",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "12px",
-                            zIndex: 20
-                          }}
-                          title="Drag to rotate"
-                        >
-                          🔄
-                        </div>
-                      )}
-                    </>
-                  )}
+                 {/* TRANSFORM ANCHORS (CORNER HANDLERS) */}
+{!isExporting && isSelected && (
+  <>
+    {[
+      { corner: "topLeft", cursor: "nwse-resize" },
+      { corner: "topRight", cursor: "nesw-resize" },
+      { corner: "bottomLeft", cursor: "nesw-resize" },
+      { corner: "bottomRight", cursor: "nwse-resize" }
+    ].map((item) => (
+      <div
+        key={item.corner}
+        onMouseDown={(e) => startResizing(e, layer, item.corner as any)}
+        onTouchStart={(e) => {
+          e.preventDefault(); // Evita que se dispare el evento de ratón después
+          e.stopPropagation();
+          startResizing(e, layer, item.corner as any);
+        }}
+        style={{
+          position: "absolute",
+          width: isCropMode ? "14px" : "10px",
+          height: isCropMode ? "14px" : "10px",
+          background: isCropMode ? "#000" : "#FFF",
+          border: isCropMode ? "none" : "2px solid #3B82F6",
+          borderRadius: isCropMode ? "0%" : "50%",
+          cursor: item.cursor,
+          zIndex: 15,
+          touchAction: "none", // ¡CRUCIAL PARA TÁCTIL!
+          ...(item.corner === "topLeft" ? { top: "-5px", left: "-5px" } : {}),
+          ...(item.corner === "topRight" ? { top: "-5px", right: "-5px" } : {}),
+          ...(item.corner === "bottomLeft" ? { bottom: "-5px", left: "-5px" } : {}),
+          ...(item.corner === "bottomRight" ? { bottom: "-5px", right: "-5px" } : {})
+        }}
+      />
+    ))}
+
+    {/* ROTATION ANCHOR WHEEL */}
+    {!isCropMode && (
+      <div 
+        onMouseDown={(e) => startResizing(e, layer, "rotation")}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          startResizing(e, layer, "rotation");
+        }}
+        style={{
+          position: "absolute",
+          bottom: "-30px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "24px",
+          height: "24px",
+          background: "#FFFFFF",
+          border: "1px solid #CBD5E1",
+          borderRadius: "50%",
+          cursor: "grab",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "14px",
+          zIndex: 20,
+          touchAction: "none"
+        }}
+      >
+        🔄
+      </div>
+    )}
+  </>
+)}
                 </div>
               );
             })}
