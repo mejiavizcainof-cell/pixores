@@ -246,19 +246,18 @@ export default function ThumbnailEditorV2() {
   useEffect(() => {
  const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
   const { clientX, clientY } = getCoords(e);
-  if (!workspaceRef.current || !selectedLayerId) return;
+  if (!workspaceRef.current || (!selectedLayerId && draggingLayerId === null)) return;
   const rect = workspaceRef.current.getBoundingClientRect();
 
   // 1. Lógica de Redimensionamiento (Resize & Rotation)
-  if (resizeState.corner) {
+  if (resizeState.corner && selectedLayerId) {
+    if ("touches" in e && e.cancelable) e.preventDefault();
     const deltaX = clientX - resizeState.mouseX;
     const deltaY = clientY - resizeState.mouseY;
 
     setLayers((prevLayers) =>
       prevLayers.map((layer) => {
         if (layer.id === selectedLayerId) {
-          // --- COPIA AQUÍ LA LÓGICA DE TU CÓDIGO ORIGINAL ---
-          
           // 1. ROTATION
           if (resizeState.corner === "rotation") {
             const layerCenterX = rect.left + (layer.x / 100) * rect.width;
@@ -282,9 +281,33 @@ export default function ThumbnailEditorV2() {
           let newX = resizeState.initialX;
           let newY = resizeState.initialY;
 
-          // ... (aquí va tu lógica de if (resizeState.corner === "topRight")...)
-          // Asegúrate de usar los cálculos que ya tenías:
-          // newWidth = Math.max(20, resizeState.initialWidth + deltaX);
+          const affectsLeft = resizeState.corner === "topLeft" || resizeState.corner === "bottomLeft";
+          const affectsRight = resizeState.corner === "topRight" || resizeState.corner === "bottomRight";
+          const affectsTop = resizeState.corner === "topLeft" || resizeState.corner === "topRight";
+          const affectsBottom = resizeState.corner === "bottomLeft" || resizeState.corner === "bottomRight";
+
+          if (layer.type === "text") {
+            const horizontalDelta = affectsLeft ? -deltaX : affectsRight ? deltaX : 0;
+            const verticalDelta = affectsTop ? -deltaY : affectsBottom ? deltaY : 0;
+            newFontSize = Math.max(8, Math.round(resizeState.initialFontSize + (horizontalDelta + verticalDelta) / 2));
+            return { ...layer, fontSize: newFontSize };
+          }
+
+          if (affectsLeft) newWidth = resizeState.initialWidth - deltaX;
+          if (affectsRight) newWidth = resizeState.initialWidth + deltaX;
+          if (affectsTop) newHeight = resizeState.initialHeight - deltaY;
+          if (affectsBottom) newHeight = resizeState.initialHeight + deltaY;
+
+          newWidth = Math.max(20, Math.round(newWidth));
+          newHeight = Math.max(20, Math.round(newHeight));
+
+          const widthChange = newWidth - resizeState.initialWidth;
+          const heightChange = newHeight - resizeState.initialHeight;
+          const xShiftPx = affectsLeft ? -widthChange / 2 : affectsRight ? widthChange / 2 : 0;
+          const yShiftPx = affectsTop ? -heightChange / 2 : affectsBottom ? heightChange / 2 : 0;
+
+          newX = Math.max(0, Math.min(100, resizeState.initialX + (xShiftPx / rect.width) * 100));
+          newY = Math.max(0, Math.min(100, resizeState.initialY + (yShiftPx / rect.height) * 100));
           
           return { ...layer, width: newWidth, height: newHeight, fontSize: newFontSize, x: newX, y: newY };
         }
@@ -295,6 +318,7 @@ export default function ThumbnailEditorV2() {
   }
   // 2. Lógica de Arrastre (Dragging)
   if (draggingLayerId !== null) {
+    if ("touches" in e && e.cancelable) e.preventDefault();
     let posX = ((clientX - rect.left - initialDragOffset.current.x) / rect.width) * 100;
     let posY = ((clientY - rect.top - initialDragOffset.current.y) / rect.height) * 100;
     posX = Math.max(0, Math.min(100, posX));
@@ -565,9 +589,11 @@ const downloadPNG = async () => {
   };
 
  const startResizing = (e: React.MouseEvent | React.TouchEvent, layer: Layer, corner: ResizeState["corner"]) => {
+  e.preventDefault();
   e.stopPropagation();
   const { clientX, clientY } = getCoords(e);
   setSelectedLayerId(layer.id);
+  setDraggingLayerId(null);
   setResizeState({
     corner,
     initialWidth: layer.width || 150,
@@ -785,13 +811,22 @@ const downloadPNG = async () => {
   key={layer.id}
   onMouseDown={(e) => {
     const { clientX, clientY } = getCoords(e);
-    // ... tu lógica actual usando clientX/Y
+    e.stopPropagation();
+    setSelectedLayerId(layer.id);
+    setIsCropMode(false);
     setDraggingLayerId(layer.id);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    initialDragOffset.current = {
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2,
+    };
   }}
   onTouchStart={(e) => {
     const { clientX, clientY } = getCoords(e);
+    e.preventDefault();
     e.stopPropagation();
     setSelectedLayerId(layer.id);
+    setIsCropMode(false);
     setDraggingLayerId(layer.id);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     initialDragOffset.current = {
