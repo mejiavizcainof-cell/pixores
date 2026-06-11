@@ -9,10 +9,18 @@ export const siteMetadata: Metadata = {
   },
 
   description:
-    "Convert, compress, resize and optimize images online for free. JPG, PNG, WebP, HEIC, PDF and favicon tools with fast and secure processing.",
+    "Convert, compress, resize, optimize and edit images online for free. Create YouTube thumbnails, convert JPG, PNG, WebP, HEIC, PDF files and generate favicons.",
 
   keywords: [
     "image converter",
+    "free image tools",
+    "online image converter",
+    "image compressor",
+    "image resizer",
+    "youtube thumbnail maker",
+    "thumbnail creator",
+    "youtube thumbnail creator",
+    "create youtube thumbnail",
     "jpg to png",
     "png to jpg",
     "webp to jpg",
@@ -21,17 +29,8 @@ export const siteMetadata: Metadata = {
     "webp to png",
     "heic to jpg",
     "jpg to pdf",
-    "pdf to jpg",
     "favicon generator",
-    "png to favicon",
-    "jpg to favicon",
-    "favicon.ico",
-    "image compressor",
-    "image resizer",
-    "free image tools",
-    "online image converter",
     "image optimization",
-    "webp converter",
     "pixores",
   ],
 
@@ -43,19 +42,12 @@ export const siteMetadata: Metadata = {
   ],
 
   creator: "Pixores",
-
   publisher: "Pixores",
-
   category: "Technology",
-
-  alternates: {
-    canonical: "https://pixores.com",
-  },
 
   robots: {
     index: true,
     follow: true,
-
     googleBot: {
       index: true,
       follow: true,
@@ -67,14 +59,10 @@ export const siteMetadata: Metadata = {
 
   openGraph: {
     title: "Pixores - Free Online Image & File Tools",
-
     description:
-      "Convert, compress, resize and optimize images online. JPG, PNG, WebP, HEIC, PDF and favicon tools available for free.",
-
+      "Free online image tools to convert, compress, resize, optimize and create professional YouTube thumbnails.",
     url: "https://pixores.com",
-
     siteName: "Pixores",
-
     images: [
       {
         url: "/og-image.png",
@@ -83,23 +71,16 @@ export const siteMetadata: Metadata = {
         alt: "Pixores - Free Online Image Tools",
       },
     ],
-
     locale: "en_US",
-
     type: "website",
   },
 
   twitter: {
     card: "summary_large_image",
-
     title: "Pixores - Free Online Image & File Tools",
-
     description:
-      "Convert, compress, resize and optimize images online for free.",
-
+      "Convert, compress, resize, optimize and create YouTube thumbnails online for free.",
     images: ["/og-image.png"],
-
-    creator: "@pixores",
   },
 
   icons: {
@@ -118,7 +99,6 @@ export const siteMetadata: Metadata = {
         type: "image/png",
       },
     ],
-
     apple: [
       {
         url: "/apple-touch-icon.png",
@@ -126,7 +106,6 @@ export const siteMetadata: Metadata = {
         type: "image/png",
       },
     ],
-
     shortcut: "/favicon.ico",
   },
 
