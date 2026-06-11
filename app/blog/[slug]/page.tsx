@@ -9,20 +9,6 @@ type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-const imageMap: Record<string, string> = {
-  "Person showing surprise expression for YouTube thumbnail":
-    "/blog/youtube-thumbnail-emotions.webp",
-
-  "Good vs Bad Thumbnail Text Comparison":
-    "/blog/thumbnail-text-comparison.webp",
-
-  "Thumbnail Color Contrast Examples":
-    "/blog/thumbnail-color-contrast.webp",
-
-  "Desktop vs Mobile Thumbnail View":
-    "/blog/mobile-thumbnail-preview.webp",
-};
-
 function getPost(slug: string) {
   return blogPosts.find((post) => post.slug === slug);
 }
@@ -37,16 +23,13 @@ function renderContent(content: string) {
       const imageMatch = trimmedLine.match(/^\[IMAGE:\s*(.*?)\]$/);
 
       if (imageMatch) {
-        const imageAlt = imageMatch[1];
-        const imageSrc = imageMap[imageAlt];
-
-        if (!imageSrc) return null;
+        const fileName = imageMatch[1];
 
         return (
           <div key={index} style={{ margin: "36px 0" }}>
             <Image
-              src={imageSrc}
-              alt={imageAlt}
+              src={`/blog/${fileName}`}
+              alt={fileName}
               width={1200}
               height={675}
               style={{
@@ -60,19 +43,41 @@ function renderContent(content: string) {
       }
 
       if (!trimmedLine) {
-  return null;
-}
+        return null;
+      }
 
-      return (
-        <p
-          key={index}
-          style={{
-            marginBottom: "18px",
-          }}
-        >
-          {trimmedLine}
-        </p>
-      );
+      const parts = trimmedLine.split(/(\[LINK:\s*.*?\|.*?\])/g);
+
+return (
+  <p
+    key={index}
+    style={{
+      marginBottom: "18px",
+    }}
+  >
+    {parts.map((part, i) => {
+      const match = part.match(/^\[LINK:\s*(.*?)\|(.*?)\]$/);
+
+      if (match) {
+        return (
+          <Link
+            key={i}
+            href={match[2]}
+            style={{
+              color: "#2563EB",
+              fontWeight: 600,
+              textDecoration: "underline",
+            }}
+          >
+            {match[1]}
+          </Link>
+        );
+      }
+
+      return part;
+    })}
+  </p>
+);
     });
 }
 
@@ -129,14 +134,28 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
       <article>
         <p
-          style={{
-            color: "#64748B",
-            fontSize: "14px",
-            marginBottom: "10px",
-          }}
-        >
-          {post.date}
-        </p>
+  style={{
+    color: "#475569",
+    fontSize: "20px",
+    lineHeight: 1.7,
+    marginBottom: "34px",
+  }}
+>
+  {post.description}
+</p>
+
+<Image
+  src={post.image}
+  alt={post.title}
+  width={1200}
+  height={675}
+  style={{
+    width: "100%",
+    height: "auto",
+    borderRadius: "16px",
+    marginBottom: "36px",
+  }}
+/>
 
         <h1
           style={{
