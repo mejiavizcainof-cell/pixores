@@ -104,6 +104,7 @@ export default function Header() {
           <a href="/thumbnail-creator">
   Thumbnail Creator
 </a>
+<a href="/templates">Templates</a>
 
           <a href="/tools">Tools</a>
 

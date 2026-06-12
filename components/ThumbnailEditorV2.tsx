@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
+import { templates } from "@/lib/templates";
 
 type Layer = {
   id: string | number; 
@@ -9,7 +11,15 @@ type Layer = {
   name: string;
   text?: string;
   src?: string;
-  shapeType?: "rectangle" | "circle" | "triangle";
+  shapeType?:
+  | "rectangle"
+  | "circle"
+  | "triangle"
+  | "star"
+  | "badge"
+  | "speechBubble"
+  | "arrow"
+  | "line";
   x: number; 
   y: number; 
   fontSize?: number;
@@ -68,6 +78,36 @@ type ImportedFile = {
   url: string;
   name: string;
 };
+const PREMADE_ASSETS = [
+
+  { category: "people", name: "Shocked Man", src: "/template-assets/people/shocked-man.png" },
+  { category: "people", name: "Shocked Woman", src: "/template-assets/people/shocked-woman.png" },
+  { category: "people", name: "Business Man", src: "/template-assets/people/business-man.png" },
+  { category: "people", name: "Podcast Host", src: "/template-assets/people/podcast-host.png" },
+  { category: "people", name: "Gamer", src: "/template-assets/people/gamer.png" },
+
+  { category: "objects", name: "Red Arrow", src: "/template-assets/objects/red-arrow.png" },
+  { category: "objects", name: "Yellow Arrow", src: "/template-assets/objects/yellow-arrow.png" },
+  { category: "objects", name: "Circle Highlight", src: "/template-assets/objects/circle-highlight.png" },
+  { category: "objects", name: "Money Stack", src: "/template-assets/objects/money-stack.png" },
+  { category: "objects", name: "Fire", src: "/template-assets/objects/fire.png" },
+  { category: "objects", name: "YouTube Logo", src: "/template-assets/objects/youtube-logo.png" },
+  { category: "objects", name: "Microphone", src: "/template-assets/objects/microphone.png" },
+];
+
+const PREMADE_SHAPES = [
+  { name: "Blue Box", shapeType: "rectangle" as const, color: "#3B82F6" },
+  { name: "Red Box", shapeType: "rectangle" as const, color: "#EF4444" },
+  { name: "Yellow Circle", shapeType: "circle" as const, color: "#FACC15" },
+  { name: "Green Circle", shapeType: "circle" as const, color: "#22C55E" },
+  { name: "Red Triangle", shapeType: "triangle" as const, color: "#EF4444" },
+  { name: "Yellow Triangle", shapeType: "triangle" as const, color: "#FACC15" },
+  { name: "Star", shapeType: "star" as const, color: "#FACC15" },
+  { name: "Badge", shapeType: "badge" as const, color: "#EF4444" },
+  { name: "Speech Bubble", shapeType: "speechBubble" as const, color: "#FFFFFF" },
+  { name: "Arrow", shapeType: "arrow" as const, color: "#EF4444" },
+  { name: "Line", shapeType: "line" as const, color: "#0F172A" },
+];
 
 const PRESET_SIZES = {
   youtube: { name: "YouTube Thumbnail", width: 1280, height: 720 },
@@ -93,6 +133,8 @@ export default function ThumbnailEditorV2() {
   const [draggingLayerId, setDraggingLayerId] = useState<string | number | null>(null);
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
+  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes">("people");
+  
 
   const [layers, setLayers] = useState<Layer[]>([
     {
@@ -145,10 +187,166 @@ export default function ThumbnailEditorV2() {
     initialCropRight: 0,
     initialAngle: 0,
   });
-
+  const searchParams = useSearchParams();
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
-
   useEffect(() => {
+  const templateId = searchParams.get("template");
+
+  if (!templateId) return;
+
+  const template = templates.find((t) => t.id === templateId);
+
+  if (!template) return;
+
+  setCanvasWidth(template.width);
+  setCanvasHeight(template.height);
+  setCanvasBgColor(template.canvas.background);
+
+ const loadedLayers: Layer[] = template.canvas.elements.map((element: any, index: number) => {
+  const baseLayer = {
+    id: `template-${index}`,
+    type: element.type,
+    name: element.name || `Template Layer ${index + 1}`,
+    x: element.x,
+    y: element.y,
+    opacity: element.opacity ?? 1,
+    angle: element.angle ?? 0,
+  };
+
+  if (element.type === "text") {
+    return {
+      ...baseLayer,
+      type: "text",
+      text: element.text,
+      fontSize: element.fontSize || 80,
+      color: element.color || "#ffffff",
+      fontFamily: element.fontFamily || "Impact",
+      strokeColor: element.strokeColor || "#000000",
+      strokeWidth: element.strokeWidth ?? 2,
+      glowColor: element.glowColor || "#3B82F6",
+      glowRadius: element.glowRadius ?? 0,
+      textAlign: element.textAlign || "center",
+      isBold: element.isBold ?? true,
+      isItalic: false,
+      isUnderline: false,
+      isUppercase: false,
+      hasTextBg: false,
+      textBgColor: "#000000",
+      textBgPadding: 8,
+      shadowColor: "#000000",
+      shadowBlur: element.shadowBlur ?? 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+    };
+  }
+
+  if (element.type === "image") {
+    return {
+      ...baseLayer,
+      type: "image",
+      src: element.src,
+      width: element.width || 300,
+      height: element.height || 300,
+      shadowColor: "#000000",
+      shadowBlur: element.shadowBlur ?? 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      blendMode: "normal",
+      isFlippedH: false,
+      isFlippedV: false,
+      hasImageStroke: element.hasImageStroke ?? false,
+      imageStrokeColor: element.imageStrokeColor || "#3B82F6",
+      imageStrokeWidth: element.imageStrokeWidth ?? 4,
+      blur: 0,
+      cropTop: 0,
+      constrainBottom: 0,
+      cropLeft: 0,
+      cropRight: 0,
+    };
+  }
+
+  return {
+    ...baseLayer,
+    type: "shape",
+    shapeType: element.shapeType || "rectangle",
+    width: element.width || 200,
+    height: element.height || 200,
+    color: element.color || "#3B82F6",
+    shadowColor: "#000000",
+    shadowBlur: element.shadowBlur ?? 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+  };
+});
+
+  setLayers(loadedLayers);
+  setSelectedLayerId(loadedLayers[0]?.id || null);
+}, [searchParams]);
+
+useEffect(() => {
+  const handlePaste = (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (!file) return;
+
+        const url = URL.createObjectURL(file);
+
+        const newImage = {
+          url,
+          name: `Pasted Image ${Date.now()}`,
+        };
+
+        const newLayer: Layer = {
+          id: `img-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+          type: "image",
+          name: newImage.name,
+          src: newImage.url,
+          x: 50,
+          y: 50,
+          width: 240,
+          height: 180,
+          shadowColor: "#000000",
+          shadowBlur: 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+          blendMode: "normal",
+          isFlippedH: false,
+          isFlippedV: false,
+          hasImageStroke: false,
+          imageStrokeColor: "#3B82F6",
+          imageStrokeWidth: 4,
+          opacity: 1,
+          blur: 0,
+          cropTop: 0,
+          constrainBottom: 0,
+          cropLeft: 0,
+          cropRight: 0,
+          angle: 0,
+        };
+
+        setImportedImages((prev) => [...prev, newImage]);
+        setLayers((prev) => [...prev, newLayer]);
+        setSelectedLayerId(newLayer.id);
+        setIsCropMode(false);
+
+        event.preventDefault();
+        break;
+      }
+    }
+  };
+
+  window.addEventListener("paste", handlePaste);
+
+  return () => {
+    window.removeEventListener("paste", handlePaste);
+  };
+}, []);
+ 
+useEffect(() => {
     const updateLayout = () => {
       setIsMobileLayout(window.innerWidth < 900);
     };
@@ -406,39 +604,41 @@ export default function ThumbnailEditorV2() {
     e.target.value = "";
   };
 
-  const addImageToCanvas = (fileObj: ImportedFile) => {
-    const uniqueId = `img-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    const newLayer: Layer = {
-      id: uniqueId,
-      type: "image",
-      name: fileObj.name, 
-      src: fileObj.url,
-      x: 50,
-      y: 50,
-      width: 240,
-      height: 180, 
-      shadowColor: "#000000",
-      shadowBlur: 0,
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-      blendMode: "normal",
-      isFlippedH: false,
-      isFlippedV: false,
-      hasImageStroke: false,
-      imageStrokeColor: "#3B82F6",
-      imageStrokeWidth: 4,
-      opacity: 1, 
-      blur: 0,    
-      cropTop: 0,
-      constrainBottom: 0,
-      cropLeft: 0,
-      cropRight: 0,
-      angle: 0, 
-    };
-    setLayers([...layers, newLayer]);
-    setSelectedLayerId(newLayer.id);
-    setIsCropMode(false);
+ const addImageToCanvas = (fileObj: ImportedFile) => {
+  const uniqueId = `img-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+  const newLayer: Layer = {
+    id: uniqueId,
+    type: "image",
+    name: fileObj.name,
+    src: fileObj.url,
+    x: 50,
+    y: 50,
+    width: 240,
+    height: 180,
+    shadowColor: "#000000",
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    blendMode: "normal",
+    isFlippedH: false,
+    isFlippedV: false,
+    hasImageStroke: false,
+    imageStrokeColor: "#3B82F6",
+    imageStrokeWidth: 4,
+    opacity: 1,
+    blur: 0,
+    cropTop: 0,
+    constrainBottom: 0,
+    cropLeft: 0,
+    cropRight: 0,
+    angle: 0,
   };
+
+  setLayers((prev) => [...prev, newLayer]);
+  setSelectedLayerId(newLayer.id);
+  setIsCropMode(false);
+};
 
   const addTextLayer = () => {
     const uniqueId = `txt-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -467,7 +667,7 @@ export default function ThumbnailEditorV2() {
     setSelectedLayerId(newLayer.id);
   };
 
-  const addShapeLayer = (shapeType: "rectangle" | "circle" | "triangle") => {
+  const addShapeLayer = (shapeType: Layer["shapeType"]) => {
     const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const newLayer: Layer = {
       id: uniqueId,
@@ -489,6 +689,31 @@ export default function ThumbnailEditorV2() {
     setLayers([...layers, newLayer]);
     setSelectedLayerId(newLayer.id);
   };
+
+  const addPremadeShape = (shape: (typeof PREMADE_SHAPES)[number]) => {
+  const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+  const newLayer: Layer = {
+    id: uniqueId,
+    type: "shape",
+    shapeType: shape.shapeType,
+    name: shape.name,
+    x: 50,
+    y: 50,
+    width: 180,
+    height: 120,
+    color: shape.color,
+    shadowColor: "#000000",
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    opacity: 1,
+    angle: 0,
+  };
+
+  setLayers((prev) => [...prev, newLayer]);
+  setSelectedLayerId(newLayer.id);
+};
 
   const moveLayerOrder = (index: number, direction: "up" | "down") => {
     const nextIndex = direction === "up" ? index + 1 : index - 1;
@@ -669,34 +894,170 @@ const downloadPNG = async () => {
           </div>
 
           <div>
-            <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>Canvas Background</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <input type="color" value={canvasBgColor} onChange={(e) => setCanvasBgColor(e.target.value)} style={{ width: "100%", height: "30px", border: "1px solid #CBD5E1", borderRadius: "4px", cursor: "pointer" }} />
-              <input type="file" accept="image/*" onChange={handleUploadBackground} style={{ fontSize: "12px", width: "100%" }} />
-              {preview && <button onClick={() => setPreview(null)} style={{ padding: "4px", fontSize: "11px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5", borderRadius: "4px", cursor: "pointer", marginTop: "2px" }}>Remove Image</button>}
-            </div>
+  <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>
+    Advanced Elements
+  </h2>
+
+  <button onClick={addTextLayer} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "none", background: "#8B5CF6", color: "#FFF", fontWeight: 600, cursor: "pointer", marginBottom: "12px" }}>
+    🔤 Add Text Block
+  </button>
+
+  <label style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px dashed #8B5CF6", color: "#8B5CF6", fontWeight: 500, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px" }}>
+    📥 Import Graphics / PNGs
+    <input type="file" accept="image/*" multiple onChange={handleImportImage} style={{ display: "none" }} />
+  </label>
+
+  <div style={{ marginTop: "14px" }}>
+    <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>
+      Elements
+    </h2>
+
+    <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+      {[
+        { id: "people", label: "People" },
+        { id: "objects", label: "Objects" },
+        { id: "shapes", label: "Shapes" },
+      ].map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes")}
+          style={{
+            flex: 1,
+            padding: "7px",
+            borderRadius: "8px",
+            border: "1px solid #CBD5E1",
+            background: assetTab === tab.id ? "#2563EB" : "#F8FAFC",
+            color: assetTab === tab.id ? "#FFFFFF" : "#334155",
+            fontSize: "11px",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+
+    {assetTab !== "shapes" ? (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+        {PREMADE_ASSETS.filter((asset) => asset.category === assetTab).map((asset) => (
+          <div
+            key={asset.src}
+            onClick={() =>
+              addImageToCanvas({
+                url: asset.src,
+                name: asset.name,
+              })
+            }
+            style={{
+              aspectRatio: "1",
+              border: "1px solid #E2E8F0",
+              borderRadius: "8px",
+              overflow: "hidden",
+              cursor: "pointer",
+              background: "#F8FAFC",
+              padding: "6px",
+            }}
+            title={asset.name}
+          >
+            <img
+              src={asset.src}
+              alt={asset.name}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
           </div>
+        ))}
+      </div>
+    ) : (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+        {PREMADE_SHAPES.map((shape) => (
+          <div
+            key={shape.name}
+            onClick={() => addPremadeShape(shape)}
+            style={{
+              aspectRatio: "1",
+              border: "1px solid #E2E8F0",
+              borderRadius: "8px",
+              background: "#F8FAFC",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            title={shape.name}
+          >
+            {shape.shapeType === "rectangle" && (
+              <div style={{ width: "40px", height: "28px", background: shape.color }} />
+            )}
 
-          <hr style={{ border: "none", borderTop: "1px solid #E2E8F0" }} />
+            {shape.shapeType === "circle" && (
+              <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: shape.color }} />
+            )}
 
-          <div>
-            <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>Advanced Elements</h2>
-            <button onClick={addTextLayer} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "none", background: "#8B5CF6", color: "#FFF", fontWeight: 600, cursor: "pointer", marginBottom: "12px" }}>
-              🔤 Add Text Block
-            </button>
-            
-            <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
-              <button onClick={() => addShapeLayer("rectangle")} style={{ flex: "1 1 90px", padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>⬛ Square</button>
-              <button onClick={() => addShapeLayer("circle")} style={{ flex: "1 1 90px", padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>🟡 Circle</button>
-              <button onClick={() => addShapeLayer("triangle")} style={{ flex: "1 1 90px", padding: "8px", background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}>🔺 Triangle</button>
-            </div>
+            {shape.shapeType === "triangle" && (
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: "20px solid transparent",
+                  borderRight: "20px solid transparent",
+                  borderBottom: `40px solid ${shape.color}`,
+                }}
+              />
+            )}
 
-            <label style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px dashed #8B5CF6", color: "#8B5CF6", fontWeight: 500, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px" }}>
-              📥 Import Graphics / PNGs
-              <input type="file" accept="image/*" multiple onChange={handleImportImage} style={{ display: "none" }} />
-            </label>
+            {shape.shapeType === "star" && (
+              <span style={{ fontSize: "42px", color: shape.color }}>★</span>
+            )}
+
+            {shape.shapeType === "badge" && (
+              <div
+                style={{
+                  width: "54px",
+                  height: "30px",
+                  borderRadius: "999px",
+                  background: shape.color,
+                  color: "#fff",
+                  fontSize: "10px",
+                  fontWeight: 900,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                NEW
+              </div>
+            )}
+
+            {shape.shapeType === "speechBubble" && (
+              <div
+                style={{
+                  width: "52px",
+                  height: "34px",
+                  borderRadius: "12px",
+                  border: "3px solid #0F172A",
+                  background: shape.color,
+                }}
+              />
+            )}
+
+            {shape.shapeType === "arrow" && (
+              <span style={{ fontSize: "42px", color: shape.color }}>➜</span>
+            )}
+
+            {shape.shapeType === "line" && (
+              <div style={{ width: "50px", height: "6px", borderRadius: "999px", background: shape.color }} />
+            )}
           </div>
-
+        ))}
+      </div>
+    )}
+  </div>
+</div>
           {/* GALLERY */}
           {importedImages.length > 0 && (
             <div>
@@ -772,19 +1133,27 @@ const downloadPNG = async () => {
           )}
 
           {/* CANVAS AREA */}
-          <div 
-            ref={workspaceRef} 
-            style={{ 
-              position: "relative", 
-              width: "100%", 
-              maxWidth: isMobileLayout ? "100%" : "820px", 
-              aspectRatio: `${canvasWidth} / ${canvasHeight}`, 
-              backgroundColor: canvasBgColor, 
-              borderRadius: "4px", 
-              boxShadow: "0 10px 30px rgba(0,0,0,0.05)", 
-              overflow: "hidden" 
-            }}
-          >
+          <div
+  ref={workspaceRef}
+  onMouseDown={() => {
+    setSelectedLayerId(null);
+    setIsCropMode(false);
+  }}
+  onTouchStart={() => {
+    setSelectedLayerId(null);
+    setIsCropMode(false);
+  }}
+  style={{
+    position: "relative",
+    width: "100%",
+    maxWidth: isMobileLayout ? "100%" : "820px",
+    aspectRatio: `${canvasWidth} / ${canvasHeight}`,
+    backgroundColor: canvasBgColor,
+    borderRadius: "4px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+    overflow: "hidden",
+  }}
+>
             {preview && (
               <img 
                 src={preview} 
@@ -853,58 +1222,71 @@ const downloadPNG = async () => {
                   }}
                 >
                   {/* TEXT */}
-                  {layer.type === "text" ? (
-                    <div
-                      style={{
-                        fontSize: `${layer.fontSize}px`,
-                        color: layer.color,
-                        fontFamily: layer.fontFamily,
-                        textAlign: layer.textAlign || "center",
-                        fontWeight: layer.isBold ? "bold" : "900",
-                        fontStyle: layer.isItalic ? "italic" : "normal",
-                        textDecoration: layer.isUnderline ? "underline" : "none",
-                        textTransform: layer.isUppercase ? "uppercase" : "none",
-                        background: layer.hasTextBg ? layer.textBgColor : "transparent",
-                        padding: layer.hasTextBg ? `${layer.textBgPadding}px` : "0px",
-                        borderRadius: "4px",
-                        whiteSpace: "nowrap",
-                        ...getEfectosEstilo(layer) 
-                      }}
-                    >
-                      {layer.text}
-                    </div>
-                  ) : layer.type === "shape" ? (
-                    /* SHAPE */
-                    layer.shapeType === "rectangle" ? (
-                      <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, minWidth: `${layer.width}px`, minHeight: `${layer.height}px`, background: layer.color, borderRadius: "4px", filter: (layer.shadowBlur || 0) > 0 ? `drop-shadow(${layer.shadowOffsetX}px ${layer.shadowOffsetY}px ${layer.shadowBlur}px ${layer.shadowColor})` : "none" }} />
-                    ) : layer.shapeType === "circle" ? (
-                      <div style={{ width: `${layer.width}px`, height: `${layer.width}px`, minWidth: `${layer.width}px`, minHeight: `${layer.height}px`, background: layer.color, borderRadius: "50%", filter: (layer.shadowBlur || 0) > 0 ? `drop-shadow(${layer.shadowOffsetX}px ${layer.shadowOffsetY}px ${layer.shadowBlur}px ${layer.shadowColor})` : "none" }} />
-                    ) : (
-                      <div style={{ width: 0, height: 0, borderLeft: `${(layer.width || 100) / 2}px solid transparent`, borderRight: `${(layer.width || 100) / 2}px solid transparent`, borderBottom: `${layer.height}px solid ${layer.color}`, filter: (layer.shadowBlur || 0) > 0 ? `drop-shadow(${layer.shadowOffsetX}px ${layer.shadowOffsetY}px ${layer.shadowBlur}px ${layer.shadowColor})` : "none" }} />
-                    )
-                  ) : (
-                    /* IMAGE */
-                    <img 
-                      src={layer.src} 
-                      alt="layer" 
-                      style={{ 
-                        width: `${layer.width}px`, 
-                        height: `${layer.height}px`, 
-                        minWidth: `${layer.width}px`,
-                        minHeight: `${layer.height}px`,
-                        display: "block", 
-                        pointerEvents: "none",
-                        mixBlendMode: layer.blendMode || "normal",
-                        clipPath: getCropClipPath(layer),
-                        filter: `
-                          blur(${layer.blur || 0}px)
-                          ${getImageStrokeFilter(layer)}
-                          ${(layer.glowRadius || 0) > 0 ? `drop-shadow(0 0 ${layer.glowRadius}px ${layer.glowColor})` : ""}
-                          ${(layer.shadowBlur || 0) > 0 ? `drop-shadow(${layer.shadowOffsetX}px ${layer.shadowOffsetY}px ${layer.shadowBlur}px ${layer.shadowColor})` : ""}
-                        `
-                      }} 
-                    />
-                  )}
+                  {/* TEXT / SHAPE / IMAGE */}
+{layer.type === "text" ? (
+  <div
+    style={{
+      fontSize: `${layer.fontSize}px`,
+      color: layer.color,
+      fontFamily: layer.fontFamily,
+      textAlign: layer.textAlign || "center",
+      fontWeight: layer.isBold ? "bold" : "900",
+      fontStyle: layer.isItalic ? "italic" : "normal",
+      textDecoration: layer.isUnderline ? "underline" : "none",
+      textTransform: layer.isUppercase ? "uppercase" : "none",
+      background: layer.hasTextBg ? layer.textBgColor : "transparent",
+      padding: layer.hasTextBg ? `${layer.textBgPadding}px` : "0px",
+      borderRadius: "4px",
+      whiteSpace: "nowrap",
+      ...getEfectosEstilo(layer),
+    }}
+  >
+    {layer.text}
+  </div>
+) : layer.type === "shape" ? (
+  layer.shapeType === "rectangle" ? (
+    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: layer.color, borderRadius: "8px" }} />
+  ) : layer.shapeType === "circle" ? (
+    <div style={{ width: `${layer.width}px`, height: `${layer.width}px`, background: layer.color, borderRadius: "50%" }} />
+  ) : layer.shapeType === "triangle" ? (
+    <div style={{ width: 0, height: 0, borderLeft: `${(layer.width || 100) / 2}px solid transparent`, borderRight: `${(layer.width || 100) / 2}px solid transparent`, borderBottom: `${layer.height}px solid ${layer.color}` }} />
+  ) : layer.shapeType === "star" ? (
+    <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>★</div>
+  ) : layer.shapeType === "badge" ? (
+    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: layer.color, color: "#fff", borderRadius: "999px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
+      NEW
+    </div>
+  ) : layer.shapeType === "speechBubble" ? (
+    <div style={{ width: `${layer.width}px`, minHeight: `${layer.height}px`, background: layer.color, borderRadius: "18px", border: "3px solid #0F172A", position: "relative" }}>
+      <div style={{ position: "absolute", bottom: "-18px", left: "35px", width: 0, height: 0, borderTop: `18px solid ${layer.color}`, borderRight: "18px solid transparent" }} />
+    </div>
+  ) : layer.shapeType === "arrow" ? (
+    <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>➜</div>
+  ) : (
+    <div style={{ width: `${layer.width}px`, height: "8px", background: layer.color, borderRadius: "999px" }} />
+  )
+) : (
+  <img
+    src={layer.src}
+    alt="layer"
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      minWidth: `${layer.width}px`,
+      minHeight: `${layer.height}px`,
+      display: "block",
+      pointerEvents: "none",
+      mixBlendMode: layer.blendMode || "normal",
+      clipPath: getCropClipPath(layer),
+      filter: `
+        blur(${layer.blur || 0}px)
+        ${getImageStrokeFilter(layer)}
+        ${(layer.glowRadius || 0) > 0 ? `drop-shadow(0 0 ${layer.glowRadius}px ${layer.glowColor})` : ""}
+        ${(layer.shadowBlur || 0) > 0 ? `drop-shadow(${layer.shadowOffsetX}px ${layer.shadowOffsetY}px ${layer.shadowBlur}px ${layer.shadowColor})` : ""}
+      `,
+    }}
+  />
+)}
 
                  {/* TRANSFORM ANCHORS (CORNER HANDLERS) */}
 {!isExporting && isSelected && (
