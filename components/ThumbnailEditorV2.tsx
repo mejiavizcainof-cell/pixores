@@ -19,11 +19,24 @@ type Layer = {
   | "badge"
   | "speechBubble"
   | "arrow"
-  | "line";
+  | "line"
+  | "dashedLine"
+  | "frame"
+  | "roundedFrame"
+  | "circleFrame";
   x: number; 
   y: number; 
   fontSize?: number;
   color?: string;
+  useGradient?: boolean;
+gradientColor1?: string;
+gradientColor2?: string;
+gradientDirection?:
+  | "top-bottom"
+  | "bottom-top"
+  | "left-right"
+  | "right-left"
+  | "diagonal";
   fontFamily?: string;
   width?: number; 
   height?: number; 
@@ -91,6 +104,9 @@ const PREMADE_ASSETS = [
   { category: "objects", name: "Circle Highlight", src: "/template-assets/objects/circle-highlight.png" },
   { category: "objects", name: "Money Stack", src: "/template-assets/objects/money-stack.png" },
   { category: "objects", name: "Fire", src: "/template-assets/objects/fire.png" },
+    { category: "objects", name: "Brush", src: "/template-assets/objects/brush-black-1.png" },
+   { category: "objects", name: "Marcos", src: "/template-assets/objects/marcos.png" },
+   { category: "objects", name: "Lineas", src: "/template-assets/objects/solid-line.png" },
   { category: "objects", name: "YouTube Logo", src: "/template-assets/objects/youtube-logo.png" },
   { category: "objects", name: "Microphone", src: "/template-assets/objects/microphone.png" },
 ];
@@ -107,6 +123,11 @@ const PREMADE_SHAPES = [
   { name: "Speech Bubble", shapeType: "speechBubble" as const, color: "#FFFFFF" },
   { name: "Arrow", shapeType: "arrow" as const, color: "#EF4444" },
   { name: "Line", shapeType: "line" as const, color: "#0F172A" },
+  { name: "Black Line", shapeType: "line" as const, color: "#0F172A" },
+{ name: "Dashed Line", shapeType: "dashedLine" as const, color: "#0F172A" },
+{ name: "Frame", shapeType: "frame" as const, color: "#EF4444" },
+{ name: "Rounded Frame", shapeType: "roundedFrame" as const, color: "#3B82F6" },
+{ name: "Circle Frame", shapeType: "circleFrame" as const, color: "#FACC15" },
 ];
 
 const PRESET_SIZES = {
@@ -467,10 +488,36 @@ useEffect(() => {
           }
 
           // 2. CROP MODE
-          if (isCropMode && layer.type === "image") {
-            // ... (tu lógica de crop existente)
-            return { ...layer, /* valores de crop */ };
-          }
+         if (isCropMode && layer.type === "image") {
+  const newCropTop = Math.max(
+    0,
+    resizeState.initialCropTop + (resizeState.corner?.includes("top") ? deltaY : 0)
+  );
+
+  const newCropBottom = Math.max(
+    0,
+    resizeState.initialCropBottom + (resizeState.corner?.includes("bottom") ? -deltaY : 0)
+  );
+
+  const newCropLeft = Math.max(
+    0,
+    resizeState.initialCropLeft + (resizeState.corner?.includes("Left") ? deltaX : 0)
+  );
+
+  const newCropRight = Math.max(
+    0,
+    resizeState.initialCropRight + (resizeState.corner?.includes("Right") ? -deltaX : 0)
+  );
+
+  return {
+    ...layer,
+    cropTop: newCropTop,
+    constrainBottom: newCropBottom,
+    cropLeft: newCropLeft,
+    cropRight: newCropRight,
+  };
+}
+          
 
           // 3. RESIZING (Multi-corner)
           let newWidth = resizeState.initialWidth;
@@ -679,6 +726,10 @@ useEffect(() => {
       width: 150,
       height: 150,
       color: "#3B82F6",
+      useGradient: false,
+gradientColor1: "#3B82F6",
+gradientColor2: "#8B5CF6",
+gradientDirection: "diagonal",
       shadowColor: "#000000",
       shadowBlur: 0,
       shadowOffsetX: 0,
@@ -703,6 +754,10 @@ useEffect(() => {
     width: 180,
     height: 120,
     color: shape.color,
+    useGradient: false,
+gradientColor1: shape.color,
+gradientColor2: "#8B5CF6",
+gradientDirection: "diagonal",
     shadowColor: "#000000",
     shadowBlur: 0,
     shadowOffsetX: 0,
@@ -838,7 +893,97 @@ const downloadPNG = async () => {
 
   const getCropClipPath = (layer: Layer) => {
     if (layer.type !== "image") return "none";
-    return `inset(${layer.cropTop || 0}px ${layer.cropRight || 0}px ${layer.constrainBottom || 0}px ${layer.cropLeft || 0}px)`;
+
+    return `inset(${layer.cropTop || 0}px ${layer.cropRight || 0}px ${
+      layer.constrainBottom || 0
+    }px ${layer.cropLeft || 0}px)`;
+  };
+
+ const getLayerFill = (layer: Layer) => {
+  if (!layer.useGradient) {
+    return layer.color || "#3B82F6";
+  }
+
+  const directionMap = {
+    "top-bottom": "180deg",
+    "bottom-top": "0deg",
+    "left-right": "90deg",
+    "right-left": "270deg",
+    "diagonal": "135deg",
+  };
+
+  return `linear-gradient(
+    ${directionMap[layer.gradientDirection || "diagonal"]},
+    ${layer.gradientColor1 || layer.color || "#3B82F6"},
+    ${layer.gradientColor2 || "#8B5CF6"}
+  )`;
+};
+
+  const applyCropToSelectedImage = async () => {
+    if (!selectedLayer || selectedLayer.type !== "image" || !selectedLayer.src) return;
+
+    const cropTop = selectedLayer.cropTop || 0;
+    const cropRight = selectedLayer.cropRight || 0;
+    const cropBottom = selectedLayer.constrainBottom || 0;
+    const cropLeft = selectedLayer.cropLeft || 0;
+
+    if (cropTop === 0 && cropRight === 0 && cropBottom === 0 && cropLeft === 0) {
+      setIsCropMode(false);
+      return;
+    }
+
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.src = selectedLayer.src;
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Could not load image for crop"));
+    });
+
+    const displayWidth = selectedLayer.width || img.naturalWidth;
+    const displayHeight = selectedLayer.height || img.naturalHeight;
+
+    const scaleX = img.naturalWidth / displayWidth;
+    const scaleY = img.naturalHeight / displayHeight;
+
+    const sourceX = cropLeft * scaleX;
+    const sourceY = cropTop * scaleY;
+    const sourceWidth = Math.max(1, img.naturalWidth - (cropLeft + cropRight) * scaleX);
+    const sourceHeight = Math.max(1, img.naturalHeight - (cropTop + cropBottom) * scaleY);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(sourceWidth);
+    canvas.height = Math.round(sourceHeight);
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(
+      img,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      sourceWidth,
+      sourceHeight
+    );
+
+    const croppedSrc = canvas.toDataURL("image/png");
+
+    updateSelectedLayer({
+      src: croppedSrc,
+      width: Math.round(sourceWidth / scaleX),
+      height: Math.round(sourceHeight / scaleY),
+      cropTop: 0,
+      cropRight: 0,
+      constrainBottom: 0,
+      cropLeft: 0,
+    });
+
+    setIsCropMode(false);
   };
 
   return (
@@ -1052,6 +1197,21 @@ const downloadPNG = async () => {
             {shape.shapeType === "line" && (
               <div style={{ width: "50px", height: "6px", borderRadius: "999px", background: shape.color }} />
             )}
+            {shape.shapeType === "dashedLine" && (
+  <div style={{ width: "50px", borderTop: `4px dashed ${shape.color}` }} />
+)}
+
+{shape.shapeType === "frame" && (
+  <div style={{ width: "46px", height: "32px", border: `4px solid ${shape.color}` }} />
+)}
+
+{shape.shapeType === "roundedFrame" && (
+  <div style={{ width: "46px", height: "32px", border: `4px solid ${shape.color}`, borderRadius: "10px" }} />
+)}
+
+{shape.shapeType === "circleFrame" && (
+  <div style={{ width: "40px", height: "40px", border: `4px solid ${shape.color}`, borderRadius: "50%" }} />
+)}
           </div>
         ))}
       </div>
@@ -1245,25 +1405,70 @@ const downloadPNG = async () => {
   </div>
 ) : layer.type === "shape" ? (
   layer.shapeType === "rectangle" ? (
-    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: layer.color, borderRadius: "8px" }} />
+    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), borderRadius: "8px" }} />
   ) : layer.shapeType === "circle" ? (
-    <div style={{ width: `${layer.width}px`, height: `${layer.width}px`, background: layer.color, borderRadius: "50%" }} />
+    <div style={{ width: `${layer.width}px`, height: `${layer.width}px`, background: getLayerFill(layer), borderRadius: "50%" }} />
   ) : layer.shapeType === "triangle" ? (
-    <div style={{ width: 0, height: 0, borderLeft: `${(layer.width || 100) / 2}px solid transparent`, borderRight: `${(layer.width || 100) / 2}px solid transparent`, borderBottom: `${layer.height}px solid ${layer.color}` }} />
-  ) : layer.shapeType === "star" ? (
+  <div
+    style={{
+      width: 0,
+      height: 0,
+      borderLeft: `${(layer.width || 100) / 2}px solid transparent`,
+      borderRight: `${(layer.width || 100) / 2}px solid transparent`,
+      borderBottom: `${layer.height}px solid ${layer.gradientColor1 || layer.color}`,
+    }}
+  />
+) : layer.shapeType === "star" ? (
     <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>★</div>
   ) : layer.shapeType === "badge" ? (
-    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: layer.color, color: "#fff", borderRadius: "999px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
+    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), color: "#fff", borderRadius: "999px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
       NEW
     </div>
   ) : layer.shapeType === "speechBubble" ? (
-    <div style={{ width: `${layer.width}px`, minHeight: `${layer.height}px`, background: layer.color, borderRadius: "18px", border: "3px solid #0F172A", position: "relative" }}>
+    <div style={{ width: `${layer.width}px`, minHeight: `${layer.height}px`, background: getLayerFill(layer), borderRadius: "18px", border: "3px solid #0F172A", position: "relative" }}>
       <div style={{ position: "absolute", bottom: "-18px", left: "35px", width: 0, height: 0, borderTop: `18px solid ${layer.color}`, borderRight: "18px solid transparent" }} />
     </div>
+    ) : layer.shapeType === "dashedLine" ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: "0px",
+      borderTop: `6px dashed ${layer.color}`,
+    }}
+  />
+) : layer.shapeType === "frame" ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      border: `8px solid ${layer.color}`,
+      background: "transparent",
+    }}
+  />
+) : layer.shapeType === "roundedFrame" ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      border: `8px solid ${layer.color}`,
+      borderRadius: "24px",
+      background: "transparent",
+    }}
+  />
+) : layer.shapeType === "circleFrame" ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.width}px`,
+      border: `8px solid ${layer.color}`,
+      borderRadius: "50%",
+      background: "transparent",
+    }}
+  />
   ) : layer.shapeType === "arrow" ? (
     <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>➜</div>
   ) : (
-    <div style={{ width: `${layer.width}px`, height: "8px", background: layer.color, borderRadius: "999px" }} />
+    <div style={{ width: `${layer.width}px`, height: "8px", background: getLayerFill(layer), borderRadius: "999px" }} />
   )
 ) : (
   <img
@@ -1401,11 +1606,17 @@ const downloadPNG = async () => {
               {/* CROP CROP TOOL */}
               {selectedLayer.type === "image" && (
                 <button
-                  onClick={() => setIsCropMode(!isCropMode)}
-                  style={{ width: "100%", padding: "8px", background: isCropMode ? "#0F172A" : "#F1F5F9", color: isCropMode ? "#FFF" : "#0F172A", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                >
-                  {isCropMode ? "✅ Apply Changes" : "✂️ Crop Image"}
-                </button>
+  onClick={() => {
+    if (isCropMode) {
+      applyCropToSelectedImage();
+    } else {
+      setIsCropMode(true);
+    }
+  }}
+  style={{ width: "100%", padding: "8px", background: isCropMode ? "#0F172A" : "#F1F5F9", color: isCropMode ? "#FFF" : "#0F172A", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+>
+  {isCropMode ? "✅ Apply Changes" : "✂️ Crop Image"}
+</button>
               )}
 
               {/* PIXEL DIMENSIONS INPUT */}
@@ -1479,7 +1690,100 @@ const downloadPNG = async () => {
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <label style={{ fontSize: "11px", fontWeight: 600 }}>Element Primary Color</label>
                 <input type="color" value={selectedLayer.color || "#FFFFFF"} onChange={(e) => updateSelectedLayer({ color: e.target.value })} />
+                {selectedLayer.type === "shape" && (
+  <div
+    style={{
+      background: "#F8FAFC",
+      padding: "10px",
+      borderRadius: "8px",
+      border: "1px solid #E2E8F0",
+      marginTop: "8px",
+    }}
+  >
+    <label
+      style={{
+        fontSize: "11px",
+        fontWeight: 700,
+        color: "#475569",
+        display: "flex",
+        gap: "6px",
+        alignItems: "center",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={selectedLayer.useGradient || false}
+        onChange={(e) =>
+          updateSelectedLayer({
+            useGradient: e.target.checked,
+          })
+        }
+      />
+      Gradient Fill
+    </label>
+
+   
+      
+    {selectedLayer.useGradient && (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      marginTop: "8px",
+    }}
+  >
+    <div style={{ display: "flex", gap: "8px" }}>
+      <input
+        type="color"
+        value={selectedLayer.gradientColor1 || selectedLayer.color || "#3B82F6"}
+        onChange={(e) =>
+          updateSelectedLayer({
+            gradientColor1: e.target.value,
+          })
+        }
+        style={{ width: "100%", height: "28px" }}
+      />
+
+      <input
+        type="color"
+        value={selectedLayer.gradientColor2 || "#8B5CF6"}
+        onChange={(e) =>
+          updateSelectedLayer({
+            gradientColor2: e.target.value,
+          })
+        }
+        style={{ width: "100%", height: "28px" }}
+      />
+    </div>
+
+    <select
+      value={selectedLayer.gradientDirection || "diagonal"}
+      onChange={(e) =>
+        updateSelectedLayer({
+          gradientDirection: e.target.value as any,
+        })
+      }
+      style={{
+        width: "100%",
+        padding: "6px",
+        borderRadius: "6px",
+        border: "1px solid #CBD5E1",
+      }}
+    >
+      <option value="top-bottom">Top → Bottom</option>
+      <option value="bottom-top">Bottom → Top</option>
+      <option value="left-right">Left → Right</option>
+      <option value="right-left">Right → Left</option>
+      <option value="diagonal">Diagonal</option>
+    </select>
+  </div>
+)}
+  </div>
+  
+)}
               </div>
+              
 
               {selectedLayer.type === "text" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
