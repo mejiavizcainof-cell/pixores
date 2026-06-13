@@ -104,7 +104,7 @@ const PREMADE_ASSETS = [
   { category: "objects", name: "Circle Highlight", src: "/template-assets/objects/circle-highlight.png" },
   { category: "objects", name: "Money Stack", src: "/template-assets/objects/money-stack.png" },
   { category: "objects", name: "Fire", src: "/template-assets/objects/fire.png" },
-    { category: "objects", name: "Brush", src: "/template-assets/objects/brush-black-1.png" },
+    { category: "objects", name: "Brush", src: "/template-assets/objects/.png" },
    { category: "objects", name: "Marcos", src: "/template-assets/objects/marcos.png" },
    { category: "objects", name: "Lineas", src: "/template-assets/objects/solid-line.png" },
   { category: "objects", name: "YouTube Logo", src: "/template-assets/objects/youtube-logo.png" },
@@ -1037,7 +1037,53 @@ const downloadPNG = async () => {
               </div>
             </div>
           </div>
+          <div>
+  <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>
+    Canvas Background
+  </h2>
 
+  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <input
+      type="color"
+      value={canvasBgColor}
+      onChange={(e) => setCanvasBgColor(e.target.value)}
+      style={{
+        width: "100%",
+        height: "30px",
+        border: "1px solid #CBD5E1",
+        borderRadius: "4px",
+        cursor: "pointer",
+      }}
+    />
+
+    <input
+      type="file"
+      accept="image/*"
+      onChange={handleUploadBackground}
+      style={{ fontSize: "12px", width: "100%" }}
+    />
+
+    {preview && (
+      <button
+        onClick={() => setPreview(null)}
+        style={{
+          padding: "4px",
+          fontSize: "11px",
+          background: "#FEF2F2",
+          color: "#DC2626",
+          border: "1px solid #FCA5A5",
+          borderRadius: "4px",
+          cursor: "pointer",
+          marginTop: "2px",
+        }}
+      >
+        Remove Image
+      </button>
+    )}
+  </div>
+</div>
+
+<hr style={{ border: "none", borderTop: "1px solid #E2E8F0" }} />
           <div>
   <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>
     Advanced Elements
