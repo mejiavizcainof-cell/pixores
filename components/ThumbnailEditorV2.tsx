@@ -51,8 +51,13 @@ gradientDirection?:
   isBold?: boolean;
   isItalic?: boolean;
   isUnderline?: boolean;
+  isStrikethrough?: boolean;
   isUppercase?: boolean;
-  textAlign?: "left" | "center" | "right";
+  textAlign?: "left" | "center" | "right" | "justify";
+  letterSpacing?: number;
+  lineHeight?: number;
+  textAnimation?: "none" | "pop" | "float";
+  borderRadius?: number;
   textBgColor?: string;
   hasTextBg?: boolean;
   textBgPadding?: number;
@@ -147,6 +152,24 @@ const PRESET_SIZES = {
   custom: { name: "Custom Size", width: 1080, height: 990 }
 };
 
+const FONT_OPTIONS = [
+  "Inter",
+  "Montserrat",
+  "Poppins",
+  "Anton",
+  "Impact",
+  "Georgia",
+  "Trebuchet MS",
+  "Verdana",
+  "Times New Roman",
+];
+
+const TEXT_PRESETS = [
+  { label: "Bold Title", text: "Bold Title", fontSize: 64, fontFamily: "Anton", isBold: true, color: "#111827" },
+  { label: "Clean Subtitle", text: "Clean Subtitle", fontSize: 38, fontFamily: "Trebuchet MS", isBold: true, color: "#1F2937" },
+  { label: "Body Caption", text: "Body Caption", fontSize: 26, fontFamily: "Georgia", isBold: false, color: "#334155" },
+];
+
 export default function ThumbnailEditorV2() {
   useEffect(() => {
     console.log("Supabase:", supabase);
@@ -170,6 +193,8 @@ export default function ThumbnailEditorV2() {
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
   const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames">("people");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
+  const [textSearch, setTextSearch] = useState<string>("");
+  const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
 
   const [savedProjects, setSavedProjects] = useState<any[]>([]);
   const [showProjects, setShowProjects] = useState(false);
@@ -385,11 +410,12 @@ useEffect(() => {
     const sWidth = layer.strokeWidth || 0;
     const gColor = layer.glowColor || "#3B82F6";
     const gRadius = layer.glowRadius || 0;
+    const style: Record<string, string> = {
+      WebkitTextStroke: sWidth > 0 ? `${sWidth}px ${sColor}` : "0 transparent",
+      paintOrder: "stroke fill",
+    };
 
     let textShadowString = "";
-    if (sWidth > 0) {
-      textShadowString += `-${sWidth}px -${sWidth}px 0 ${sColor}, ${sWidth}px -${sWidth}px 0 ${sColor}, -${sWidth}px ${sWidth}px 0 ${sColor}, ${sWidth}px ${sWidth}px 0 ${sColor}, 0px ${sWidth}px 0 ${sColor}, 0px -${sWidth}px 0 ${sColor}, ${sWidth}px 0px 0 ${sColor}, -${sWidth}px 0px 0 ${sColor}`;
-    }
     if (gRadius > 0) {
       if (textShadowString) textShadowString += ", ";
       textShadowString += `0 0 ${gRadius}px ${gColor}, 0 0 ${gRadius * 1.5}px ${gColor}`;
@@ -398,13 +424,17 @@ useEffect(() => {
       if (textShadowString) textShadowString += ", ";
       textShadowString += `${layer.shadowOffsetX}px ${layer.shadowOffsetY}px ${layer.shadowBlur}px ${layer.shadowColor}`;
     }
-    return { textShadow: textShadowString || "none" };
+    style.textShadow = textShadowString || "none";
+    return style;
   };
 
   // GLOBAL KEYBOARD MANAGEMENT (Delete, Backspace, Enter, Arrow Keys)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isTyping = document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA";
+      const isTyping =
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        (document.activeElement as HTMLElement | null)?.isContentEditable;
 
       if (isTyping) {
         if (e.key === "Enter") {
@@ -529,8 +559,13 @@ useEffect(() => {
           if (layer.type === "text") {
             const horizontalDelta = affectsLeft ? -deltaX : affectsRight ? deltaX : 0;
             const verticalDelta = affectsTop ? -deltaY : affectsBottom ? deltaY : 0;
-            newFontSize = Math.max(8, Math.round(resizeState.initialFontSize + (horizontalDelta + verticalDelta) / 2));
-            return { ...layer, fontSize: newFontSize };
+            const hasTextBox = Boolean(layer.width);
+            newWidth = Math.max(40, Math.round((hasTextBox ? resizeState.initialWidth : Math.max(resizeState.initialWidth, 220)) + horizontalDelta));
+            newFontSize = Math.max(8, Math.round(resizeState.initialFontSize + verticalDelta / 2));
+            const widthChange = newWidth - (hasTextBox ? resizeState.initialWidth : Math.max(resizeState.initialWidth, 220));
+            const xShiftPx = affectsLeft ? -widthChange / 2 : affectsRight ? widthChange / 2 : 0;
+            newX = Math.max(0, Math.min(100, resizeState.initialX + (xShiftPx / rect.width) * 100));
+            return { ...layer, width: newWidth, fontSize: newFontSize, x: newX };
           }
 
           if (affectsLeft) newWidth = resizeState.initialWidth - deltaX;
@@ -715,7 +750,10 @@ try {
     for (let i = 0; i < files.length; i++) {
       newFiles.push({ url: URL.createObjectURL(files[i]), name: files[i].name });
     }
-    setImportedImages([...importedImages, ...newFiles]);
+    setImportedImages((prev) => [...prev, ...newFiles]);
+    newFiles.forEach((fileObj, index) => {
+      addImageToCanvas(fileObj, { offset: index, allowFrame: index === 0 });
+    });
     e.target.value = "";
   };
 const isImageFrame = (layer?: Layer) => {
@@ -736,8 +774,14 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
 
   return true;
 };
- const addImageToCanvas = (fileObj: ImportedFile) => {
-  if (addImageToSelectedFrame(fileObj)) {
+ const addImageToCanvas = (
+  fileObj: ImportedFile,
+  options: { offset?: number; allowFrame?: boolean } = {}
+) => {
+  const offset = options.offset || 0;
+  const allowFrame = options.allowFrame ?? true;
+
+  if (allowFrame && addImageToSelectedFrame(fileObj)) {
   return;
 }
   const uniqueId = `img-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -747,8 +791,8 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
     type: "image",
     name: fileObj.name,
     src: fileObj.url,
-    x: 50,
-    y: 50,
+    x: Math.min(88, 50 + offset * 3),
+    y: Math.min(88, 50 + offset * 3),
     width: 240,
     height: 180,
     shadowColor: "#000000",
@@ -775,26 +819,38 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
   setIsCropMode(false);
 };
 
-  const addTextLayer = () => {
+  const addTextLayer = (preset?: Partial<Layer>) => {
     const uniqueId = `txt-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const newLayer: Layer = {
       id: uniqueId,
       type: "text",
       name: "Text Layer " + (layers.length + 1),
-      text: "New Text Line",
+      text: preset?.text || "New Text Line",
       x: 50,
       y: 50,
-      fontSize: 40,
-      color: "#000000",
-      fontFamily: "Arial",
+      fontSize: preset?.fontSize || 40,
+      color: preset?.color || "#000000",
+      fontFamily: preset?.fontFamily || "Inter",
       strokeColor: "#000000",
       strokeWidth: 0,
       glowColor: "#FFFF00",
       glowRadius: 0,
       textAlign: "center",
+      letterSpacing: 0,
+      lineHeight: 1,
+      textAnimation: "none",
+      isBold: preset?.isBold ?? false,
+      isItalic: false,
+      isUnderline: false,
+      isStrikethrough: false,
+      isUppercase: false,
       hasTextBg: false,
       textBgColor: "#FF0000",
       textBgPadding: 6,
+      shadowColor: "#000000",
+      shadowBlur: 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
       opacity: 1,
       angle: 0,
     };
@@ -927,6 +983,7 @@ const downloadPNG = async () => {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
+    await document.fonts.ready;
     await waitForCanvasImages(workspace);
 
     const dataUrl = await toPng(workspace, {
@@ -971,6 +1028,7 @@ const downloadTransparentPNG = async () => {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
+    await document.fonts.ready;
     await waitForCanvasImages(workspace);
 
     const dataUrl = await toPng(workspace, {
@@ -1069,7 +1127,8 @@ const downloadSelectedNoBgPNG = async () => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       );
 
-      await waitForCanvasImages(workspace);
+    await document.fonts.ready;
+    await waitForCanvasImages(workspace);
 
       const thumbnail = await toPng(workspace, {
         cacheBust: true,
@@ -1438,23 +1497,34 @@ const buyCredits = async (packageId: string) => {
     <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
       
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@700;900&family=Poppins:wght@600;900&family=Inter:wght@400;800&display=swap" />
+      <style>{`
+        @keyframes pixoresTextPop {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.04); }
+        }
+        @keyframes pixoresTextFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
 
       {/* HEADER */}
-      <header style={{ minHeight: "56px", background: "#0F172A", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: isMobileLayout ? "8px 14px" : "0 20px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", zIndex: 10, flexWrap: "nowrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 180px" }}>
+      <header style={{ minHeight: isMobileLayout ? "56px" : "68px", background: isMobileLayout ? "#0F172A" : "rgba(255,255,255,0.96)", color: isMobileLayout ? "#FFFFFF" : "#0F172A", display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobileLayout ? "12px" : "14px", padding: isMobileLayout ? "8px 14px" : "0 18px", borderBottom: isMobileLayout ? "none" : "1px solid #E2E8F0", boxShadow: isMobileLayout ? "0 2px 4px rgba(0,0,0,0.1)" : "0 8px 24px rgba(15,23,42,0.06)", zIndex: 10, flexWrap: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: isMobileLayout ? "1 1 180px" : "0 0 auto" }}>
           <span style={{ fontSize: "20px" }}>🎨</span>
-          <h1 style={{ fontSize: isMobileLayout ? "15px" : "16px", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis" }}>Pixores Studio V2</h1>
+          <h1 style={{ fontSize: isMobileLayout ? "15px" : "17px", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Studio V2</h1>
         </div>
 
         <div
   style={{
     display: isMobileLayout ? "none" : "block",
-    padding: "8px 12px",
-    borderRadius: "8px",
-    background: "#1E293B",
-    color: "#FACC15",
+    padding: "8px 10px",
+    borderRadius: "999px",
+    background: "#FFF7ED",
+    color: "#B45309",
     fontWeight: 700,
-    fontSize: isMobileLayout ? "13px" : "15px",
+    fontSize: "14px",
+    border: "1px solid #FED7AA",
   }}
 >
   ⭐ Credits: {credits ?? "-"}
@@ -1462,12 +1532,12 @@ const buyCredits = async (packageId: string) => {
   <button
   onClick={() => setShowCreditsModal(true)}
   style={{
-    marginTop: "6px",
+    marginLeft: "8px",
     padding: "6px 10px",
     background: "#F59E0B",
     color: "#FFF",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "999px",
     cursor: "pointer",
     fontWeight: 700,
   }}
@@ -1480,14 +1550,14 @@ const buyCredits = async (packageId: string) => {
   onClick={saveProject}
   style={{
     display: isMobileLayout ? "none" : "block",
-    padding: isMobileLayout ? "9px 12px" : "8px 16px",
+    padding: "10px 16px",
     background: "#2563EB",
     color: "#FFF",
     border: "none",
-    borderRadius: "6px",
-    fontWeight: 600,
+    borderRadius: "999px",
+    fontWeight: 700,
     cursor: "pointer",
-    fontSize: isMobileLayout ? "14px" : "16px",
+    fontSize: "14px",
   }}
 >
   💾 Save Project
@@ -1498,14 +1568,14 @@ const buyCredits = async (packageId: string) => {
   disabled={!currentProjectId}
   style={{
     display: isMobileLayout ? "none" : "block",
-    padding: isMobileLayout ? "9px 12px" : "8px 16px",
+    padding: "10px 16px",
     background: currentProjectId ? "#F59E0B" : "#94A3B8",
     color: "#FFF",
     border: "none",
-    borderRadius: "6px",
-    fontWeight: 600,
+    borderRadius: "999px",
+    fontWeight: 700,
     cursor: currentProjectId ? "pointer" : "not-allowed",
-    fontSize: isMobileLayout ? "14px" : "16px",
+    fontSize: "14px",
   }}
 >
   🔄 Update Project
@@ -1515,24 +1585,24 @@ const buyCredits = async (packageId: string) => {
   onClick={loadMyProjects}
   style={{
     display: isMobileLayout ? "none" : "block",
-    padding: isMobileLayout ? "9px 12px" : "8px 16px",
-    background: "#0F172A",
-    color: "#FFF",
-    border: "none",
-    borderRadius: "6px",
-    fontWeight: 600,
+    padding: "10px 14px",
+    background: "#F8FAFC",
+    color: "#0F172A",
+    border: "1px solid #CBD5E1",
+    borderRadius: "999px",
+    fontWeight: 700,
     cursor: "pointer",
-    fontSize: isMobileLayout ? "14px" : "16px",
+    fontSize: "14px",
   }}
 >
   📂 My Projects
 </button>
 
 
-        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ display: isMobileLayout ? "none" : "block", padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 140px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
+        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ display: isMobileLayout ? "none" : "block", padding: "10px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "999px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer", flex: "0 0 auto", fontSize: "14px", boxShadow: isExporting ? "none" : "0 8px 18px rgba(16,185,129,0.22)" }}>
           📥 Download PNG HD
         </button>
-        <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ display: isMobileLayout ? "none" : "block", padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 160px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
+        <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ display: isMobileLayout ? "none" : "block", padding: "10px 16px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFF", border: "none", borderRadius: "999px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer", flex: "0 0 auto", fontSize: "14px", boxShadow: isExporting ? "none" : "0 8px 18px rgba(14,165,233,0.22)" }}>
           Download Transparent PNG
         </button>
       </header>
@@ -1884,9 +1954,47 @@ const buyCredits = async (packageId: string) => {
     Advanced Elements
   </h2>
 
-  <button onClick={addTextLayer} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "none", background: "#8B5CF6", color: "#FFF", fontWeight: 600, cursor: "pointer", marginBottom: "12px" }}>
-    🔤 Add Text Block
-  </button>
+  <div style={{ background: "#FFFFFF", border: "1px solid #E9D5FF", borderRadius: "16px", padding: "12px", marginBottom: "12px", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 10px 24px rgba(124,58,237,0.08)" }}>
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", border: "1px solid #E9D5FF", borderRadius: "14px", padding: "10px 12px", color: "#64748B", background: "#FFFFFF" }}>
+      <span style={{ fontSize: "18px" }}>⌕</span>
+      <input
+        type="text"
+        value={textSearch}
+        onChange={(e) => setTextSearch(e.target.value)}
+        placeholder="Search fonts and styles"
+        style={{ border: "none", outline: "none", width: "100%", fontSize: "13px", background: "transparent", color: "#0F172A" }}
+      />
+    </label>
+
+    <button onClick={() => addTextLayer()} style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #8B5CF6 0%, #9333EA 100%)", color: "#FFF", fontWeight: 800, cursor: "pointer", fontSize: "14px" }}>
+      T Add Text Box
+    </button>
+
+    <button type="button" onClick={() => addTextLayer({ text: "Smart Caption", fontSize: 42, fontFamily: "Trebuchet MS", isBold: true, color: "#111827" })} style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#111827", fontWeight: 700, cursor: "pointer", fontSize: "13px" }}>
+      ✨ Smart Caption
+    </button>
+
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#111827", fontSize: "13px", fontWeight: 800, paddingTop: "4px" }}>
+      <span>Brand Fonts</span>
+      <button type="button" style={{ border: "none", background: "transparent", color: "#111827", fontWeight: 800, cursor: "pointer" }}>Manage</button>
+    </div>
+
+    <button type="button" onClick={() => addTextLayer({ text: "Brand Headline", fontFamily: "Montserrat", fontSize: 40, isBold: true })} style={{ width: "100%", padding: "9px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#111827", fontWeight: 700, cursor: "pointer" }}>
+      Add your brand font style
+    </button>
+
+    <strong style={{ fontSize: "13px", color: "#111827" }}>Pixores text presets</strong>
+    {TEXT_PRESETS.filter((preset) => preset.label.toLowerCase().includes(textSearch.toLowerCase()) || preset.fontFamily.toLowerCase().includes(textSearch.toLowerCase()) || textSearch.trim() === "").map((preset) => (
+      <button
+        key={preset.label}
+        type="button"
+        onClick={() => addTextLayer(preset)}
+        style={{ width: "100%", minHeight: "68px", textAlign: "left", padding: "12px 16px", borderRadius: "16px", border: "1px solid #E2E8F0", background: "#FFFFFF", color: preset.color, cursor: "pointer", fontFamily: preset.fontFamily, fontSize: Math.min(30, Math.max(16, preset.fontSize / 2.4)), fontWeight: preset.isBold ? 900 : 500, lineHeight: 1.05, overflow: "hidden", overflowWrap: "break-word", wordBreak: "normal" }}
+      >
+        {preset.label}
+      </button>
+    ))}
+  </div>
 
   <label style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px dashed #8B5CF6", color: "#8B5CF6", fontWeight: 500, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px" }}>
     📥 Import Graphics / PNGs
@@ -2099,36 +2207,102 @@ const buyCredits = async (packageId: string) => {
         <section style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: isMobileLayout ? "8px 10px" : "6px 20px", borderRadius: isMobileLayout ? "10px" : "30px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: "100%", overflowX: "auto" }}>
-              <select value={selectedLayer.fontFamily} onChange={(e) => updateSelectedLayer({ fontFamily: e.target.value })} style={{ border: "none", fontSize: "13px", fontWeight: 600, outline: "none", cursor: "pointer" }}>
-                <option value="Arial">Arial</option>
-                <option value="Impact">Impact</option>
-                <option value="Anton">Anton (Heavy)</option>
-                <option value="Bebas Neue">Bebas Neue</option>
-                <option value="Montserrat">Montserrat</option>
-                <option value="Poppins">Poppins</option>
-                <option value="Inter">Inter</option>
+            <div style={{ position: isMobileLayout ? "static" : "fixed", top: isMobileLayout ? undefined : "78px", left: isMobileLayout ? undefined : "50%", transform: isMobileLayout ? undefined : "translateX(-50%)", zIndex: isMobileLayout ? undefined : 200, display: "flex", alignItems: "center", gap: "6px", background: "#FFFFFF", padding: "6px", borderRadius: "18px", boxShadow: "0 10px 30px rgba(15,23,42,0.14)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: isMobileLayout ? "100%" : "calc(100vw - 56px)", overflowX: "auto" }}>
+              <select
+                value={selectedLayer.fontFamily || "Inter"}
+                onChange={(e) => updateSelectedLayer({ fontFamily: e.target.value })}
+                style={{ minWidth: "150px", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "8px 10px", fontSize: "14px", fontWeight: 700, outline: "none", cursor: "pointer", background: "#FFFFFF" }}
+                title="Font"
+              >
+                {FONT_OPTIONS.map((font) => (
+                  <option key={font} value={font}>{font}</option>
+                ))}
               </select>
-              <span style={{ color: "#E2E8F0" }}>|</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <button onClick={() => updateSelectedLayer({ fontSize: Math.max(10, (selectedLayer.fontSize || 40) - 4) })} style={{ border: "none", background: "none", cursor: "pointer", fontWeight: "bold" }}>-</button>
-                <span style={{ fontSize: "13px", fontWeight: 600 }}>{selectedLayer.fontSize}</span>
-                <button onClick={() => updateSelectedLayer({ fontSize: (selectedLayer.fontSize || 40) + 4 })} style={{ border: "none", background: "none", cursor: "pointer", fontWeight: "bold" }}>+</button>
+
+              <div style={{ display: "flex", alignItems: "center", border: "1px solid #CBD5E1", borderRadius: "10px", overflow: "hidden", background: "#FFFFFF" }}>
+                <button type="button" onClick={() => updateSelectedLayer({ fontSize: Math.max(8, (selectedLayer.fontSize || 40) - 2) })} style={{ width: "34px", height: "34px", border: "none", background: "#FFFFFF", cursor: "pointer", fontSize: "18px" }}>-</button>
+                <input type="number" min="8" max="300" value={selectedLayer.fontSize || 40} onChange={(e) => updateSelectedLayer({ fontSize: Math.max(8, Number(e.target.value)) })} style={{ width: "52px", border: "none", outline: "none", textAlign: "center", fontSize: "15px", fontWeight: 800 }} />
+                <button type="button" onClick={() => updateSelectedLayer({ fontSize: (selectedLayer.fontSize || 40) + 2 })} style={{ width: "34px", height: "34px", border: "none", background: "#FFFFFF", cursor: "pointer", fontSize: "18px" }}>+</button>
               </div>
-              <span style={{ color: "#E2E8F0" }}>|</span>
-              
-              <button onClick={() => updateSelectedLayer({ textAlign: "left" })} style={{ border: "none", background: selectedLayer.textAlign === "left" ? "#E2E8F0" : "none", cursor: "pointer", borderRadius: "4px", fontSize: "14px", padding: "2px 6px" }}>⬅️</button>
-              <button onClick={() => updateSelectedLayer({ textAlign: "center" })} style={{ border: "none", background: selectedLayer.textAlign === "center" ? "#E2E8F0" : "none", cursor: "pointer", borderRadius: "4px", fontSize: "14px", padding: "2px 6px" }}>☰</button>
-              <button onClick={() => updateSelectedLayer({ textAlign: "right" })} style={{ border: "none", background: selectedLayer.textAlign === "right" ? "#E2E8F0" : "none", cursor: "pointer", borderRadius: "4px", fontSize: "14px", padding: "2px 6px" }}>➡️</button>
-              <span style={{ color: "#E2E8F0" }}>|</span>
-              
-              <button onClick={() => updateSelectedLayer({ isBold: !selectedLayer.isBold })} style={{ border: "none", background: selectedLayer.isBold ? "#E2E8F0" : "none", fontWeight: "bold", cursor: "pointer", borderRadius: "4px", width: "24px" }}>B</button>
-              <button onClick={() => updateSelectedLayer({ isUppercase: !selectedLayer.isUppercase })} style={{ border: "none", background: selectedLayer.isUppercase ? "#E2E8F0" : "none", cursor: "pointer", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>aA</button>
-              <span style={{ color: "#E2E8F0" }}>|</span>
-              <label style={{ fontSize: "11px", fontWeight: 600, color: "#475569", display: "flex", alignItems: "center", gap: "4px" }}>
-                Outline:
-                <input type="number" min="0" max="10" value={selectedLayer.strokeWidth || 0} onChange={(e) => updateSelectedLayer({ strokeWidth: Number(e.target.value) })} style={{ width: "36px", padding: "2px", borderRadius: "4px", border: "1px solid #CBD5E1" }} />
+
+              <label title="Text color" style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: "#FFFFFF", cursor: "pointer", display: "grid", placeItems: "center", fontWeight: 900, position: "relative" }}>
+                A
+                <span style={{ position: "absolute", bottom: "4px", width: "22px", height: "4px", borderRadius: "99px", background: selectedLayer.color || "#000000" }} />
+                <input type="color" value={selectedLayer.color || "#000000"} onChange={(e) => updateSelectedLayer({ color: e.target.value })} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
               </label>
+
+              {[
+                { label: "B", title: "Bold", active: selectedLayer.isBold, fields: { isBold: !selectedLayer.isBold }, style: { fontWeight: 900 } },
+                { label: "I", title: "Italic", active: selectedLayer.isItalic, fields: { isItalic: !selectedLayer.isItalic }, style: { fontStyle: "italic" } },
+                { label: "U", title: "Underline", active: selectedLayer.isUnderline, fields: { isUnderline: !selectedLayer.isUnderline }, style: { textDecoration: "underline" } },
+                { label: "S", title: "Strikethrough", active: selectedLayer.isStrikethrough, fields: { isStrikethrough: !selectedLayer.isStrikethrough }, style: { textDecoration: "line-through" } },
+                { label: "aA", title: "Uppercase", active: selectedLayer.isUppercase, fields: { isUppercase: !selectedLayer.isUppercase }, style: { fontWeight: 800, fontSize: "13px" } },
+              ].map((control) => (
+                <button key={control.title} type="button" title={control.title} onClick={() => updateSelectedLayer(control.fields as Partial<Layer>)} style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: control.active ? "#E0F2FE" : "#FFFFFF", color: "#111827", cursor: "pointer", fontSize: "17px", ...control.style }}>
+                  {control.label}
+                </button>
+              ))}
+
+              <div style={{ width: "1px", height: "24px", background: "#E2E8F0" }} />
+
+              {[
+                { label: "≡", value: "left", title: "Align left" },
+                { label: "☰", value: "center", title: "Align center" },
+                { label: "≣", value: "right", title: "Align right" },
+                { label: "☷", value: "justify", title: "Justify" },
+              ].map((align) => (
+                <button key={align.value} type="button" title={align.title} onClick={() => updateSelectedLayer({ textAlign: align.value as Layer["textAlign"] })} style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: selectedLayer.textAlign === align.value ? "#E0F2FE" : "#FFFFFF", cursor: "pointer", fontSize: "18px" }}>
+                  {align.label}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                title="Bullet list"
+                onClick={() => {
+                  const currentText = selectedLayer.text || "";
+                  const hasBullets = currentText.split("\n").every((line) => line.trim().startsWith("•"));
+                  updateSelectedLayer({
+                    text: hasBullets
+                      ? currentText.split("\n").map((line) => line.replace(/^•\s?/, "")).join("\n")
+                      : currentText.split("\n").map((line) => `• ${line.replace(/^•\s?/, "")}`).join("\n"),
+                  });
+                }}
+                style={{ height: "34px", minWidth: "34px", borderRadius: "10px", border: "none", background: (selectedLayer.text || "").trim().startsWith("•") ? "#E0F2FE" : "#FFFFFF", cursor: "pointer", fontSize: "18px" }}
+              >
+                •≡
+              </button>
+
+              <label title="Spacing" style={{ height: "34px", minWidth: "78px", borderRadius: "10px", border: "1px solid #E2E8F0", background: "#FFFFFF", display: "flex", alignItems: "center", gap: "6px", padding: "0 8px", fontSize: "12px", fontWeight: 800, color: "#0F172A" }}>
+                ↔
+                <input type="range" min="-2" max="20" step="1" value={selectedLayer.letterSpacing || 0} onChange={(e) => updateSelectedLayer({ letterSpacing: Number(e.target.value) })} style={{ width: "48px" }} />
+              </label>
+
+              <label title="Transparency" style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: "#FFFFFF", cursor: "pointer", display: "grid", placeItems: "center", position: "relative" }}>
+                ◩
+                <input type="range" min="0" max="1" step="0.05" value={selectedLayer.opacity ?? 1} onChange={(e) => updateSelectedLayer({ opacity: Number(e.target.value) })} style={{ position: "absolute", width: "80px", opacity: 0, cursor: "pointer" }} />
+              </label>
+
+              <button type="button" onClick={() => updateSelectedLayer({ strokeWidth: selectedLayer.strokeWidth ? 0 : 4, strokeColor: selectedLayer.strokeColor || "#000000", shadowBlur: selectedLayer.shadowBlur ? 0 : 8, shadowColor: selectedLayer.shadowColor || "#000000", shadowOffsetX: selectedLayer.shadowBlur ? 0 : 4, shadowOffsetY: selectedLayer.shadowBlur ? 0 : 4 })} style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "none", background: (selectedLayer.strokeWidth || selectedLayer.shadowBlur) ? "#E0F2FE" : "#FFFFFF", fontWeight: 800, cursor: "pointer" }}>
+                Effects
+              </button>
+
+              <button type="button" onClick={() => updateSelectedLayer({ textAnimation: selectedLayer.textAnimation === "pop" ? "float" : selectedLayer.textAnimation === "float" ? "none" : "pop" })} style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "none", background: selectedLayer.textAnimation && selectedLayer.textAnimation !== "none" ? "#E0F2FE" : "#FFFFFF", fontWeight: 800, cursor: "pointer" }}>
+                Animate
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const layerIndex = layers.findIndex((layer) => layer.id === selectedLayer.id);
+                  if (layerIndex < 0) return;
+                  const nextLayers = layers.filter((layer) => layer.id !== selectedLayer.id);
+                  setLayers([...nextLayers, { ...selectedLayer, x: 50, y: 50 }]);
+                }}
+                style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "none", background: "#FFFFFF", fontWeight: 800, cursor: "pointer" }}
+              >
+                Position
+              </button>
             </div>
           ) : (
             <div style={{ height: "40px", marginBottom: "12px" }} />
@@ -2221,6 +2395,14 @@ const buyCredits = async (packageId: string) => {
   key={layer.id}
   onMouseDown={(e) => {
     const { clientX, clientY } = getCoords(e);
+    if (
+      layer.type === "text" &&
+      editingTextLayerId === layer.id &&
+      (e.target as HTMLElement).closest('[contenteditable="true"]')
+    ) {
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     setSelectedLayerId(layer.id);
     setIsCropMode(false);
@@ -2233,6 +2415,14 @@ const buyCredits = async (packageId: string) => {
   }}
   onTouchStart={(e) => {
     const { clientX, clientY } = getCoords(e);
+    if (
+      layer.type === "text" &&
+      editingTextLayerId === layer.id &&
+      (e.target as HTMLElement).closest('[contenteditable="true"]')
+    ) {
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     setSelectedLayerId(layer.id);
@@ -2256,7 +2446,7 @@ const buyCredits = async (packageId: string) => {
                     outline: !isExporting && isSelected ? (isCropMode ? "2px dashed #000" : "2px solid #3B82F6") : "none",
                     zIndex: !isExporting && isSelected ? 100 : index + 10, 
                     display: "flex",
-                    whiteSpace: "nowrap",
+                    whiteSpace: layer.type === "text" ? "pre-wrap" : "nowrap",
                     alignItems: "center",
                     justifyContent: "center",
                     opacity: layer.opacity !== undefined ? layer.opacity : 1,
@@ -2266,19 +2456,52 @@ const buyCredits = async (packageId: string) => {
                   {/* TEXT / SHAPE / IMAGE */}
 {layer.type === "text" ? (
   <div
+    contentEditable={!isExporting && editingTextLayerId === layer.id}
+    suppressContentEditableWarning
+    onDoubleClick={(e) => {
+      e.stopPropagation();
+      const editableElement = e.currentTarget as HTMLElement;
+      setSelectedLayerId(layer.id);
+      setDraggingLayerId(null);
+      setEditingTextLayerId(layer.id);
+      requestAnimationFrame(() => editableElement.focus());
+    }}
+    onBlur={(e) => {
+      updateSelectedLayer({ text: e.currentTarget.innerText });
+      setEditingTextLayerId(null);
+    }}
+    onInput={(e) => {
+      updateSelectedLayer({ text: e.currentTarget.innerText });
+    }}
+    onKeyDown={(e) => {
+      if (e.key === "Escape") {
+        (e.currentTarget as HTMLElement).blur();
+      }
+      e.stopPropagation();
+    }}
     style={{
+      width: layer.width ? `${layer.width}px` : "max-content",
+      maxWidth: `${canvasWidth}px`,
+      minWidth: "24px",
       fontSize: `${layer.fontSize}px`,
       color: layer.color,
-      fontFamily: layer.fontFamily,
+      fontFamily: `${layer.fontFamily || "Inter"}, Inter, Arial, sans-serif`,
       textAlign: layer.textAlign || "center",
       fontWeight: layer.isBold ? "bold" : "900",
       fontStyle: layer.isItalic ? "italic" : "normal",
-      textDecoration: layer.isUnderline ? "underline" : "none",
+      textDecoration: `${layer.isUnderline ? "underline" : ""} ${layer.isStrikethrough ? "line-through" : ""}`.trim() || "none",
       textTransform: layer.isUppercase ? "uppercase" : "none",
       background: layer.hasTextBg ? layer.textBgColor : "transparent",
       padding: layer.hasTextBg ? `${layer.textBgPadding}px` : "0px",
-      borderRadius: "4px",
-      whiteSpace: "nowrap",
+      borderRadius: `${layer.borderRadius || 4}px`,
+      whiteSpace: layer.width ? "pre-wrap" : "pre",
+      overflowWrap: layer.width ? "break-word" : "normal",
+      wordBreak: "normal",
+      lineHeight: layer.lineHeight || 1,
+      letterSpacing: `${layer.letterSpacing || 0}px`,
+      cursor: editingTextLayerId === layer.id ? "text" : "move",
+      outline: editingTextLayerId === layer.id ? "1px dashed rgba(37, 99, 235, 0.55)" : "none",
+      animation: !isExporting && layer.textAnimation === "pop" ? "pixoresTextPop 1.4s ease-in-out infinite" : !isExporting && layer.textAnimation === "float" ? "pixoresTextFloat 1.8s ease-in-out infinite" : "none",
       ...getEfectosEstilo(layer),
     }}
   >
@@ -2286,7 +2509,7 @@ const buyCredits = async (packageId: string) => {
   </div>
 ) : layer.type === "shape" ? (
   layer.shapeType === "rectangle" ? (
-    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), borderRadius: "8px" }} />
+    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), borderRadius: `${layer.borderRadius || 8}px` }} />
   ) : layer.shapeType === "circle" ? (
     <div style={{ width: `${layer.width}px`, height: `${layer.width}px`, background: getLayerFill(layer), borderRadius: "50%" }} />
   ) : layer.shapeType === "triangle" ? (
@@ -2302,11 +2525,11 @@ const buyCredits = async (packageId: string) => {
 ) : layer.shapeType === "star" ? (
     <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>★</div>
   ) : layer.shapeType === "badge" ? (
-    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), color: "#fff", borderRadius: "999px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
+    <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), color: "#fff", borderRadius: `${layer.borderRadius ?? 999}px`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
       NEW
     </div>
   ) : layer.shapeType === "speechBubble" ? (
-    <div style={{ width: `${layer.width}px`, minHeight: `${layer.height}px`, background: getLayerFill(layer), borderRadius: "18px", border: "3px solid #0F172A", position: "relative" }}>
+    <div style={{ width: `${layer.width}px`, minHeight: `${layer.height}px`, background: getLayerFill(layer), borderRadius: `${layer.borderRadius || 18}px`, border: "3px solid #0F172A", position: "relative" }}>
       <div style={{ position: "absolute", bottom: "-18px", left: "35px", width: 0, height: 0, borderTop: `18px solid ${layer.color}`, borderRight: "18px solid transparent" }} />
     </div>
     ) : layer.shapeType === "dashedLine" ? (
@@ -2326,6 +2549,7 @@ const buyCredits = async (packageId: string) => {
         layer.strokeColor || layer.color || "#3B82F6"
       }`,
       overflow: "hidden",
+      borderRadius: `${layer.borderRadius || 0}px`,
       position: "relative",
       background: layer.frameImageSrc
         ? "transparent"
@@ -2355,7 +2579,7 @@ const buyCredits = async (packageId: string) => {
       border: `${layer.strokeWidth ?? 8}px solid ${
   layer.strokeColor || layer.color || "#3B82F6"
 }`,
-      borderRadius: "24px",
+      borderRadius: `${layer.borderRadius || 24}px`,
       overflow: "hidden",
       position: "relative",
       background: layer.frameImageSrc
@@ -2409,7 +2633,7 @@ const buyCredits = async (packageId: string) => {
   ) : layer.shapeType === "arrow" ? (
     <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>➜</div>
   ) : (
-    <div style={{ width: `${layer.width}px`, height: "8px", background: getLayerFill(layer), borderRadius: "999px" }} />
+    <div style={{ width: `${layer.width}px`, height: "8px", background: getLayerFill(layer), borderRadius: `${layer.borderRadius ?? 999}px` }} />
   )
 ) : (
   <img
@@ -2422,6 +2646,7 @@ const buyCredits = async (packageId: string) => {
       minHeight: `${layer.height}px`,
       display: "block",
       pointerEvents: "none",
+      borderRadius: `${layer.borderRadius || 0}px`,
       mixBlendMode: layer.blendMode || "normal",
       clipPath: getCropClipPath(layer),
       filter: `
@@ -2606,7 +2831,7 @@ const buyCredits = async (packageId: string) => {
               )}
 
               {/* PIXEL DIMENSIONS INPUT */}
-              {(selectedLayer.type === "image" || selectedLayer.type === "shape") && (
+              {(selectedLayer.type === "image" || selectedLayer.type === "shape" || selectedLayer.type === "text") && (
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
                   <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "6px" }}>Exact Dimensions (px)</label>
                   <div style={{ display: "flex", gap: "8px" }}>
@@ -2616,8 +2841,20 @@ const buyCredits = async (packageId: string) => {
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: "10px", color: "#64748B" }}>Height</label>
-                      <input type="number" value={selectedLayer.height || 0} onChange={(e) => updateSelectedLayer({ height: Math.max(10, Number(e.target.value)) })} style={{ width: "100%", padding: "4px", fontSize: "12px", border: "1px solid #CBD5E1", borderRadius: "4px" }} />
+                      <input type="number" value={selectedLayer.height || 0} disabled={selectedLayer.type === "text"} onChange={(e) => updateSelectedLayer({ height: Math.max(10, Number(e.target.value)) })} style={{ width: "100%", padding: "4px", fontSize: "12px", border: "1px solid #CBD5E1", borderRadius: "4px", background: selectedLayer.type === "text" ? "#E2E8F0" : "#FFFFFF" }} />
                     </div>
+                  </div>
+                  {selectedLayer.type === "text" && (
+                    <button type="button" onClick={() => updateSelectedLayer({ width: undefined })} style={{ marginTop: "8px", width: "100%", padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                      Auto width / single line
+                    </button>
+                  )}
+                  <div style={{ marginTop: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#64748B", marginBottom: "4px" }}>
+                      <span>Round corners</span>
+                      <span>{selectedLayer.borderRadius || 0}px</span>
+                    </div>
+                    <input type="range" min="0" max="160" step="1" value={selectedLayer.borderRadius || 0} onChange={(e) => updateSelectedLayer({ borderRadius: Number(e.target.value) })} style={{ width: "100%" }} />
                   </div>
                 </div>
               )}
@@ -2774,14 +3011,54 @@ const buyCredits = async (packageId: string) => {
               {selectedLayer.type === "text" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   <label style={{ fontSize: "11px", fontWeight: 600 }}>Edit Content String</label>
-                  <input type="text" value={selectedLayer.text} onChange={(e) => updateSelectedLayer({ text: e.target.value })} style={{ padding: "6px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "13px" }} />
+                  <textarea value={selectedLayer.text} onChange={(e) => updateSelectedLayer({ text: e.target.value })} style={{ padding: "8px", border: "1px solid #CBD5E1", borderRadius: "8px", fontSize: "13px", minHeight: "70px", resize: "vertical" }} />
+                </div>
+              )}
+
+              {selectedLayer.type === "text" && (
+                <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 800, color: "#475569" }}>Pixores Text Controls</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Outline
+                      <input type="range" min="0" max="12" value={selectedLayer.strokeWidth || 0} onChange={(e) => updateSelectedLayer({ strokeWidth: Number(e.target.value) })} style={{ width: "100%" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Outline Color
+                      <input type="color" value={selectedLayer.strokeColor || "#000000"} onChange={(e) => updateSelectedLayer({ strokeColor: e.target.value })} style={{ width: "100%", height: "26px" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Letter Spacing
+                      <input type="range" min="-2" max="24" value={selectedLayer.letterSpacing || 0} onChange={(e) => updateSelectedLayer({ letterSpacing: Number(e.target.value) })} style={{ width: "100%" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Line Height
+                      <input type="range" min="0.75" max="2" step="0.05" value={selectedLayer.lineHeight || 1} onChange={(e) => updateSelectedLayer({ lineHeight: Number(e.target.value) })} style={{ width: "100%" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Glow
+                      <input type="range" min="0" max="35" value={selectedLayer.glowRadius || 0} onChange={(e) => updateSelectedLayer({ glowRadius: Number(e.target.value) })} style={{ width: "100%" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Glow Color
+                      <input type="color" value={selectedLayer.glowColor || "#FFFF00"} onChange={(e) => updateSelectedLayer({ glowColor: e.target.value })} style={{ width: "100%", height: "26px" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Shadow
+                      <input type="range" min="0" max="35" value={selectedLayer.shadowBlur || 0} onChange={(e) => updateSelectedLayer({ shadowBlur: Number(e.target.value), shadowOffsetX: selectedLayer.shadowOffsetX || 4, shadowOffsetY: selectedLayer.shadowOffsetY || 4 })} style={{ width: "100%" }} />
+                    </label>
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>
+                      Shadow Color
+                      <input type="color" value={selectedLayer.shadowColor || "#000000"} onChange={(e) => updateSelectedLayer({ shadowColor: e.target.value })} style={{ width: "100%", height: "26px" }} />
+                    </label>
+                  </div>
                 </div>
               )}
 
               {/* REMOVE BACKGROUND MAGIC WITH AI */}
               {selectedLayer.type === "image" && (
                 <div style={{ background: "#F8FAFC", padding: "12px", borderRadius: "8px", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block" }}>AI Power Tools (Canva Style)</label>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block" }}>Pixores AI Tools</label>
                   <button
                     onClick={() => handleRemoveBackgroundAI(selectedLayer)}
                     style={{ width: "100%", padding: "10px", background: "linear-gradient(135deg, #6366F1 0%, #A855F7 100%)", color: "#FFFFFF", border: "none", borderRadius: "6px", fontWeight: 600, fontSize: "12px", cursor: "pointer", boxShadow: "0 2px 4px rgba(139, 92, 246, 0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
