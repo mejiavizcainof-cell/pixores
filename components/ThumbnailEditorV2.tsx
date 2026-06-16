@@ -954,6 +954,75 @@ const downloadPNG = async () => {
     setIsExporting(false);
   }
 };
+
+const downloadTransparentPNG = async () => {
+  const workspace = workspaceRef.current;
+  if (!workspace || isExporting) return;
+
+  try {
+    setIsExporting(true);
+    setIsCropMode(false);
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    await waitForCanvasImages(workspace);
+
+    const dataUrl = await toPng(workspace, {
+      cacheBust: false,
+      canvasWidth,
+      canvasHeight,
+      pixelRatio: 1,
+      skipFonts: true,
+      backgroundColor: "transparent",
+      filter: (node) => {
+        if (node instanceof HTMLImageElement && node.alt === "Bg") return false;
+        return true;
+      },
+      style: {
+        background: "transparent",
+        backgroundColor: "transparent",
+        border: "none",
+        boxShadow: "none",
+      },
+    });
+
+    const link = document.createElement("a");
+    link.download = "pixores-design-transparent.png";
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error(err);
+    alert("The transparent PNG could not be generated. Please check that all images are loaded and try again.");
+  } finally {
+    setIsExporting(false);
+  }
+};
+
+const downloadSelectedNoBgPNG = async () => {
+  if (!selectedLayer || selectedLayer.type !== "image" || !selectedLayer.src) return;
+
+  try {
+    const link = document.createElement("a");
+    const safeName = (selectedLayer.name || "no-bg-image")
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[^a-z0-9-_]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+
+    link.download = `${safeName || "no-bg-image"}.png`;
+    link.href = selectedLayer.src;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error(err);
+    alert("The no-background PNG could not be downloaded.");
+  }
+};
+
   const updateSelectedLayer = (fields: Partial<Layer>) => {
     if (!selectedLayerId) return;
     setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
@@ -1453,6 +1522,9 @@ const buyCredits = async (packageId: string) => {
 
         <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 140px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
           📥 Download PNG HD
+        </button>
+        <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 160px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
+          Download Transparent PNG
         </button>
       </header>
 
@@ -2693,6 +2765,14 @@ const buyCredits = async (packageId: string) => {
                     style={{ width: "100%", padding: "10px", background: "linear-gradient(135deg, #6366F1 0%, #A855F7 100%)", color: "#FFFFFF", border: "none", borderRadius: "6px", fontWeight: 600, fontSize: "12px", cursor: "pointer", boxShadow: "0 2px 4px rgba(139, 92, 246, 0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                   >
                     ✨ Remove Background with AI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadSelectedNoBgPNG}
+                    disabled={!selectedLayer.src}
+                    style={{ width: "100%", padding: "10px", background: selectedLayer.src ? "#0EA5E9" : "#94A3B8", color: "#FFFFFF", border: "none", borderRadius: "6px", fontWeight: 600, fontSize: "12px", cursor: selectedLayer.src ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                  >
+                    Download No-BG PNG
                   </button>
                   <div style={{ marginTop: "4px" }}>
                     <label style={{ fontSize: "10px", color: "#64748B", display: "block", marginBottom: "4px" }}>Alternative Manual Fusion:</label>
