@@ -177,40 +177,9 @@ export default function ThumbnailEditorV2() {
   const [credits, setCredits] = useState<number | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
 
-  const [layers, setLayers] = useState<Layer[]>([
-    
-    {
-      id: "init-1",
-      type: "text",
-      name: "Main Heading",
-      text: "THE HIDDEN LESSON",
-      x: 50,
-      y: 40,
-      fontSize: 56,
-      color: "#FFFFFF",
-      fontFamily: "Impact",
-      strokeColor: "#000000",
-      strokeWidth: 2,
-      glowColor: "#3B82F6",
-      glowRadius: 0,
-      isBold: false,
-      isItalic: false,
-      isUnderline: false,
-      isUppercase: false,
-      textAlign: "center",
-      hasTextBg: false,
-      textBgColor: "#000000",
-      textBgPadding: 8,
-      shadowColor: "#000000",
-      shadowBlur: 0,
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-      opacity: 1,
-      angle: 0, 
-    },
-  ]);
+ const [layers, setLayers] = useState<Layer[]>([]);
 
-  const [selectedLayerId, setSelectedLayerId] = useState<string | number | null>("init-1");
+  const [selectedLayerId, setSelectedLayerId] = useState<string | number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const initialDragOffset = useRef({ x: 0, y: 0 });
 
@@ -811,7 +780,7 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
       x: 50,
       y: 50,
       fontSize: 40,
-      color: "#FFFFFF",
+      color: "#000000",
       fontFamily: "Arial",
       strokeColor: "#000000",
       strokeWidth: 0,
@@ -1707,10 +1676,17 @@ const buyCredits = async (packageId: string) => {
   </div>
 )}
       {/* MAIN LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobileLayout ? "minmax(0, 1fr)" : "320px 1fr 340px", flex: 1, overflow: isMobileLayout ? "visible" : "hidden" }}>
+      <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobileLayout ? "1fr" : "320px 1fr 340px",
+    flex: 1,
+    overflow: isMobileLayout ? "visible" : "hidden",
+  }}
+>
         
         {/* LEFT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: isMobileLayout ? "visible" : "auto", display: "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 2 : 0 }}>
+        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: isMobileLayout ? "visible" : "auto", display: "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0 }}>
           
           {/* CANVAS RESIZER */}
           <div style={{ background: "#F8FAFC", padding: "12px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
@@ -2032,7 +2008,7 @@ const buyCredits = async (packageId: string) => {
         </aside>
 
         {/* CENTER WORKSPACE */}
-        <section style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: isMobileLayout ? "visible" : "auto", padding: isMobileLayout ? "16px" : "30px", background: "#F8FAFC", minWidth: 0, order: isMobileLayout ? 1 : 0 }}>
+        <section style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: isMobileLayout ? "visible" : "auto", padding: isMobileLayout ? "16px" : "30px", background: "#F8FAFC", minWidth: 0, order: isMobileLayout ? 0 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
             <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: isMobileLayout ? "8px 10px" : "6px 20px", borderRadius: isMobileLayout ? "10px" : "30px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: "100%", overflowX: "auto" }}>
