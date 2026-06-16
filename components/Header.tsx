@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import AuthButton from "@/components/AuthButton";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -24,6 +25,7 @@ export default function Header() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: "16px",
         }}
       >
         <a
@@ -35,13 +37,7 @@ export default function Header() {
             textDecoration: "none",
           }}
         >
-          <Image
-            src="/logo.png"
-            alt="Pixores"
-            width={42}
-            height={42}
-            priority
-          />
+          <Image src="/logo.png" alt="Pixores" width={42} height={42} priority />
 
           <div>
             <div
@@ -55,29 +51,28 @@ export default function Header() {
               PIXORES
             </div>
 
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#64748b",
-              }}
-            >
+            <div style={{ fontSize: "12px", color: "#64748b" }}>
               Convert • Compress • Optimize
             </div>
           </div>
         </a>
 
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            fontSize: "28px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#0f172a",
-          }}
-        >
-          ☰
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <AuthButton />
+
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{
+              fontSize: "28px",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#0f172a",
+            }}
+          >
+            ☰
+          </button>
+        </div>
       </div>
 
       {menuOpen && (
@@ -92,30 +87,19 @@ export default function Header() {
           }}
         >
           <a href="/">Home</a>
-
           <a href="/jpg-to-png">Convert</a>
-
           <a href="/favicon-generator">Favicons</a>
-
           <a href="/compress-image">Compress</a>
-
           <a href="/resize-image">Resize</a>
-
-          <a href="/thumbnail-creator">
-  Thumbnail Creator
-</a>
-<a href="/templates">Templates</a>
-
+          <a href="/thumbnail-creator">Thumbnail Creator</a>
+          <a href="/templates">Templates</a>
           <a href="/tools">Tools</a>
-
           <a href="/faq">FAQ</a>
-
           <a href="/contact">Contact</a>
 
           <hr />
 
           <a href="/">🇺🇸 English</a>
-
           <a href="/es">🇪🇸 Español</a>
         </nav>
       )}

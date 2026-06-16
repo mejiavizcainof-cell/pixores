@@ -1,113 +1,90 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-
-import { blogPosts } from "@/lib/blogPosts";
+import { createClient } from "@supabase/supabase-js";
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-function getPost(slug: string) {
-  return blogPosts.find((post) => post.slug === slug);
-}
+type BlogPost = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  cover_image: string | null;
+  content: string;
+  published: boolean;
+  created_at: string;
+};
 
-function renderContent(content: string) {
-  return content
-    .trim()
-    .split("\n")
-    .map((line, index) => {
-      const trimmedLine = line.trim();
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-      const imageMatch = trimmedLine.match(/^\[IMAGE:\s*(.*?)\]$/);
+const supabaseServer = createClient(supabaseUrl, supabaseAnonKey);
 
-      if (imageMatch) {
-        const fileName = imageMatch[1];
+async function getPost(slug: string): Promise<BlogPost | null> {
+  const { data, error } = await supabaseServer
+    .from("blog_posts")
+    .select(
+      "id,title,slug,description,cover_image,content,published,created_at"
+    )
+    .eq("slug", slug)
+    .eq("published", true)
+    .single();
 
-        return (
-          <div key={index} style={{ margin: "36px 0" }}>
-            <Image
-              src={`/blog/${fileName}`}
-              alt={fileName}
-              width={1200}
-              height={675}
-              style={{
-                width: "100%",
-                height: "auto",
-                borderRadius: "16px",
-              }}
-            />
-          </div>
-        );
-      }
+  if (error || !data) return null;
 
-      if (!trimmedLine) {
-        return null;
-      }
-
-      const parts = trimmedLine.split(/(\[LINK:\s*.*?\|.*?\])/g);
-
-return (
-  <p
-    key={index}
-    style={{
-      marginBottom: "18px",
-    }}
-  >
-    {parts.map((part, i) => {
-      const match = part.match(/^\[LINK:\s*(.*?)\|(.*?)\]$/);
-
-      if (match) {
-        return (
-          <Link
-            key={i}
-            href={match[2]}
-            style={{
-              color: "#2563EB",
-              fontWeight: 600,
-              textDecoration: "underline",
-            }}
-          >
-            {match[1]}
-          </Link>
-        );
-      }
-
-      return part;
-    })}
-  </p>
-);
-    });
-}
-
-export function generateStaticParams() {
-  return blogPosts.map((post) => ({
-    slug: post.slug,
-  }));
+  return data;
 }
 
 export async function generateMetadata({
   params,
 }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPost(slug);
+  const post = await getPost(slug);
 
   if (!post) {
     return {
-      title: "Blog Post Not Found",
+      title: "Blog Post Not Found | Pixores",
     };
   }
+
+  const url = `https://pixores.com/blog/${post.slug}`;
+  const image = post.cover_image || "https://pixores.com/og-image.png";
 
   return {
     title: post.title,
     description: post.description,
+    alternates: {
+      canonical: url,
+    },
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      url,
+      type: "article",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.description,
+      images: [image],
+    },
   };
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const post = getPost(slug);
+  const post = await getPost(slug);
 
   if (!post) notFound();
 
@@ -133,30 +110,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       </Link>
 
       <article>
-        <p
-  style={{
-    color: "#475569",
-    fontSize: "20px",
-    lineHeight: 1.7,
-    marginBottom: "34px",
-  }}
->
-  {post.description}
-</p>
-
-<Image
-  src={post.image}
-  alt={post.title}
-  width={1200}
-  height={675}
-  style={{
-    width: "100%",
-    height: "auto",
-    borderRadius: "16px",
-    marginBottom: "36px",
-  }}
-/>
-
         <h1
           style={{
             color: "#0F172A",
@@ -179,15 +132,27 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           {post.description}
         </p>
 
+        {post.cover_image && (
+          <img
+            src={post.cover_image}
+            alt={post.title}
+            style={{
+              width: "100%",
+              height: "auto",
+              borderRadius: "16px",
+              marginBottom: "36px",
+            }}
+          />
+        )}
+
         <div
           style={{
             color: "#334155",
             fontSize: "18px",
             lineHeight: 1.8,
           }}
-        >
-          {renderContent(post.content)}
-        </div>
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
       </article>
     </main>
   );

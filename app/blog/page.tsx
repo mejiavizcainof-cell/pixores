@@ -1,7 +1,7 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
-
-import { blogPosts } from "@/lib/blogPosts";
+import { createClient } from "@supabase/supabase-js";
 
 export const metadata: Metadata = {
   title: "Pixores Blog",
@@ -9,11 +9,24 @@ export const metadata: Metadata = {
     "Guides and tips for image conversion, YouTube thumbnails, compression, resizing, and online image tools.",
 };
 
-export default function BlogPage() {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export default async function BlogPage() {
+  const { data: posts } = await supabase
+    .from("blog_posts")
+    .select(
+      "id,title,slug,description,cover_image,published,created_at"
+    )
+    .eq("published", true)
+    .order("created_at", { ascending: false });
+
   return (
     <main
       style={{
-        maxWidth: "1000px",
+        maxWidth: "1100px",
         margin: "0 auto",
         padding: "48px 20px",
       }}
@@ -46,46 +59,55 @@ export default function BlogPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "20px",
+          gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+          gap: "24px",
         }}
       >
-        {blogPosts.map((post) => (
+        {posts?.map((post) => (
           <Link
-            key={post.slug}
-            href={`/blog/${post.slug}`}
+            key={post.id}
+            href={"/blog/" + post.slug}
             style={{
-              color: "inherit",
               textDecoration: "none",
               border: "1px solid #E2E8F0",
-              borderRadius: "12px",
-              background: "#FFFFFF",
-              padding: "22px",
+              borderRadius: "14px",
+              overflow: "hidden",
+              background: "#FFF",
+              color: "inherit",
             }}
           >
-            <p
-              style={{
-                color: "#64748B",
-                fontSize: "13px",
-                margin: "0 0 10px",
-              }}
-            >
-              {post.date}
-            </p>
+            {post.cover_image && (
+              <img
+                src={post.cover_image}
+                alt={post.title}
+                style={{
+                  width: "100%",
+                  height: "220px",
+                  objectFit: "cover",
+                }}
+              />
+            )}
 
-            <h2
-              style={{
-                color: "#0F172A",
-                fontSize: "24px",
-                margin: "0 0 12px",
-              }}
-            >
-              {post.title}
-            </h2>
+            <div style={{ padding: "20px" }}>
+              <h2
+                style={{
+                  color: "#0F172A",
+                  fontSize: "24px",
+                  marginBottom: "12px",
+                }}
+              >
+                {post.title}
+              </h2>
 
-            <p style={{ color: "#475569", lineHeight: 1.7, margin: 0 }}>
-              {post.description}
-            </p>
+              <p
+                style={{
+                  color: "#475569",
+                  lineHeight: 1.7,
+                }}
+              >
+                {post.description}
+              </p>
+            </div>
           </Link>
         ))}
       </div>

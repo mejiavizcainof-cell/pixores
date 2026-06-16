@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 export const siteMetadata: Metadata = {
   metadataBase: new URL("https://pixores.com"),
 
+  alternates: {
+    canonical: "https://pixores.com",
+  },
+
   title: {
     default: "Pixores - Free Online Image & File Tools",
     template: "%s | Pixores",
@@ -65,7 +69,7 @@ export const siteMetadata: Metadata = {
     siteName: "Pixores",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://pixores.com/og-image.png",
         width: 1200,
         height: 630,
         alt: "Pixores - Free Online Image Tools",
@@ -80,7 +84,7 @@ export const siteMetadata: Metadata = {
     title: "Pixores - Free Online Image & File Tools",
     description:
       "Convert, compress, resize, optimize and create YouTube thumbnails online for free.",
-    images: ["/og-image.png"],
+    images: ["https://pixores.com/og-image.png"],
   },
 
   icons: {

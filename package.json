@@ -10,6 +10,12 @@
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
+    "@stripe/stripe-js": "^9.8.0",
+    "@supabase/supabase-js": "^2.108.1",
+    "@tiptap/extension-image": "^3.26.1",
+    "@tiptap/extension-link": "^3.26.1",
+    "@tiptap/react": "^3.26.1",
+    "@tiptap/starter-kit": "^3.26.1",
     "heic-convert": "^2.1.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
@@ -20,7 +26,8 @@
     "pdf-poppler": "^0.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "stripe": "^22.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

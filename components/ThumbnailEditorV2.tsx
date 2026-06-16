@@ -1,9 +1,11 @@
 "use client";
-
+import { supabase } from "@/lib/supabaseClient";
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import { templates } from "@/lib/templates";
+
+
 
 type Layer = {
   id: string | number; 
@@ -11,6 +13,8 @@ type Layer = {
   name: string;
   text?: string;
   src?: string;
+  frameImageSrc?: string;
+frameImageFit?: "cover" | "contain";
   shapeType?:
   | "rectangle"
   | "circle"
@@ -104,7 +108,7 @@ const PREMADE_ASSETS = [
   { category: "objects", name: "Circle Highlight", src: "/template-assets/objects/circle-highlight.png" },
   { category: "objects", name: "Money Stack", src: "/template-assets/objects/money-stack.png" },
   { category: "objects", name: "Fire", src: "/template-assets/objects/fire.png" },
-    { category: "objects", name: "Brush", src: "/template-assets/objects/.png" },
+    { category: "objects", name: "Brush", src: "/template-assets/objects/brush-black-1.png" },
    { category: "objects", name: "Marcos", src: "/template-assets/objects/marcos.png" },
    { category: "objects", name: "Lineas", src: "/template-assets/objects/solid-line.png" },
   { category: "objects", name: "YouTube Logo", src: "/template-assets/objects/youtube-logo.png" },
@@ -125,10 +129,15 @@ const PREMADE_SHAPES = [
   { name: "Line", shapeType: "line" as const, color: "#0F172A" },
   { name: "Black Line", shapeType: "line" as const, color: "#0F172A" },
 { name: "Dashed Line", shapeType: "dashedLine" as const, color: "#0F172A" },
-{ name: "Frame", shapeType: "frame" as const, color: "#EF4444" },
-{ name: "Rounded Frame", shapeType: "roundedFrame" as const, color: "#3B82F6" },
-{ name: "Circle Frame", shapeType: "circleFrame" as const, color: "#FACC15" },
 ];
+
+const PREMADE_FRAMES = [
+  { name: "Frame", shapeType: "frame" as const, color: "#EF4444" },
+  { name: "Rounded Frame", shapeType: "roundedFrame" as const, color: "#3B82F6" },
+  { name: "Circle Frame", shapeType: "circleFrame" as const, color: "#FACC15" },
+];
+
+const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame"];
 
 const PRESET_SIZES = {
   youtube: { name: "YouTube Thumbnail", width: 1280, height: 720 },
@@ -139,8 +148,13 @@ const PRESET_SIZES = {
 };
 
 export default function ThumbnailEditorV2() {
+  useEffect(() => {
+    console.log("Supabase:", supabase);
+  }, []);
   const [preview, setPreview] = useState<string | null>(null);
   const [canvasBgColor, setCanvasBgColor] = useState<string>("#FFFFFF");
+  const [canvasStrokeColor, setCanvasStrokeColor] = useState<string>("#0F172A");
+  const [canvasStrokeWidth, setCanvasStrokeWidth] = useState<number>(0);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false);
   
@@ -154,10 +168,17 @@ export default function ThumbnailEditorV2() {
   const [draggingLayerId, setDraggingLayerId] = useState<string | number | null>(null);
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
-  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes">("people");
-  
+  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames">("people");
+
+  const [savedProjects, setSavedProjects] = useState<any[]>([]);
+  const [showProjects, setShowProjects] = useState(false);
+
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
 
   const [layers, setLayers] = useState<Layer[]>([
+    
     {
       id: "init-1",
       type: "text",
@@ -590,33 +611,106 @@ useEffect(() => {
   };
 }, [draggingLayerId, resizeState, selectedLayerId, isCropMode]);
 
-  const handleRemoveBackgroundAI = async (layer: Layer) => {
-    if (layer.type !== "image" || !layer.src) return;
-    try {
-      alert("Processing image with AI... Please wait a few seconds.");
-      const responseUrl = await fetch(layer.src);
-      const blob = await responseUrl.blob();
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
+const handleRemoveBackgroundAI = async (layer: Layer) => {
+  if (layer.type !== "image" || !layer.src) return;
+
+  try {
+    alert("Processing image with AI... Please wait.");
+
+    const responseUrl = await fetch(layer.src);
+    const blob = await responseUrl.blob();
+
+    const reader = new FileReader();
+
+    reader.onloadend = async () => {
+      try {
         const base64Data = reader.result as string;
-        const res = await fetch("/thumbnail-creator/api", { 
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64Data }),
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+        const { data: sessionData } = await supabase.auth.getSession();
+
+const accessToken = sessionData.session?.access_token;
+
+if (!accessToken) {
+  alert("Please login first.");
+  return;
+}
+
+const res = await fetch("/api/remove-bg", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  },
+  body: JSON.stringify({ imageBase64: base64Data }),
+  signal: controller.signal,
+});
+
+        clearTimeout(timeoutId);
+
+      const rawText = await res.text();
+console.log("REMOVE BG RAW RESPONSE:", rawText);
+
+let data: any = null;
+
+try {
+  data = rawText ? JSON.parse(rawText) : null;
+} catch {
+  alert(`Remove BG returned non-JSON response: ${rawText}`);
+  return;
+}
+        console.log("REMOVE BG RESPONSE:", data);
+
+        if (!res.ok || !data.success) {
+
+  if (data.error === "NO_CREDITS") {
+
+    setCredits(0);
+    setShowCreditsModal(true);
+
+    return;
+  }
+
+  alert(`Remove BG Error: ${data.error || "Unknown error"}`);
+  return;
+}
+
+        updateSelectedLayer({
+          src: data.image,
+          name: `${layer.name} (No BG)`,
         });
-        const data = await res.json();
-        if (data.success && data.image) {
-          updateSelectedLayer({ src: data.image, name: `${layer.name} (No BG)` });
-          alert("Background removed successfully by AI!");
-        } else {
-          alert(`AI Error: ${data.error || "Could not process the cutout"}`);
+
+        if (typeof data.creditsRemaining === "number") {
+  setCredits(data.creditsRemaining);
+} else {
+  loadCredits();
+}
+
+        alert("Background removed successfully!");
+      } catch (error: any) {
+        console.error("Remove BG client error:", error);
+
+        if (error.name === "AbortError") {
+          alert("Remove BG took too long. Please try with a smaller image.");
+          return;
         }
-      };
-    } catch (error) {
-      console.error(error);
-    }
-  };
+
+        alert(error.message || "Remove BG failed.");
+      }
+    };
+
+    reader.onerror = () => {
+      alert("Could not read the image file.");
+    };
+
+    reader.readAsDataURL(blob);
+  } catch (error: any) {
+    console.error("Remove BG outer error:", error);
+    alert(error.message || "Could not process image.");
+  }
+};
 
 
   const getCoords = (e: any) => {
@@ -650,8 +744,28 @@ useEffect(() => {
     setImportedImages([...importedImages, ...newFiles]);
     e.target.value = "";
   };
+const isImageFrame = (layer?: Layer) => {
+  return (
+    layer?.type === "shape" &&
+    FRAME_SHAPE_TYPES.includes(layer.shapeType || "")
+  );
+};
 
+const addImageToSelectedFrame = (fileObj: ImportedFile) => {
+  if (!selectedLayer || !isImageFrame(selectedLayer)) return false;
+
+  updateSelectedLayer({
+    frameImageSrc: fileObj.url,
+    frameImageFit: "cover",
+    name: `${selectedLayer.name} + Image`,
+  });
+
+  return true;
+};
  const addImageToCanvas = (fileObj: ImportedFile) => {
+  if (addImageToSelectedFrame(fileObj)) {
+  return;
+}
   const uniqueId = `img-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   const newLayer: Layer = {
@@ -716,6 +830,7 @@ useEffect(() => {
 
   const addShapeLayer = (shapeType: Layer["shapeType"]) => {
     const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const isFrame = FRAME_SHAPE_TYPES.includes(shapeType || "");
     const newLayer: Layer = {
       id: uniqueId,
       type: "shape",
@@ -729,7 +844,9 @@ useEffect(() => {
       useGradient: false,
 gradientColor1: "#3B82F6",
 gradientColor2: "#8B5CF6",
-gradientDirection: "diagonal",
+      gradientDirection: "diagonal",
+      strokeColor: isFrame ? "#3B82F6" : undefined,
+      strokeWidth: isFrame ? 8 : undefined,
       shadowColor: "#000000",
       shadowBlur: 0,
       shadowOffsetX: 0,
@@ -741,8 +858,11 @@ gradientDirection: "diagonal",
     setSelectedLayerId(newLayer.id);
   };
 
-  const addPremadeShape = (shape: (typeof PREMADE_SHAPES)[number]) => {
+  const addPremadeShape = (
+    shape: (typeof PREMADE_SHAPES)[number] | (typeof PREMADE_FRAMES)[number]
+  ) => {
   const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const isFrame = FRAME_SHAPE_TYPES.includes(shape.shapeType || "");
 
   const newLayer: Layer = {
     id: uniqueId,
@@ -754,6 +874,8 @@ gradientDirection: "diagonal",
     width: 180,
     height: 120,
     color: shape.color,
+    strokeColor: isFrame ? shape.color : undefined,
+    strokeWidth: isFrame ? 8 : undefined,
     useGradient: false,
 gradientColor1: shape.color,
 gradientColor2: "#8B5CF6",
@@ -891,6 +1013,192 @@ const downloadPNG = async () => {
     });
   };
 
+  const createProjectThumbnail = async () => {
+    const workspace = workspaceRef.current;
+
+    if (!workspace) return null;
+
+    try {
+      setIsExporting(true);
+      setIsCropMode(false);
+
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      );
+
+      await waitForCanvasImages(workspace);
+
+      const thumbnail = await toPng(workspace, {
+        cacheBust: true,
+        canvasWidth,
+        canvasHeight,
+        pixelRatio: 0.25,
+        skipFonts: true,
+        backgroundColor: canvasBgColor,
+        style: {
+          boxShadow: "none",
+        },
+      });
+
+      return thumbnail;
+    } catch (error) {
+      console.error("Could not generate project thumbnail:", error);
+      return null;
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const saveProject = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      alert("Please login first.");
+      return;
+    }
+
+    const projectName = prompt("Project name:", "Untitled Project");
+    if (!projectName) return;
+
+    const thumbnail = await createProjectThumbnail();
+
+    const projectData = {
+      canvasWidth,
+      canvasHeight,
+      canvasBgColor,
+      canvasStrokeColor,
+      canvasStrokeWidth,
+      preview,
+      layers,
+      thumbnail,
+    };
+
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({
+        user_id: userData.user.id,
+        name: projectName,
+        project_data: projectData,
+        thumbnail,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setCurrentProjectId(data.id);
+    setSavedProjects((prev) => [data, ...prev]);
+    alert("Project saved successfully!");
+  };
+
+  const updateProject = async () => {
+    if (!currentProjectId) {
+      alert("Open a project first or use Save Project.");
+      return;
+    }
+
+    const thumbnail = await createProjectThumbnail();
+
+    const projectData = {
+      canvasWidth,
+      canvasHeight,
+      canvasBgColor,
+      canvasStrokeColor,
+      canvasStrokeWidth,
+      preview,
+      layers,
+      thumbnail,
+    };
+
+    const { data, error } = await supabase
+      .from("projects")
+      .update({
+        project_data: projectData,
+        thumbnail,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", currentProjectId)
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setSavedProjects((prev) =>
+      prev.map((project) => (project.id === currentProjectId ? data : project))
+    );
+
+    alert("Project updated successfully!");
+  };
+
+  const loadMyProjects = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      alert("Please login first.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id,user_id,name,project_data,thumbnail,created_at,updated_at")
+      .eq("user_id", userData.user.id)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setSavedProjects(data || []);
+    setShowProjects(true);
+  };
+
+  const openProject = (project: any) => {
+    const data = project.project_data;
+
+    setCanvasWidth(data.canvasWidth || 1280);
+    setCanvasHeight(data.canvasHeight || 720);
+    setCanvasBgColor(data.canvasBgColor || "#FFFFFF");
+    setCanvasStrokeColor(data.canvasStrokeColor || "#0F172A");
+    setCanvasStrokeWidth(data.canvasStrokeWidth || 0);
+    setPreview(data.preview || null);
+
+    if (Array.isArray(data.layers)) {
+      setLayers(data.layers);
+      setSelectedLayerId(data.layers[0]?.id || null);
+    }
+
+    setCurrentProjectId(project.id);
+    setShowProjects(false);
+  };
+
+  const deleteProject = async (projectId: string) => {
+    const confirmDelete = confirm("Delete this project?");
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", projectId);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setSavedProjects((prev) => prev.filter((project) => project.id !== projectId));
+
+    if (currentProjectId === projectId) {
+      setCurrentProjectId(null);
+    }
+  };
+
   const getCropClipPath = (layer: Layer) => {
     if (layer.type !== "image") return "none";
 
@@ -986,6 +1294,103 @@ const downloadPNG = async () => {
     setIsCropMode(false);
   };
 
+  const loadCredits = async () => {
+  const { data: userData } = await supabase.auth.getUser();
+
+  if (!userData.user) {
+    setCredits(null);
+    return;
+  }
+
+  const { data } = await supabase
+    .from("user_credits")
+    .select("credits")
+    .eq("user_id", userData.user.id)
+    .single();
+
+  if (!data) {
+    await supabase.from("user_credits").insert({
+      user_id: userData.user.id,
+      credits: 5,
+    });
+
+    setCredits(5);
+    return;
+  }
+
+  setCredits(data.credits);
+};
+
+useEffect(() => {
+  loadCredits();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(() => {
+    loadCredits();
+  });
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
+
+const CREDIT_PACKAGES = [
+  {
+    id: "starter",
+    name: "Starter",
+    credits: 50,
+    price: 4.99,
+  },
+  {
+    id: "creator",
+    name: "Creator",
+    credits: 200,
+    price: 9.99,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    credits: 500,
+    price: 19.99,
+  },
+];
+const closeCreditsModal = () => {
+  setShowCreditsModal(false);
+};
+
+const buyCredits = async (packageId: string) => {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      alert("Please login first.");
+      return;
+    }
+
+    const res = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        packageId,
+        userId: userData.user.id,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Checkout failed");
+      return;
+    }
+
+    window.location.href = data.url;
+  } catch (error) {
+    console.error(error);
+    alert("Could not start checkout.");
+  }
+};
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "auto" : "100vh", height: isMobileLayout ? "auto" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflowX: "hidden" }}>
       
@@ -997,11 +1402,310 @@ const downloadPNG = async () => {
           <span style={{ fontSize: "20px" }}>🎨</span>
           <h1 style={{ fontSize: isMobileLayout ? "15px" : "16px", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis" }}>Pixores Studio V2</h1>
         </div>
+
+        <div
+  style={{
+    padding: "8px 12px",
+    borderRadius: "8px",
+    background: "#1E293B",
+    color: "#FACC15",
+    fontWeight: 700,
+    fontSize: isMobileLayout ? "13px" : "15px",
+  }}
+>
+  ⭐ Credits: {credits ?? "-"}
+
+  <button
+  onClick={() => setShowCreditsModal(true)}
+  style={{
+    marginTop: "6px",
+    padding: "6px 10px",
+    background: "#F59E0B",
+    color: "#FFF",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 700,
+  }}
+>
+  Buy Credits
+</button>
+</div>
+
+        <button
+  onClick={saveProject}
+  style={{
+    padding: isMobileLayout ? "9px 12px" : "8px 16px",
+    background: "#2563EB",
+    color: "#FFF",
+    border: "none",
+    borderRadius: "6px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontSize: isMobileLayout ? "14px" : "16px",
+  }}
+>
+  💾 Save Project
+</button>
+
+<button
+  onClick={updateProject}
+  disabled={!currentProjectId}
+  style={{
+    padding: isMobileLayout ? "9px 12px" : "8px 16px",
+    background: currentProjectId ? "#F59E0B" : "#94A3B8",
+    color: "#FFF",
+    border: "none",
+    borderRadius: "6px",
+    fontWeight: 600,
+    cursor: currentProjectId ? "pointer" : "not-allowed",
+    fontSize: isMobileLayout ? "14px" : "16px",
+  }}
+>
+  🔄 Update Project
+</button>
+
+<button
+  onClick={loadMyProjects}
+  style={{
+    padding: isMobileLayout ? "9px 12px" : "8px 16px",
+    background: "#0F172A",
+    color: "#FFF",
+    border: "none",
+    borderRadius: "6px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontSize: isMobileLayout ? "14px" : "16px",
+  }}
+>
+  📂 My Projects
+</button>
+
+
         <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 140px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
           📥 Download PNG HD
         </button>
       </header>
 
+      {showProjects && (
+        <div
+          style={{
+            background: "#FFFFFF",
+            borderBottom: "1px solid #E2E8F0",
+            padding: "14px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            zIndex: 20,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <strong>My Projects</strong>
+
+            <button
+              onClick={() => setShowProjects(false)}
+              style={{
+                border: "none",
+                background: "#F1F5F9",
+                padding: "6px 10px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+          </div>
+
+          {savedProjects.length === 0 ? (
+            <p style={{ margin: 0, color: "#64748B", fontSize: "14px" }}>
+              No saved projects yet.
+            </p>
+          ) : (
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+             {savedProjects.map((project) => (
+  <div
+    key={project.id}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "10px",
+      borderRadius: "8px",
+      border: "1px solid #CBD5E1",
+      background: "#F8FAFC",
+    }}
+  >
+    {(project.thumbnail || project.project_data?.thumbnail) ? (
+      <img
+        src={project.thumbnail || project.project_data?.thumbnail}
+        alt={project.name}
+        style={{
+          width: "120px",
+          height: "68px",
+          objectFit: "cover",
+          borderRadius: "6px",
+          border: "1px solid #E2E8F0",
+          background: "#E2E8F0",
+          flex: "0 0 auto",
+        }}
+      />
+    ) : (
+      <div
+        style={{
+          width: "120px",
+          height: "68px",
+          borderRadius: "6px",
+          border: "1px solid #E2E8F0",
+          background: "#E2E8F0",
+          color: "#64748B",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "12px",
+          fontWeight: 700,
+          flex: "0 0 auto",
+        }}
+      >
+        No preview
+      </div>
+    )}
+    <button
+      onClick={() => openProject(project)}
+      style={{
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        fontWeight: 700,
+      }}
+    >
+      📄 {project.name}
+    </button>
+
+    <button
+      onClick={() => deleteProject(project.id)}
+      style={{
+        border: "none",
+        background: "#FEE2E2",
+        color: "#DC2626",
+        borderRadius: "6px",
+        padding: "5px 8px",
+        cursor: "pointer",
+        fontWeight: 700,
+      }}
+    >
+      Delete
+    </button>
+  </div>
+))}
+            </div>
+          )}
+        </div>
+      )}
+
+{showCreditsModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.7)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 999999,
+    }}
+  >
+    <div
+      style={{
+        width: "90%",
+        maxWidth: "700px",
+        background: "#FFFFFF",
+        borderRadius: "20px",
+        padding: "24px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>⭐ Buy Credits</h2>
+
+        <button
+          onClick={closeCreditsModal}
+          style={{
+            border: "none",
+            background: "transparent",
+            fontSize: "24px",
+            cursor: "pointer",
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+          gap: "16px",
+        }}
+      >
+        {CREDIT_PACKAGES.map((pkg) => (
+          <div
+            key={pkg.id}
+            style={{
+              border: "1px solid #E2E8F0",
+              borderRadius: "12px",
+              padding: "20px",
+              textAlign: "center",
+            }}
+          >
+            <h3>{pkg.name}</h3>
+
+            <div
+              style={{
+                fontSize: "36px",
+                fontWeight: 800,
+                color: "#2563EB",
+              }}
+            >
+              {pkg.credits}
+            </div>
+
+            <p>Credits</p>
+
+            <h2>${pkg.price}</h2>
+
+<button
+  onClick={() => buyCredits(pkg.id)}
+  style={{
+    width: "100%",
+    padding: "10px",
+    background: "#2563EB",
+    color: "#FFF",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 700,
+  }}
+>
+  Buy Now
+</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
       {/* MAIN LAYOUT */}
       <div style={{ display: "grid", gridTemplateColumns: isMobileLayout ? "minmax(0, 1fr)" : "320px 1fr 340px", flex: 1, overflow: isMobileLayout ? "visible" : "hidden" }}>
         
@@ -1063,6 +1767,33 @@ const downloadPNG = async () => {
       style={{ fontSize: "12px", width: "100%" }}
     />
 
+    <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Canvas Border / Stroke</label>
+
+      <input
+        type="color"
+        value={canvasStrokeColor}
+        onChange={(e) => setCanvasStrokeColor(e.target.value)}
+        style={{ width: "100%", height: "28px", border: "none", cursor: "pointer" }}
+      />
+
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#64748B", marginBottom: "4px" }}>
+          <span>Thickness</span>
+          <span>{canvasStrokeWidth}px</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="40"
+          step="1"
+          value={canvasStrokeWidth}
+          onChange={(e) => setCanvasStrokeWidth(Number(e.target.value))}
+          style={{ width: "100%" }}
+        />
+      </div>
+    </div>
+
     {preview && (
       <button
         onClick={() => setPreview(null)}
@@ -1108,10 +1839,11 @@ const downloadPNG = async () => {
         { id: "people", label: "People" },
         { id: "objects", label: "Objects" },
         { id: "shapes", label: "Shapes" },
+        { id: "frames", label: "Frames" },
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes")}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames")}
           style={{
             flex: 1,
             padding: "7px",
@@ -1129,7 +1861,7 @@ const downloadPNG = async () => {
       ))}
     </div>
 
-    {assetTab !== "shapes" ? (
+    {assetTab === "people" || assetTab === "objects" ? (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
         {PREMADE_ASSETS.filter((asset) => asset.category === assetTab).map((asset) => (
           <div
@@ -1165,7 +1897,7 @@ const downloadPNG = async () => {
       </div>
     ) : (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-        {PREMADE_SHAPES.map((shape) => (
+        {(assetTab === "frames" ? PREMADE_FRAMES : PREMADE_SHAPES).map((shape) => (
           <div
             key={shape.name}
             onClick={() => addPremadeShape(shape)}
@@ -1355,7 +2087,9 @@ const downloadPNG = async () => {
     maxWidth: isMobileLayout ? "100%" : "820px",
     aspectRatio: `${canvasWidth} / ${canvasHeight}`,
     backgroundColor: canvasBgColor,
+    border: canvasStrokeWidth > 0 ? `${canvasStrokeWidth}px solid ${canvasStrokeColor}` : "none",
     borderRadius: "4px",
+    boxSizing: "border-box",
     boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
     overflow: "hidden",
   }}
@@ -1380,7 +2114,44 @@ const downloadPNG = async () => {
 
             {layers.map((layer, index) => {
               const isSelected = selectedLayerId === layer.id;
+              
+              const closeCreditsModal = () => {
+  setShowCreditsModal(false);
+};
+
+const buyCredits = async (packageId: string) => {
+  const { data: userData } = await supabase.auth.getUser();
+
+  if (!userData.user) {
+    alert("Please login first.");
+    return;
+  }
+
+  const res = await fetch("/api/create-checkout-session", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      packageId,
+      userId: userData.user.id,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data.url) {
+    alert(data.error || "Could not start checkout.");
+    return;
+  }
+
+  window.location.href = data.url;
+};
               return (
+                
+                
+
+                
                 <div
                   
   key={layer.id}
@@ -1487,30 +2258,90 @@ const downloadPNG = async () => {
     style={{
       width: `${layer.width}px`,
       height: `${layer.height}px`,
-      border: `8px solid ${layer.color}`,
-      background: "transparent",
+      border: `${layer.strokeWidth ?? 8}px solid ${
+        layer.strokeColor || layer.color || "#3B82F6"
+      }`,
+      overflow: "hidden",
+      position: "relative",
+      background: layer.frameImageSrc
+        ? "transparent"
+        : "repeating-linear-gradient(45deg, #F8FAFC 0 10px, #E2E8F0 10px 20px)",
+      boxShadow: !layer.frameImageSrc ? "inset 0 0 0 2px #94A3B8" : "none",
     }}
-  />
+  >
+    {layer.frameImageSrc && (
+      <img
+        src={layer.frameImageSrc}
+        alt=""
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: layer.frameImageFit || "cover",
+          display: "block",
+        }}
+      />
+    )}
+  </div>
+
 ) : layer.shapeType === "roundedFrame" ? (
   <div
     style={{
       width: `${layer.width}px`,
       height: `${layer.height}px`,
-      border: `8px solid ${layer.color}`,
+      border: `${layer.strokeWidth ?? 8}px solid ${
+  layer.strokeColor || layer.color || "#3B82F6"
+}`,
       borderRadius: "24px",
-      background: "transparent",
+      overflow: "hidden",
+      position: "relative",
+      background: layer.frameImageSrc
+        ? "transparent"
+        : "repeating-linear-gradient(45deg, #F8FAFC 0 10px, #E2E8F0 10px 20px)",
+      boxShadow: !layer.frameImageSrc ? "inset 0 0 0 2px #94A3B8" : "none",
     }}
-  />
+  >
+    {layer.frameImageSrc && (
+      <img
+        src={layer.frameImageSrc}
+        alt=""
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: layer.frameImageFit || "cover",
+          display: "block",
+        }}
+      />
+    )}
+  </div>
+
 ) : layer.shapeType === "circleFrame" ? (
   <div
     style={{
       width: `${layer.width}px`,
       height: `${layer.width}px`,
-      border: `8px solid ${layer.color}`,
+      border: `${layer.strokeWidth ?? 8}px solid ${layer.strokeColor || layer.color || "#FACC15"}`,
       borderRadius: "50%",
-      background: "transparent",
+      overflow: "hidden",
+      position: "relative",
+      background: layer.frameImageSrc
+        ? "transparent"
+        : "repeating-linear-gradient(45deg, #F8FAFC 0 10px, #E2E8F0 10px 20px)",
+      boxShadow: !layer.frameImageSrc ? "inset 0 0 0 2px #94A3B8" : "none",
     }}
-  />
+  >
+    {layer.frameImageSrc && (
+      <img
+        src={layer.frameImageSrc}
+        alt=""
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: layer.frameImageFit || "cover",
+          display: "block",
+        }}
+      />
+    )}
+  </div>
   ) : layer.shapeType === "arrow" ? (
     <div style={{ fontSize: `${layer.width || 120}px`, color: layer.color, lineHeight: 1 }}>➜</div>
   ) : (
@@ -1648,6 +2479,45 @@ const downloadPNG = async () => {
               </div>
 
               <hr style={{ border: "none", borderTop: "1px solid #F1F5F9" }} />
+
+              <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "8px" }}>Flip Element</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => updateSelectedLayer({ isFlippedH: !selectedLayer.isFlippedH })}
+                    style={{
+                      padding: "8px",
+                      background: selectedLayer.isFlippedH ? "#DBEAFE" : "#FFFFFF",
+                      color: selectedLayer.isFlippedH ? "#1D4ED8" : "#334155",
+                      border: selectedLayer.isFlippedH ? "1px solid #60A5FA" : "1px solid #CBD5E1",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Flip H
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => updateSelectedLayer({ isFlippedV: !selectedLayer.isFlippedV })}
+                    style={{
+                      padding: "8px",
+                      background: selectedLayer.isFlippedV ? "#DBEAFE" : "#FFFFFF",
+                      color: selectedLayer.isFlippedV ? "#1D4ED8" : "#334155",
+                      border: selectedLayer.isFlippedV ? "1px solid #60A5FA" : "1px solid #CBD5E1",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Flip V
+                  </button>
+                </div>
+              </div>
 
               {/* CROP CROP TOOL */}
               {selectedLayer.type === "image" && (
@@ -1864,7 +2734,7 @@ const downloadPNG = async () => {
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
                   <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "flex", gap: "6px", alignItems: "center" }}>
                     <input type="checkbox" checked={selectedLayer.hasImageStroke || false} onChange={(e) => updateSelectedLayer({ hasImageStroke: e.target.checked })} />
-                    Enable Image Outline (Stroke)
+                    Enable Object/Image Outline (Stroke)
                   </label>
                   {selectedLayer.hasImageStroke && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
@@ -1873,6 +2743,42 @@ const downloadPNG = async () => {
                       <input type="range" min="1" max="20" value={selectedLayer.imageStrokeWidth || 4} onChange={(e) => updateSelectedLayer({ imageStrokeWidth: Number(e.target.value) })} style={{ width: "100%" }} />
                     </div>
                   )}
+                </div>
+              )}
+
+              {isImageFrame(selectedLayer) && (
+                <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "8px" }}>Frame Stroke</label>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <input
+                      type="color"
+                      value={selectedLayer.strokeColor || selectedLayer.color || "#3B82F6"}
+                      onChange={(e) => updateSelectedLayer({ strokeColor: e.target.value, color: e.target.value })}
+                      style={{ width: "100%", height: "28px", border: "none", cursor: "pointer" }}
+                    />
+
+                    <label style={{ fontSize: "10px", color: "#64748B" }}>Thickness ({selectedLayer.strokeWidth ?? 8}px)</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="32"
+                      value={selectedLayer.strokeWidth ?? 8}
+                      onChange={(e) => updateSelectedLayer({ strokeWidth: Number(e.target.value) })}
+                      style={{ width: "100%" }}
+                    />
+
+                    {selectedLayer.frameImageSrc && (
+                      <select
+                        value={selectedLayer.frameImageFit || "cover"}
+                        onChange={(e) => updateSelectedLayer({ frameImageFit: e.target.value as "cover" | "contain" })}
+                        style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFF" }}
+                      >
+                        <option value="cover">Image Fill: Cover</option>
+                        <option value="contain">Image Fit: Contain</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
               )}
 
