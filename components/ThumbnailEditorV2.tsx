@@ -169,6 +169,7 @@ export default function ThumbnailEditorV2() {
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
   const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames">("people");
+  const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
 
   const [savedProjects, setSavedProjects] = useState<any[]>([]);
   const [showProjects, setShowProjects] = useState(false);
@@ -366,6 +367,10 @@ useEffect(() => {
     window.addEventListener("resize", updateLayout);
     return () => window.removeEventListener("resize", updateLayout);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileLayout) setMobilePanel(null);
+  }, [isMobileLayout]);
 
   const deleteLayer = () => {
     if (layers.length === 0 || !selectedLayerId) return;
@@ -1430,12 +1435,12 @@ const buyCredits = async (packageId: string) => {
 };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "auto" : "100vh", height: isMobileLayout ? "auto" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflowX: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
       
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@700;900&family=Poppins:wght@600;900&family=Inter:wght@400;800&display=swap" />
 
       {/* HEADER */}
-      <header style={{ minHeight: "56px", background: "#0F172A", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: isMobileLayout ? "10px 12px" : "0 20px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", zIndex: 10, flexWrap: isMobileLayout ? "wrap" : "nowrap" }}>
+      <header style={{ minHeight: "56px", background: "#0F172A", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: isMobileLayout ? "8px 14px" : "0 20px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", zIndex: 10, flexWrap: "nowrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 180px" }}>
           <span style={{ fontSize: "20px" }}>🎨</span>
           <h1 style={{ fontSize: isMobileLayout ? "15px" : "16px", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis" }}>Pixores Studio V2</h1>
@@ -1443,6 +1448,7 @@ const buyCredits = async (packageId: string) => {
 
         <div
   style={{
+    display: isMobileLayout ? "none" : "block",
     padding: "8px 12px",
     borderRadius: "8px",
     background: "#1E293B",
@@ -1473,6 +1479,7 @@ const buyCredits = async (packageId: string) => {
         <button
   onClick={saveProject}
   style={{
+    display: isMobileLayout ? "none" : "block",
     padding: isMobileLayout ? "9px 12px" : "8px 16px",
     background: "#2563EB",
     color: "#FFF",
@@ -1490,6 +1497,7 @@ const buyCredits = async (packageId: string) => {
   onClick={updateProject}
   disabled={!currentProjectId}
   style={{
+    display: isMobileLayout ? "none" : "block",
     padding: isMobileLayout ? "9px 12px" : "8px 16px",
     background: currentProjectId ? "#F59E0B" : "#94A3B8",
     color: "#FFF",
@@ -1506,6 +1514,7 @@ const buyCredits = async (packageId: string) => {
 <button
   onClick={loadMyProjects}
   style={{
+    display: isMobileLayout ? "none" : "block",
     padding: isMobileLayout ? "9px 12px" : "8px 16px",
     background: "#0F172A",
     color: "#FFF",
@@ -1520,10 +1529,10 @@ const buyCredits = async (packageId: string) => {
 </button>
 
 
-        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 140px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
+        <button disabled={isExporting} onClick={() => downloadPNG()} style={{ display: isMobileLayout ? "none" : "block", padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 140px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
           📥 Download PNG HD
         </button>
-        <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 160px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
+        <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ display: isMobileLayout ? "none" : "block", padding: isMobileLayout ? "9px 12px" : "8px 16px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 600, cursor: isExporting ? "wait" : "pointer", flex: isMobileLayout ? "1 1 160px" : "0 0 auto", fontSize: isMobileLayout ? "14px" : "16px" }}>
           Download Transparent PNG
         </button>
       </header>
@@ -1753,12 +1762,19 @@ const buyCredits = async (packageId: string) => {
     display: "grid",
     gridTemplateColumns: isMobileLayout ? "1fr" : "320px 1fr 340px",
     flex: 1,
-    overflow: isMobileLayout ? "visible" : "hidden",
+    minHeight: 0,
+    overflow: "hidden",
   }}
 >
         
         {/* LEFT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: isMobileLayout ? "visible" : "auto", display: "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0 }}>
+        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "elements" || mobilePanel === "tools" ? "flex" : "none") : "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0, position: isMobileLayout ? "fixed" : "static", left: isMobileLayout ? 0 : undefined, right: isMobileLayout ? 0 : undefined, bottom: isMobileLayout ? "76px" : undefined, maxHeight: isMobileLayout ? "62dvh" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderTopLeftRadius: isMobileLayout ? "18px" : undefined, borderTopRightRadius: isMobileLayout ? "18px" : undefined, boxShadow: isMobileLayout ? "0 -18px 40px rgba(15, 23, 42, 0.22)" : undefined }}>
+          {isMobileLayout && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
+              <strong style={{ fontSize: "14px", color: "#0F172A" }}>{mobilePanel === "elements" ? "Elements" : "Tools"}</strong>
+              <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
+            </div>
+          )}
           
           {/* CANVAS RESIZER */}
           <div style={{ background: "#F8FAFC", padding: "12px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
@@ -2080,7 +2096,7 @@ const buyCredits = async (packageId: string) => {
         </aside>
 
         {/* CENTER WORKSPACE */}
-        <section style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: isMobileLayout ? "visible" : "auto", padding: isMobileLayout ? "16px" : "30px", background: "#F8FAFC", minWidth: 0, order: isMobileLayout ? 0 : 0 }}>
+        <section style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
             <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: isMobileLayout ? "8px 10px" : "6px 20px", borderRadius: isMobileLayout ? "10px" : "30px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: "100%", overflowX: "auto" }}>
@@ -2493,7 +2509,13 @@ const buyCredits = async (packageId: string) => {
         </section>
 
         {/* RIGHT PROPERTY EDIT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: isMobileLayout ? "visible" : "auto", display: "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0 }}>
+        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "edit" ? "flex" : "none") : "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0, position: isMobileLayout ? "fixed" : "static", left: isMobileLayout ? 0 : undefined, right: isMobileLayout ? 0 : undefined, bottom: isMobileLayout ? "76px" : undefined, maxHeight: isMobileLayout ? "62dvh" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderTopLeftRadius: isMobileLayout ? "18px" : undefined, borderTopRightRadius: isMobileLayout ? "18px" : undefined, boxShadow: isMobileLayout ? "0 -18px 40px rgba(15, 23, 42, 0.22)" : undefined }}>
+          {isMobileLayout && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
+              <strong style={{ fontSize: "14px", color: "#0F172A" }}>Edit</strong>
+              <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
+            </div>
+          )}
           
           {/* CANVAS BACKGROUND IMAGE ADJUSTMENTS */}
           {preview && (
@@ -2862,6 +2884,72 @@ const buyCredits = async (packageId: string) => {
           )}
         </aside>
       </div>
+      {isMobileLayout && mobilePanel && (
+        <button
+          type="button"
+          aria-label="Close mobile panel"
+          onClick={() => setMobilePanel(null)}
+          style={{ position: "fixed", inset: "56px 0 76px", background: "rgba(15, 23, 42, 0.28)", border: "none", padding: 0, zIndex: 2147483645 }}
+        />
+      )}
+
+      {isMobileLayout && mobilePanel === "export" && (
+        <aside style={{ position: "fixed", left: 0, right: 0, bottom: "76px", maxHeight: "62dvh", overflowY: "auto", background: "#FFFFFF", borderTopLeftRadius: "18px", borderTopRightRadius: "18px", boxShadow: "0 -18px 40px rgba(15, 23, 42, 0.22)", padding: "16px", zIndex: 2147483646, display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+            <strong style={{ fontSize: "14px", color: "#0F172A" }}>Export</strong>
+            <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
+          </div>
+
+          <div style={{ padding: "10px 12px", borderRadius: "10px", background: "#FEF3C7", color: "#92400E", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+            <span>Credits: {credits ?? "-"}</span>
+            <button onClick={() => setShowCreditsModal(true)} style={{ padding: "7px 10px", background: "#F59E0B", color: "#FFFFFF", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 700 }}>Buy Credits</button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <button onClick={saveProject} style={{ padding: "12px 10px", background: "#2563EB", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>Save Project</button>
+            <button onClick={updateProject} disabled={!currentProjectId} style={{ padding: "12px 10px", background: currentProjectId ? "#F59E0B" : "#94A3B8", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: currentProjectId ? "pointer" : "not-allowed" }}>Update</button>
+            <button onClick={loadMyProjects} style={{ padding: "12px 10px", background: "#0F172A", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>My Projects</button>
+            <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>PNG HD</button>
+          </div>
+
+          <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
+            Download Transparent PNG
+          </button>
+        </aside>
+      )}
+
+      {isMobileLayout && (
+        <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: "76px", background: "#FFFFFF", borderTop: "1px solid #E2E8F0", boxShadow: "0 -8px 24px rgba(15, 23, 42, 0.08)", zIndex: 2147483647, display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
+          {[
+            { id: "elements", icon: "+", label: "Elements" },
+            { id: "text", icon: "T", label: "Text" },
+            { id: "uploads", icon: "UP", label: "Uploads" },
+            { id: "edit", icon: "FX", label: "Edit" },
+            { id: "export", icon: "DL", label: "Export" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                if (item.id === "text") {
+                  addTextLayer();
+                  setMobilePanel("edit");
+                  return;
+                }
+                if (item.id === "uploads") {
+                  setMobilePanel("elements");
+                  return;
+                }
+                setMobilePanel(item.id as "elements" | "edit" | "export");
+              }}
+              style={{ border: "none", background: mobilePanel === item.id || (item.id === "uploads" && mobilePanel === "elements") ? "#EFF6FF" : "#FFFFFF", color: mobilePanel === item.id || (item.id === "uploads" && mobilePanel === "elements") ? "#2563EB" : "#475569", fontWeight: 700, fontSize: "11px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "5px", cursor: "pointer" }}
+            >
+              <span style={{ fontSize: item.id === "text" ? "22px" : "20px", lineHeight: 1 }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
