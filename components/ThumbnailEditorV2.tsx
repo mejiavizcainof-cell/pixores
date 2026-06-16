@@ -333,7 +333,7 @@ export default function ThumbnailEditorV2() {
     const loadBackgroundAssets = async () => {
       try {
         setIsLoadingBackgrounds(true);
-        const response = await fetch("/api/background-assets", { cache: "no-store" });
+        const response = await fetch("/background/background-assets.json", { cache: "no-store" });
         if (!response.ok) throw new Error("Unable to load background assets");
         const data = await response.json();
         const categories: BackgroundCategory[] = Array.isArray(data.categories) ? data.categories : [];

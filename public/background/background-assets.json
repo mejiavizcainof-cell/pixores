@@ -1,0 +1,931 @@
+{
+  "categories": [
+    {
+      "name": "Animales",
+      "assets": [
+        {
+          "name": "aguila 3260x1834",
+          "src": "/background/Animales/aguila_3260x1834.jpg"
+        },
+        {
+          "name": "arte lobos de colores 7680x4320",
+          "src": "/background/Animales/arte-lobos-de-colores_7680x4320.jpg"
+        },
+        {
+          "name": "buhos con pelaje de patrones abstractos y colores irreales 8119x4532",
+          "src": "/background/Animales/buhos-con-pelaje-de-patrones-abstractos-y-colores-irreales_8119x4532.jpg"
+        },
+        {
+          "name": "capibara 3d realista con sombrero en calle de san francisco 5120x2880",
+          "src": "/background/Animales/capibara-3d-realista-con-sombrero-en-calle-de-san-francisco_5120x2880.jpg"
+        },
+        {
+          "name": "gato astronauta en el espacio 3840x2160",
+          "src": "/background/Animales/gato-astronauta-en-el-espacio_3840x2160.jpg"
+        },
+        {
+          "name": "gato negro minimalista con fondo azul 3840x2160",
+          "src": "/background/Animales/gato-negro-minimalista-con-fondo-azul_3840x2160.jpg"
+        },
+        {
+          "name": "gatos pescando 3840x2160",
+          "src": "/background/Animales/gatos-pescando_3840x2160.jpg"
+        },
+        {
+          "name": "guila colorida arte digital 7680x4320",
+          "src": "/background/Animales/guila-colorida-arte-digital_7680x4320.jpg"
+        },
+        {
+          "name": "leon en blanco y negro 2560x1600",
+          "src": "/background/Animales/leon-en-blanco-y-negro_2560x1600.jpg"
+        },
+        {
+          "name": "lobo digital 3840x2160",
+          "src": "/background/Animales/lobo-digital_3840x2160.jpg"
+        },
+        {
+          "name": "perro en el pasto 6000x4000",
+          "src": "/background/Animales/perro-en-el-pasto_6000x4000.jpg"
+        },
+        {
+          "name": "tigre blanco 3840x2160",
+          "src": "/background/Animales/tigre-blanco_3840x2160.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Anime",
+      "assets": [
+        {
+          "name": "barco de luffy en one piece 5120x2880",
+          "src": "/background/Anime/barco-de-luffy-en-one-piece_5120x2880.jpg"
+        },
+        {
+          "name": "black goku dragon ball super 7680x4320",
+          "src": "/background/Anime/black-goku-dragon-ball-super_7680x4320.jpg"
+        },
+        {
+          "name": "casa kame de dragon ball 3840x2160",
+          "src": "/background/Anime/casa-kame-de-dragon-ball_3840x2160.jpg"
+        },
+        {
+          "name": "chica anime en ciudad estilo retrowave synthwave 5120x2880",
+          "src": "/background/Anime/chica-anime-en-ciudad-estilo-retrowave-synthwave_5120x2880.jpg"
+        },
+        {
+          "name": "deadpool arte digital 3840x2160",
+          "src": "/background/Anime/deadpool-arte-digital_3840x2160.jpg"
+        },
+        {
+          "name": "goku en lineas neon morado 5120x2880",
+          "src": "/background/Anime/goku-en-lineas-neon-morado_5120x2880.jpg"
+        },
+        {
+          "name": "goku enfrentandose a shenron 5120x2880",
+          "src": "/background/Anime/goku-enfrentandose-a-shenron_5120x2880.jpg"
+        },
+        {
+          "name": "goku silueta entre nubes grises 4096x2304",
+          "src": "/background/Anime/goku-silueta-entre-nubes-grises_4096x2304.jpg"
+        },
+        {
+          "name": "iron man arte digital 5120x2880",
+          "src": "/background/Anime/iron-man-arte-digital_5120x2880.jpg"
+        },
+        {
+          "name": "logo batman con salpicaduras de pintura y gotas de agua 7680x4320",
+          "src": "/background/Anime/logo-batman-con-salpicaduras-de-pintura-y-gotas-de-agua_7680x4320.jpg"
+        },
+        {
+          "name": "luffy ilustracion minimalista 2d 4044x2160",
+          "src": "/background/Anime/luffy-ilustracion-minimalista-2d_4044x2160.jpg"
+        },
+        {
+          "name": "makima de chainsaw man 5120x2880",
+          "src": "/background/Anime/makima-de-chainsaw-man_5120x2880.jpg"
+        },
+        {
+          "name": "one piece carteles de se busca 3840x2400",
+          "src": "/background/Anime/one-piece-carteles-de-se-busca_3840x2400.jpg"
+        },
+        {
+          "name": "one piece personajes 4103x3004",
+          "src": "/background/Anime/one-piece-personajes_4103x3004.jpg"
+        },
+        {
+          "name": "personajes de hora de aventura 3840x2160",
+          "src": "/background/Anime/personajes-de-hora-de-aventura_3840x2160.jpg"
+        },
+        {
+          "name": "puerquito astronauta 8118x4531",
+          "src": "/background/Anime/puerquito-astronauta_8118x4531.jpg"
+        },
+        {
+          "name": "rick sanchez foto policial de rick y morty 7680x4324",
+          "src": "/background/Anime/rick-sanchez-foto-policial-de-rick-y-morty_7680x4324.jpg"
+        },
+        {
+          "name": "roronoa zoro ilustracion en tonos verdes 5120x2880",
+          "src": "/background/Anime/roronoa-zoro-ilustracion-en-tonos-verdes_5120x2880.jpg"
+        },
+        {
+          "name": "satoru gojo de jjk 7680x4320",
+          "src": "/background/Anime/satoru-gojo-de-jjk_7680x4320.jpg"
+        },
+        {
+          "name": "son goku nino de dragon ball z 5120x2880",
+          "src": "/background/Anime/son-goku-nino-de-dragon-ball-z_5120x2880.jpg"
+        },
+        {
+          "name": "spider man arte digital realista 3840x2156",
+          "src": "/background/Anime/spider-man-arte-digital-realista_3840x2156.jpg"
+        },
+        {
+          "name": "trunks de dragon ball 3840x2160",
+          "src": "/background/Anime/trunks-de-dragon-ball_3840x2160.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Arte y Diseño",
+      "assets": [
+        {
+          "name": "3d estructura abstracta 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/3d-estructura-abstracta_3840x2160.jpg"
+        },
+        {
+          "name": "apple pro display xdr abstracto 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/apple-pro-display-xdr-abstracto_5120x2880.jpg"
+        },
+        {
+          "name": "barras de luces neon azul 5632x3072",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/barras-de-luces-neon-azul_5632x3072.jpg"
+        },
+        {
+          "name": "barras de luces neon verde 5632x3072",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/barras-de-luces-neon-verde_5632x3072.jpg"
+        },
+        {
+          "name": "chica anime estudiante 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/chica-anime-estudiante_3840x2160.jpg"
+        },
+        {
+          "name": "chica cubierta de nubes 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/chica-cubierta-de-nubes_3840x2160.jpg"
+        },
+        {
+          "name": "ciudad futurista estilo retro 7680x4224",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/ciudad-futurista-estilo-retro_7680x4224.jpg"
+        },
+        {
+          "name": "colores abstractos en luces 7680x4320",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/colores-abstractos-en-luces_7680x4320.jpg"
+        },
+        {
+          "name": "criatura monstruosa japones 4096x2288",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/criatura-monstruosa-japones_4096x2288.jpg"
+        },
+        {
+          "name": "espacio abstracto 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/espacio-abstracto_3840x2160.jpg"
+        },
+        {
+          "name": "espirales 3d de colores 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/espirales-3d-de-colores_5120x2880.jpg"
+        },
+        {
+          "name": "explosion de figuras de colores 8120x4531",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/explosion-de-figuras-de-colores_8120x4531.jpg"
+        },
+        {
+          "name": "explosion de figuras poligonales abstracto 9830x5529",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/explosion-de-figuras-poligonales-abstracto_9830x5529.jpg"
+        },
+        {
+          "name": "explosion de pintura de colores 8120x4532",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/explosion-de-pintura-de-colores_8120x4532.jpg"
+        },
+        {
+          "name": "explosion polvo y humo de colores 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/explosion-polvo-y-humo-de-colores_5120x2880.jpg"
+        },
+        {
+          "name": "figuras 3d abstractas luces 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/figuras-3d-abstractas-luces_5120x2880.jpg"
+        },
+        {
+          "name": "guila colorida arte digital 7680x4320",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/guila-colorida-arte-digital_7680x4320.jpg"
+        },
+        {
+          "name": "hojas rosa 3868x2419",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/hojas-rosa_3868x2419.jpg"
+        },
+        {
+          "name": "ilusion optica 3d en blanco y negro estilo vasarely 7680x4320",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/ilusion-optica-3d-en-blanco-y-negro-estilo-vasarely_7680x4320.jpg"
+        },
+        {
+          "name": "impasto pinceladas de pintura azul naranja y blanco 8190x4560",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/impasto-pinceladas-de-pintura-azul-naranja-y-blanco_8190x4560.jpg"
+        },
+        {
+          "name": "lobo digital 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/lobo-digital_3840x2160.jpg"
+        },
+        {
+          "name": "mariposas rosas 2560x1440",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/mariposas-rosas_2560x1440.jpg"
+        },
+        {
+          "name": "marmol liquido morado con dorado textura abstracta 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/marmol-liquido-morado-con-dorado-textura-abstracta_5120x2880.jpg"
+        },
+        {
+          "name": "movimiento abstracto 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/movimiento-abstracto_3840x2160.jpg"
+        },
+        {
+          "name": "ondas a cuadros azules 3d 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/ondas-a-cuadros-azules-3d_3840x2160.jpg"
+        },
+        {
+          "name": "paisaje 3d montanas luna 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/paisaje-3d-montanas-luna_5120x2880.jpg"
+        },
+        {
+          "name": "pantalla rota con lineas de colores glitch v2 5120x2880",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/pantalla-rota-con-lineas-de-colores-glitch-v2_5120x2880.jpg"
+        },
+        {
+          "name": "patron de hexagonos en lava 3d 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/patron-de-hexagonos-en-lava-3d_3840x2160.jpg"
+        },
+        {
+          "name": "pink floyd el lado oscuro de la luna 4033x2521",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/pink-floyd-el-lado-oscuro-de-la-luna_4033x2521.jpg"
+        },
+        {
+          "name": "pintura atardecer sol sonriente 2912x1632",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/pintura-atardecer-sol-sonriente_2912x1632.jpg"
+        },
+        {
+          "name": "pintura liquida con patrones ondulados 9216x5184",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/pintura-liquida-con-patrones-ondulados_9216x5184.jpg"
+        },
+        {
+          "name": "pokebola decorada 5120x2858",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/pokebola-decorada_5120x2858.jpg"
+        },
+        {
+          "name": "textura metalica 3000x2098",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/textura-metalica_3000x2098.jpg"
+        },
+        {
+          "name": "textura vieja hoja de papel arrugada cafe 2818x2000",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/textura-vieja-hoja-de-papel-arrugada-cafe_2818x2000.jpg"
+        },
+        {
+          "name": "texturas arte digital abstracto naranja y azul 9792x5529",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/texturas-arte-digital-abstracto-naranja-y-azul_9792x5529.jpg"
+        },
+        {
+          "name": "windows 11 abstracto morado 3840x2160",
+          "src": "/background/Arte%20y%20Dise%C3%B1o/windows-11-abstracto-morado_3840x2160.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Deportes",
+      "assets": [
+        {
+          "name": "adidas nba baloncesto 1920x1080",
+          "src": "/background/Deportes/adidas-nba-baloncesto_1920x1080.jpg"
+        },
+        {
+          "name": "balon de futbol atravesando agua 3840x2400",
+          "src": "/background/Deportes/balon-de-futbol-atravesando-agua_3840x2400.jpg"
+        },
+        {
+          "name": "balon de futbol en fuego 3840x2400",
+          "src": "/background/Deportes/balon-de-futbol-en-fuego_3840x2400.jpg"
+        },
+        {
+          "name": "campo de futbol con mapa del mundo en miniatura de fieltro 5120x2880",
+          "src": "/background/Deportes/campo-de-futbol-con-mapa-del-mundo-en-miniatura-de-fieltro_5120x2880.jpg"
+        },
+        {
+          "name": "cesta de basquetbol 2560x1600",
+          "src": "/background/Deportes/cesta-de-basquetbol_2560x1600.jpg"
+        },
+        {
+          "name": "copa mundial de rugby 2015 2880x1800",
+          "src": "/background/Deportes/copa-mundial-de-rugby-2015_2880x1800.jpg"
+        },
+        {
+          "name": "cristiano ronaldo 2880x1800",
+          "src": "/background/Deportes/cristiano-ronaldo_2880x1800.jpg"
+        },
+        {
+          "name": "cristiano ronaldo 3840x2160",
+          "src": "/background/Deportes/cristiano-ronaldo_3840x2160.jpg"
+        },
+        {
+          "name": "cristiano ronaldo 3840x2400",
+          "src": "/background/Deportes/cristiano-ronaldo_3840x2400.jpg"
+        },
+        {
+          "name": "cristiano ronaldo en portugal 2880x1800",
+          "src": "/background/Deportes/cristiano-ronaldo-en-portugal_2880x1800.jpg"
+        },
+        {
+          "name": "damian lillard de portland trail blazers 3840x2160",
+          "src": "/background/Deportes/damian-lillard-de-portland-trail-blazers_3840x2160.jpg"
+        },
+        {
+          "name": "esquiador en una montana 3840x2160",
+          "src": "/background/Deportes/esquiador-en-una-montana_3840x2160.jpg"
+        },
+        {
+          "name": "gerard pique 5010x2916",
+          "src": "/background/Deportes/gerard-pique_5010x2916.jpg"
+        },
+        {
+          "name": "jordan logo 3840x2160",
+          "src": "/background/Deportes/jordan-logo_3840x2160.jpg"
+        },
+        {
+          "name": "kobe bryant fanart 3000x1688",
+          "src": "/background/Deportes/kobe-bryant-fanart_3000x1688.jpg"
+        },
+        {
+          "name": "lebron james 3840x2160",
+          "src": "/background/Deportes/lebron-james_3840x2160.jpg"
+        },
+        {
+          "name": "lionel messi 10 3840x2160",
+          "src": "/background/Deportes/lionel-messi-10_3840x2160.jpg"
+        },
+        {
+          "name": "lionel messi barcelona 2667x1500",
+          "src": "/background/Deportes/lionel-messi-barcelona_2667x1500.jpg"
+        },
+        {
+          "name": "lionel messi copa mundial de la fifa catar 4335x2438",
+          "src": "/background/Deportes/lionel-messi-copa-mundial-de-la-fifa-catar_4335x2438.jpg"
+        },
+        {
+          "name": "messi en la seleccion argentina 3840x2160",
+          "src": "/background/Deportes/messi-en-la-seleccion-argentina_3840x2160.jpg"
+        },
+        {
+          "name": "neymar jr psg 2880x1800",
+          "src": "/background/Deportes/neymar-jr-psg_2880x1800.jpg"
+        },
+        {
+          "name": "real madrid celebrando gol 3000x2169",
+          "src": "/background/Deportes/real-madrid-celebrando-gol_3000x2169.jpg"
+        },
+        {
+          "name": "real madrid logo 7680x4320",
+          "src": "/background/Deportes/real-madrid-logo_7680x4320.jpg"
+        },
+        {
+          "name": "stephen curry 2880x1800",
+          "src": "/background/Deportes/stephen-curry_2880x1800.jpg"
+        },
+        {
+          "name": "uefa champions league estadio 1920x1200",
+          "src": "/background/Deportes/uefa-champions-league-estadio_1920x1200.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Movie",
+      "assets": [
+        {
+          "name": "animales fantasticos los secretos de dumbledore 5120x3187",
+          "src": "/background/Movie/animales-fantasticos-los-secretos-de-dumbledore_5120x3187.jpg"
+        },
+        {
+          "name": "ariel cortando un pezcado fanart 3780x2126",
+          "src": "/background/Movie/ariel-cortando-un-pezcado-fanart_3780x2126.jpg"
+        },
+        {
+          "name": "avatar 6210x3494",
+          "src": "/background/Movie/avatar_6210x3494.jpg"
+        },
+        {
+          "name": "baby groot de guardianes de la galaxia 4216x2372",
+          "src": "/background/Movie/baby-groot-de-guardianes-de-la-galaxia_4216x2372.jpg"
+        },
+        {
+          "name": "baby groot guardianes de la galaxia 6016x3876",
+          "src": "/background/Movie/baby-groot-guardianes-de-la-galaxia_6016x3876.jpg"
+        },
+        {
+          "name": "batman con traje de alta tecnologia abriendo las alas 5120x3413",
+          "src": "/background/Movie/batman-con-traje-de-alta-tecnologia-abriendo-las-alas_5120x3413.jpg"
+        },
+        {
+          "name": "batman estilo comic 3840x2160",
+          "src": "/background/Movie/batman-estilo-comic_3840x2160.jpg"
+        },
+        {
+          "name": "batman wolverine 3840x2192",
+          "src": "/background/Movie/batman-wolverine_3840x2192.jpg"
+        },
+        {
+          "name": "bob esponja y patricio en una esponja maravillosa 3840x2400",
+          "src": "/background/Movie/bob-esponja-y-patricio-en-una-esponja-maravillosa_3840x2400.jpg"
+        },
+        {
+          "name": "buzz lightyear volando en toy story 4 3840x2160",
+          "src": "/background/Movie/buzz-lightyear-volando-en-toy-story-4_3840x2160.jpg"
+        },
+        {
+          "name": "capitan america en escala de grises y rojo 3840x2160",
+          "src": "/background/Movie/capitan-america-en-escala-de-grises-y-rojo_3840x2160.jpg"
+        },
+        {
+          "name": "charlie brown y snoopy 2560x1440",
+          "src": "/background/Movie/charlie-brown-y-snoopy_2560x1440.jpg"
+        },
+        {
+          "name": "coraline y la puerta secreta pelicula 2988x1680",
+          "src": "/background/Movie/coraline-y-la-puerta-secreta-pelicula_2988x1680.jpg"
+        },
+        {
+          "name": "coraline y la puerta secreta pelicula 3000x1809",
+          "src": "/background/Movie/coraline-y-la-puerta-secreta-pelicula_3000x1809.jpg"
+        },
+        {
+          "name": "darth vader lightsaber star wars 3840x2160",
+          "src": "/background/Movie/darth-vader-lightsaber-star-wars_3840x2160.jpg"
+        },
+        {
+          "name": "deadpool arte digital 3840x2160",
+          "src": "/background/Movie/deadpool-arte-digital_3840x2160.jpg"
+        },
+        {
+          "name": "deadpool ilustracion digital 5120x2880",
+          "src": "/background/Movie/deadpool-ilustracion-digital_5120x2880.jpg"
+        },
+        {
+          "name": "deadpool y wolverine pelicula 7680x4320",
+          "src": "/background/Movie/deadpool-y-wolverine-pelicula_7680x4320.jpg"
+        },
+        {
+          "name": "demonio de tasmania space jam a new legacy 7680x4320",
+          "src": "/background/Movie/demonio-de-tasmania-space-jam-a-new-legacy_7680x4320.jpg"
+        },
+        {
+          "name": "depredador 2560x1600",
+          "src": "/background/Movie/depredador_2560x1600.jpg"
+        },
+        {
+          "name": "diseno de harley quinn 2020 3840x2160",
+          "src": "/background/Movie/diseno-de-harley-quinn-2020_3840x2160.jpg"
+        },
+        {
+          "name": "el guason con mano como pistola 4900x2800",
+          "src": "/background/Movie/el-guason-con-mano-como-pistola_4900x2800.jpg"
+        },
+        {
+          "name": "el halcon milenario de star wars 3840x2160",
+          "src": "/background/Movie/el-halcon-milenario-de-star-wars_3840x2160.jpg"
+        },
+        {
+          "name": "gal gadot como la mujer maravilla 84 3840x2160",
+          "src": "/background/Movie/gal-gadot-como-la-mujer-maravilla-84_3840x2160.jpg"
+        },
+        {
+          "name": "gary y bob esponja en un heroe al rescate 3840x2160",
+          "src": "/background/Movie/gary-y-bob-esponja-en-un-heroe-al-rescate_3840x2160.jpg"
+        },
+        {
+          "name": "groot bebe escuchando musica 3840x2160",
+          "src": "/background/Movie/groot-bebe-escuchando-musica_3840x2160.jpg"
+        },
+        {
+          "name": "guason joker 5120x2880",
+          "src": "/background/Movie/guason-joker_5120x2880.jpg"
+        },
+        {
+          "name": "heath ledger como el guason con carta 5120x2880",
+          "src": "/background/Movie/heath-ledger-como-el-guason-con-carta_5120x2880.jpg"
+        },
+        {
+          "name": "henry cavill en the witcher 3840x2400",
+          "src": "/background/Movie/henry-cavill-en-the-witcher_3840x2400.jpg"
+        },
+        {
+          "name": "hombres de negro internacional frank el pug 7680x4320",
+          "src": "/background/Movie/hombres-de-negro-internacional-frank-el-pug_7680x4320.jpg"
+        },
+        {
+          "name": "iron man arte digital 5120x2880",
+          "src": "/background/Movie/iron-man-arte-digital_5120x2880.jpg"
+        },
+        {
+          "name": "iron man volando 3840x2160",
+          "src": "/background/Movie/iron-man-volando_3840x2160.jpg"
+        },
+        {
+          "name": "john wick ilustracion 5120x2880",
+          "src": "/background/Movie/john-wick-ilustracion_5120x2880.jpg"
+        },
+        {
+          "name": "la casa de papel fanart 3840x2400",
+          "src": "/background/Movie/la-casa-de-papel-fanart_3840x2400.jpg"
+        },
+        {
+          "name": "las guerreras k pop kpop demon hunters 3840x2160",
+          "src": "/background/Movie/las-guerreras-k-pop-kpop-demon-hunters_3840x2160.jpg"
+        },
+        {
+          "name": "logo avengers endgame 7680x4320",
+          "src": "/background/Movie/logo-avengers-endgame_7680x4320.jpg"
+        },
+        {
+          "name": "logo de superman 3840x2160",
+          "src": "/background/Movie/logo-de-superman_3840x2160.jpg"
+        },
+        {
+          "name": "mario en super mario galaxy la pelicula 3844x2162",
+          "src": "/background/Movie/mario-en-super-mario-galaxy-la-pelicula_3844x2162.jpg"
+        },
+        {
+          "name": "melissa benoist como supergirl 2880x1800",
+          "src": "/background/Movie/melissa-benoist-como-supergirl_2880x1800.jpg"
+        },
+        {
+          "name": "pato lucas space jam a new legacy 7680x4320",
+          "src": "/background/Movie/pato-lucas-space-jam-a-new-legacy_7680x4320.jpg"
+        },
+        {
+          "name": "pelicula snoopy y charlie brown",
+          "src": "/background/Movie/pelicula-snoopy-y-charlie-brown.jpg"
+        },
+        {
+          "name": "personajes de marvel en fortnite 3840x2160",
+          "src": "/background/Movie/personajes-de-marvel-en-fortnite_3840x2160.jpg"
+        },
+        {
+          "name": "personajes de space jam 2 con lebron james 3840x2160",
+          "src": "/background/Movie/personajes-de-space-jam-2-con-lebron-james_3840x2160.jpg"
+        },
+        {
+          "name": "pokemon detective pikachu 5120x2880",
+          "src": "/background/Movie/pokemon-detective-pikachu_5120x2880.jpg"
+        },
+        {
+          "name": "snoopy la pelicula 1920x1200",
+          "src": "/background/Movie/snoopy-la-pelicula_1920x1200.jpg"
+        },
+        {
+          "name": "snoopy y charlie brown peanuts 2400x1350",
+          "src": "/background/Movie/snoopy-y-charlie-brown-peanuts_2400x1350.jpg"
+        },
+        {
+          "name": "sonic the hedgehog poster de pelicula 3840x2160",
+          "src": "/background/Movie/sonic-the-hedgehog-poster-de-pelicula_3840x2160.jpg"
+        },
+        {
+          "name": "spider gwen stacy en spider man un nuevo universo 4229x2378",
+          "src": "/background/Movie/spider-gwen-stacy-en-spider-man-un-nuevo-universo_4229x2378.jpg"
+        },
+        {
+          "name": "spider man ps5 3840x2160",
+          "src": "/background/Movie/spider-man-ps5_3840x2160.jpg"
+        },
+        {
+          "name": "spider man un nuevo universo 3840x2160",
+          "src": "/background/Movie/spider-man-un-nuevo-universo_3840x2160.jpg"
+        },
+        {
+          "name": "stitch pelicula 2025 live action 7680x4320",
+          "src": "/background/Movie/stitch-pelicula-2025-live-action_7680x4320.jpg"
+        },
+        {
+          "name": "stormtrooper 3840x2160",
+          "src": "/background/Movie/stormtrooper_3840x2160.jpg"
+        },
+        {
+          "name": "stranger things welcome to hawkins 3840x2160",
+          "src": "/background/Movie/stranger-things-welcome-to-hawkins_3840x2160.jpg"
+        },
+        {
+          "name": "superman con traje negro 3200x1800",
+          "src": "/background/Movie/superman-con-traje-negro_3200x1800.jpg"
+        },
+        {
+          "name": "the batman con fondo rojo 3840x2160",
+          "src": "/background/Movie/the-batman-con-fondo-rojo_3840x2160.jpg"
+        },
+        {
+          "name": "the batman oscuridad dc 3840x2160",
+          "src": "/background/Movie/the-batman-oscuridad-dc_3840x2160.jpg"
+        },
+        {
+          "name": "tom holland en uncharted 3840x2160",
+          "src": "/background/Movie/tom-holland-en-uncharted_3840x2160.jpg"
+        },
+        {
+          "name": "traje de batman 3840x2160",
+          "src": "/background/Movie/traje-de-batman_3840x2160.jpg"
+        },
+        {
+          "name": "vin diesel como dominic toretto en rapidos y furiosos 9 7892x4440",
+          "src": "/background/Movie/vin-diesel-como-dominic-toretto-en-rapidos-y-furiosos-9_7892x4440.jpg"
+        },
+        {
+          "name": "wall e con cubo rubik 4188x2792",
+          "src": "/background/Movie/wall-e-con-cubo-rubik_4188x2792.jpg"
+        },
+        {
+          "name": "walter white de breaking bad 3840x2160",
+          "src": "/background/Movie/walter-white-de-breaking-bad_3840x2160.jpg"
+        },
+        {
+          "name": "yoda bebe 3840x2160",
+          "src": "/background/Movie/yoda-bebe_3840x2160.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Paisajes",
+      "assets": [
+        {
+          "name": "amanecer en el campo de reino unido 7680x4320",
+          "src": "/background/Paisajes/amanecer-en-el-campo-de-reino-unido_7680x4320.jpg"
+        },
+        {
+          "name": "amanecer en el london eye 3840x2162",
+          "src": "/background/Paisajes/amanecer-en-el-london-eye_3840x2162.jpg"
+        },
+        {
+          "name": "carretera de anochecer nubes y bosque 3840x2160",
+          "src": "/background/Paisajes/carretera-de-anochecer-nubes-y-bosque_3840x2160.jpg"
+        },
+        {
+          "name": "carretera en otono 3840x2559",
+          "src": "/background/Paisajes/carretera-en-otono_3840x2559.jpg"
+        },
+        {
+          "name": "casa con torre al anochecer con gran luna en el cielo 9830x5472",
+          "src": "/background/Paisajes/casa-con-torre-al-anochecer-con-gran-luna-en-el-cielo_9830x5472.jpg"
+        },
+        {
+          "name": "cascada de fantasia con aves en paisaje natural 5120x2880",
+          "src": "/background/Paisajes/cascada-de-fantasia-con-aves-en-paisaje-natural_5120x2880.jpg"
+        },
+        {
+          "name": "jardin primaveral con mariposas y abejas fotografia macro fantasia 5120x2880",
+          "src": "/background/Paisajes/jardin-primaveral-con-mariposas-y-abejas-fotografia-macro-fantasia_5120x2880.jpg"
+        },
+        {
+          "name": "mar de maldivas 5120x2880",
+          "src": "/background/Paisajes/mar-de-maldivas_5120x2880.jpg"
+        },
+        {
+          "name": "montanas al atardecer en el bosque 3840x2160",
+          "src": "/background/Paisajes/montanas-al-atardecer-en-el-bosque_3840x2160.jpg"
+        },
+        {
+          "name": "nueva york 3840x2400",
+          "src": "/background/Paisajes/nueva-york_3840x2400.jpg"
+        },
+        {
+          "name": "paisaje anime de cabanas en el campo entre montanas 3840x2160",
+          "src": "/background/Paisajes/paisaje-anime-de-cabanas-en-el-campo-entre-montanas_3840x2160.jpg"
+        },
+        {
+          "name": "paisaje con un lago rodeado de vegetacion y formaciones rocosas 8119x4532",
+          "src": "/background/Paisajes/paisaje-con-un-lago-rodeado-de-vegetacion-y-formaciones-rocosas_8119x4532.jpg"
+        },
+        {
+          "name": "paisaje yin y yang naranja y azul 8192x4560",
+          "src": "/background/Paisajes/paisaje-yin-y-yang-naranja-y-azul_8192x4560.jpg"
+        },
+        {
+          "name": "pinos en bosque con pequena cascada 8192x4560",
+          "src": "/background/Paisajes/pinos-en-bosque-con-pequena-cascada_8192x4560.jpg"
+        },
+        {
+          "name": "playa al atardecer en hawaii 3840x2160",
+          "src": "/background/Paisajes/playa-al-atardecer-en-hawaii_3840x2160.jpg"
+        },
+        {
+          "name": "puente de san francisco 3840x2400",
+          "src": "/background/Paisajes/puente-de-san-francisco_3840x2400.jpg"
+        },
+        {
+          "name": "puerta torii en japon 4088x2272",
+          "src": "/background/Paisajes/puerta-torii-en-japon_4088x2272.jpg"
+        },
+        {
+          "name": "rbol entre nubes y montanas 3840x2160",
+          "src": "/background/Paisajes/rbol-entre-nubes-y-montanas_3840x2160.jpg"
+        },
+        {
+          "name": "snoopy conduciendo auto en carretera 3840x2160",
+          "src": "/background/Paisajes/snoopy-conduciendo-auto-en-carretera_3840x2160.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Vehículos",
+      "assets": [
+        {
+          "name": "ares design lamborghini huracan 2880x1800",
+          "src": "/background/Veh%C3%ADculos/ares-design-lamborghini-huracan_2880x1800.jpg"
+        },
+        {
+          "name": "aston martin v12 vantage gt3 2880x1800",
+          "src": "/background/Veh%C3%ADculos/aston-martin-v12-vantage-gt3_2880x1800.jpg"
+        },
+        {
+          "name": "audi r8 v10 spyder by regula tuning 2560x1600",
+          "src": "/background/Veh%C3%ADculos/audi-r8-v10-spyder-by-regula-tuning_2560x1600.jpg"
+        },
+        {
+          "name": "auto arte digital inspirado en ford mustang shelby gt500 5160x2880",
+          "src": "/background/Veh%C3%ADculos/auto-arte-digital-inspirado-en-ford-mustang-shelby-gt500_5160x2880.jpg"
+        },
+        {
+          "name": "auto deportivo futurista 4096x2280",
+          "src": "/background/Veh%C3%ADculos/auto-deportivo-futurista_4096x2280.jpg"
+        },
+        {
+          "name": "bmw 850 minimal 3840x2160",
+          "src": "/background/Veh%C3%ADculos/bmw-850-minimal_3840x2160.jpg"
+        },
+        {
+          "name": "bugatti chiron cgi 7680x4320",
+          "src": "/background/Veh%C3%ADculos/bugatti-chiron-cgi_7680x4320.jpg"
+        },
+        {
+          "name": "bumblebee x camaro 3840x2160",
+          "src": "/background/Veh%C3%ADculos/bumblebee-x-camaro_3840x2160.jpg"
+        },
+        {
+          "name": "dodge challenger en atardecer en el desierto 5120x2880",
+          "src": "/background/Veh%C3%ADculos/dodge-challenger-en-atardecer-en-el-desierto_5120x2880.jpg"
+        },
+        {
+          "name": "dodge challenger gasolinera iluminacion neon 4096x2304",
+          "src": "/background/Veh%C3%ADculos/dodge-challenger-gasolinera-iluminacion-neon_4096x2304.jpg"
+        },
+        {
+          "name": "dodge charger 1968 en forza motorsport 7 y fast furious 8 3840x2160",
+          "src": "/background/Veh%C3%ADculos/dodge-charger-1968-en-forza-motorsport-7-y-fast-furious-8_3840x2160.jpg"
+        },
+        {
+          "name": "dodge srt 5120x2880",
+          "src": "/background/Veh%C3%ADculos/dodge-srt_5120x2880.jpg"
+        },
+        {
+          "name": "ferrari laferrari 5120x2880",
+          "src": "/background/Veh%C3%ADculos/ferrari-laferrari_5120x2880.jpg"
+        },
+        {
+          "name": "flores rosas en fondo difuso rosa y azul 5120x2880",
+          "src": "/background/Veh%C3%ADculos/flores-rosas-en-fondo-difuso-rosa-y-azul_5120x2880.jpg"
+        },
+        {
+          "name": "forza horizon 5 mitsubishi lancer evo 5120x2880",
+          "src": "/background/Veh%C3%ADculos/forza-horizon-5-mitsubishi-lancer-evo_5120x2880.jpg"
+        },
+        {
+          "name": "forza horizon 6 3840x2160",
+          "src": "/background/Veh%C3%ADculos/forza-horizon-6_3840x2160.jpg"
+        },
+        {
+          "name": "jeep wrangler rubicon 2021 5120x3413",
+          "src": "/background/Veh%C3%ADculos/jeep-wrangler-rubicon-2021_5120x3413.jpg"
+        },
+        {
+          "name": "kawasaki ninja zx 10r inspiracion de moto en arte digital 5120x2880",
+          "src": "/background/Veh%C3%ADculos/kawasaki-ninja-zx-10r-inspiracion-de-moto-en-arte-digital_5120x2880.jpg"
+        },
+        {
+          "name": "lamborghini aventador en china de primavera 3840x2160",
+          "src": "/background/Veh%C3%ADculos/lamborghini-aventador-en-china-de-primavera_3840x2160.jpg"
+        },
+        {
+          "name": "lamborghini en blanco 7680x4320",
+          "src": "/background/Veh%C3%ADculos/lamborghini-en-blanco_7680x4320.jpg"
+        },
+        {
+          "name": "lamborghini en fondo morado 3840x2160",
+          "src": "/background/Veh%C3%ADculos/lamborghini-en-fondo-morado_3840x2160.jpg"
+        },
+        {
+          "name": "lamborghini huracan gt3 evo 2 2023 4000x2666",
+          "src": "/background/Veh%C3%ADculos/lamborghini-huracan-gt3-evo-2-2023_4000x2666.jpg"
+        },
+        {
+          "name": "lamborghini murcielago blanco y negro 1920x1080",
+          "src": "/background/Veh%C3%ADculos/lamborghini-murcielago-blanco-y-negro_1920x1080.jpg"
+        },
+        {
+          "name": "lb performance ferrari 458 italia 2560x1600",
+          "src": "/background/Veh%C3%ADculos/lb-performance-ferrari-458-italia_2560x1600.jpg"
+        },
+        {
+          "name": "mazda rx 7 fd need for speed 3840x2160",
+          "src": "/background/Veh%C3%ADculos/mazda-rx-7-fd-need-for-speed_3840x2160.jpg"
+        },
+        {
+          "name": "mclaren artura throphy 8457x4852",
+          "src": "/background/Veh%C3%ADculos/mclaren-artura-throphy_8457x4852.jpg"
+        },
+        {
+          "name": "mclaren blanco 2020 4032x3024",
+          "src": "/background/Veh%C3%ADculos/mclaren-blanco-2020_4032x3024.jpg"
+        },
+        {
+          "name": "mercedes amg gtr verde 3840x2560",
+          "src": "/background/Veh%C3%ADculos/mercedes-amg-gtr-verde_3840x2560.jpg"
+        },
+        {
+          "name": "mercedes vision eqxx 3840x2160",
+          "src": "/background/Veh%C3%ADculos/mercedes-vision-eqxx_3840x2160.jpg"
+        },
+        {
+          "name": "motocicleta 1920x1200",
+          "src": "/background/Veh%C3%ADculos/motocicleta_1920x1200.jpg"
+        },
+        {
+          "name": "motociclista en carrera 3840x2400",
+          "src": "/background/Veh%C3%ADculos/motociclista-en-carrera_3840x2400.jpg"
+        },
+        {
+          "name": "motocross 3840x2160",
+          "src": "/background/Veh%C3%ADculos/motocross_3840x2160.jpg"
+        },
+        {
+          "name": "motogp carrera 3840x2160",
+          "src": "/background/Veh%C3%ADculos/motogp-carrera_3840x2160.jpg"
+        },
+        {
+          "name": "nissan pdb r34 grt 3840x2160",
+          "src": "/background/Veh%C3%ADculos/nissan-pdb-r34-grt_3840x2160.jpg"
+        },
+        {
+          "name": "nissan skyline gt r gris de lado 3840x2160",
+          "src": "/background/Veh%C3%ADculos/nissan-skyline-gt-r-gris-de-lado_3840x2160.jpg"
+        },
+        {
+          "name": "porsche 3840x2174",
+          "src": "/background/Veh%C3%ADculos/porsche_3840x2174.jpg"
+        },
+        {
+          "name": "porsche 911 gt3 rs blanco 3840x2560",
+          "src": "/background/Veh%C3%ADculos/porsche-911-gt3-rs-blanco_3840x2560.jpg"
+        },
+        {
+          "name": "porsche 911 gt3 rs rojo 5120x2880",
+          "src": "/background/Veh%C3%ADculos/porsche-911-gt3-rs-rojo_5120x2880.jpg"
+        },
+        {
+          "name": "porsche cayman 3840x2160",
+          "src": "/background/Veh%C3%ADculos/porsche-cayman_3840x2160.jpg"
+        },
+        {
+          "name": "porsche rwb 4096x2184",
+          "src": "/background/Veh%C3%ADculos/porsche-rwb_4096x2184.jpg"
+        },
+        {
+          "name": "porsche verde 3840x2174",
+          "src": "/background/Veh%C3%ADculos/porsche-verde_3840x2174.jpg"
+        },
+        {
+          "name": "render interior de lamborghini centenario 3840x2160",
+          "src": "/background/Veh%C3%ADculos/render-interior-de-lamborghini-centenario_3840x2160.jpg"
+        },
+        {
+          "name": "the crew motorfest porsche 911 gt3 rs 3840x2160",
+          "src": "/background/Veh%C3%ADculos/the-crew-motorfest-porsche-911-gt3-rs_3840x2160.jpg"
+        },
+        {
+          "name": "trailer en autopista en paisaje de anochecer y estrellas 7680x4280",
+          "src": "/background/Veh%C3%ADculos/trailer-en-autopista-en-paisaje-de-anochecer-y-estrellas_7680x4280.jpg"
+        },
+        {
+          "name": "trailer en paisaje de anochecer 7860x4387",
+          "src": "/background/Veh%C3%ADculos/trailer-en-paisaje-de-anochecer_7860x4387.jpg"
+        },
+        {
+          "name": "volante porsche 911 gt3 rs 2880x1920",
+          "src": "/background/Veh%C3%ADculos/volante-porsche-911-gt3-rs_2880x1920.jpg"
+        },
+        {
+          "name": "yamaha yzf r1 2560x1600",
+          "src": "/background/Veh%C3%ADculos/yamaha-yzf-r1_2560x1600.jpg"
+        }
+      ]
+    }
+  ]
+}
