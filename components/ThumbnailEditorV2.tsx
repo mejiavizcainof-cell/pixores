@@ -14,7 +14,12 @@ type Layer = {
   text?: string;
   src?: string;
   frameImageSrc?: string;
-frameImageFit?: "cover" | "contain";
+  frameImageSrc2?: string;
+  frameImageFit?: "cover" | "contain";
+  frameImageX?: number;
+  frameImageY?: number;
+  frameImage2X?: number;
+  frameImage2Y?: number;
   shapeType?:
   | "rectangle"
   | "circle"
@@ -27,7 +32,19 @@ frameImageFit?: "cover" | "contain";
   | "dashedLine"
   | "frame"
   | "roundedFrame"
-  | "circleFrame";
+  | "circleFrame"
+  | "paperFrame"
+  | "paperPortraitFrame"
+  | "paperSquareFrame"
+  | "paperStripFrame"
+  | "paperLeftFrame"
+  | "paperRightFrame"
+  | "phoneFrame"
+  | "tabletFrame"
+  | "laptopFrame"
+  | "vsDividerFrame"
+  | "splitScreenFrame"
+  | "diagonalSplitFrame";
   x: number; 
   y: number; 
   fontSize?: number;
@@ -100,6 +117,16 @@ type ImportedFile = {
   url: string;
   name: string;
 };
+
+type BackgroundAsset = {
+  name: string;
+  src: string;
+};
+
+type BackgroundCategory = {
+  name: string;
+  assets: BackgroundAsset[];
+};
 const PREMADE_ASSETS = [
 
   { category: "people", name: "Shocked Man", src: "/template-assets/people/shocked-man.png" },
@@ -140,9 +167,71 @@ const PREMADE_FRAMES = [
   { name: "Frame", shapeType: "frame" as const, color: "#EF4444" },
   { name: "Rounded Frame", shapeType: "roundedFrame" as const, color: "#3B82F6" },
   { name: "Circle Frame", shapeType: "circleFrame" as const, color: "#FACC15" },
+  { name: "Paper Wide", shapeType: "paperFrame" as const, color: "#F8F1E8" },
+  { name: "Paper Portrait", shapeType: "paperPortraitFrame" as const, color: "#F8F1E8" },
+  { name: "Paper Square", shapeType: "paperSquareFrame" as const, color: "#F8F1E8" },
+  { name: "Torn Paper", shapeType: "paperStripFrame" as const, color: "#F8F1E8" },
+  { name: "Paper Left", shapeType: "paperLeftFrame" as const, color: "#F8F1E8" },
+  { name: "Paper Right", shapeType: "paperRightFrame" as const, color: "#F8F1E8" },
+  { name: "Phone", shapeType: "phoneFrame" as const, color: "#111827" },
+  { name: "Tablet", shapeType: "tabletFrame" as const, color: "#111827" },
+  { name: "Laptop", shapeType: "laptopFrame" as const, color: "#111827" },
+  { name: "VS Divider", shapeType: "vsDividerFrame" as const, color: "#FACC15" },
+  { name: "Split Screen", shapeType: "splitScreenFrame" as const, color: "#2563EB" },
+  { name: "Diagonal Split", shapeType: "diagonalSplitFrame" as const, color: "#EF4444" },
 ];
 
-const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame"];
+const PREMADE_EMOJIS = [
+  { name: "Happy Face", emoji: "😀" },
+  { name: "Big Smile", emoji: "😃" },
+  { name: "Laugh", emoji: "😂" },
+  { name: "Joy", emoji: "🤣" },
+  { name: "Smile", emoji: "😊" },
+  { name: "Cool", emoji: "😎" },
+  { name: "Thinking", emoji: "🤔" },
+  { name: "Shocked", emoji: "😱" },
+  { name: "Surprised", emoji: "😲" },
+  { name: "Mind Blown", emoji: "🤯" },
+  { name: "Angry", emoji: "😡" },
+  { name: "Cry", emoji: "😭" },
+  { name: "Sad", emoji: "😢" },
+  { name: "Wink", emoji: "😉" },
+  { name: "Love Face", emoji: "😍" },
+  { name: "Suspicious", emoji: "🤨" },
+  { name: "Shush", emoji: "🤫" },
+  { name: "Sick", emoji: "🤢" },
+  { name: "Exploding", emoji: "😵‍💫" },
+  { name: "Party", emoji: "🥳" },
+  { name: "Fire", emoji: "🔥" },
+  { name: "Star", emoji: "⭐" },
+  { name: "Sparkles", emoji: "✨" },
+  { name: "Warning", emoji: "⚠️" },
+  { name: "Money", emoji: "💰" },
+  { name: "Rocket", emoji: "🚀" },
+  { name: "Target", emoji: "🎯" },
+  { name: "Eyes", emoji: "👀" },
+  { name: "Thumbs Up", emoji: "👍" },
+  { name: "Heart", emoji: "❤️" },
+  { name: "Lightning", emoji: "⚡" },
+  { name: "Check", emoji: "✅" },
+  { name: "Cross", emoji: "❌" },
+  { name: "Question", emoji: "❓" },
+  { name: "Alarm", emoji: "🚨" },
+  { name: "Megaphone", emoji: "📣" },
+  { name: "Crown", emoji: "👑" },
+  { name: "Trophy", emoji: "🏆" },
+  { name: "Camera", emoji: "📸" },
+  { name: "Shopping", emoji: "🛒" },
+  { name: "Phone", emoji: "📱" },
+  { name: "Laptop", emoji: "💻" },
+  { name: "Chart", emoji: "📈" },
+  { name: "Pin", emoji: "📍" },
+];
+
+const PAPER_FRAME_SHAPE_TYPES = ["paperFrame", "paperPortraitFrame", "paperSquareFrame", "paperStripFrame", "paperLeftFrame", "paperRightFrame"];
+const DEVICE_FRAME_SHAPE_TYPES = ["phoneFrame", "tabletFrame", "laptopFrame"];
+const COMPOSITION_FRAME_SHAPE_TYPES = ["vsDividerFrame", "splitScreenFrame", "diagonalSplitFrame"];
+const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", ...PAPER_FRAME_SHAPE_TYPES, ...DEVICE_FRAME_SHAPE_TYPES, ...COMPOSITION_FRAME_SHAPE_TYPES];
 
 const PRESET_SIZES = {
   youtube: { name: "YouTube Thumbnail", width: 1280, height: 720 },
@@ -180,9 +269,14 @@ export default function ThumbnailEditorV2() {
   const [canvasStrokeWidth, setCanvasStrokeWidth] = useState<number>(0);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false);
+  const [undoStack, setUndoStack] = useState<Layer[][]>([]);
+  const [redoStack, setRedoStack] = useState<Layer[][]>([]);
   
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(1);
   const [backgroundBlur, setBackgroundBlur] = useState<number>(0);
+  const [backgroundCategories, setBackgroundCategories] = useState<BackgroundCategory[]>([]);
+  const [backgroundCategory, setBackgroundCategory] = useState<string>("");
+  const [isLoadingBackgrounds, setIsLoadingBackgrounds] = useState<boolean>(false);
 
   const [currentPreset, setCurrentPreset] = useState<keyof typeof PRESET_SIZES>("youtube");
   const [canvasWidth, setCanvasWidth] = useState<number>(1280);
@@ -191,7 +285,7 @@ export default function ThumbnailEditorV2() {
   const [draggingLayerId, setDraggingLayerId] = useState<string | number | null>(null);
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
-  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames">("people");
+  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "emojis">("people");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
   const [textSearch, setTextSearch] = useState<string>("");
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
@@ -208,6 +302,9 @@ export default function ThumbnailEditorV2() {
   const [selectedLayerId, setSelectedLayerId] = useState<string | number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const initialDragOffset = useRef({ x: 0, y: 0 });
+  const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isApplyingHistoryRef = useRef(false);
+  const lastHistorySnapshotRef = useRef<string>("[]");
 
   const [resizeState, setResizeState] = useState<ResizeState>({
     corner: null,
@@ -226,6 +323,38 @@ export default function ThumbnailEditorV2() {
   });
   const searchParams = useSearchParams();
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
+  const selectedBackgroundCategory =
+    backgroundCategories.find((category) => category.name === backgroundCategory) ||
+    backgroundCategories[0];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBackgroundAssets = async () => {
+      try {
+        setIsLoadingBackgrounds(true);
+        const response = await fetch("/api/background-assets", { cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to load background assets");
+        const data = await response.json();
+        const categories: BackgroundCategory[] = Array.isArray(data.categories) ? data.categories : [];
+
+        if (cancelled) return;
+        setBackgroundCategories(categories);
+        setBackgroundCategory((current) => current || categories[0]?.name || "");
+      } catch (error) {
+        console.error("Unable to load background assets:", error);
+      } finally {
+        if (!cancelled) setIsLoadingBackgrounds(false);
+      }
+    };
+
+    loadBackgroundAssets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
   const templateId = searchParams.get("template");
 
@@ -443,6 +572,19 @@ useEffect(() => {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) handleRedo();
+        else handleUndo();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+
       if (e.key === "Enter") {
         e.preventDefault();
         setIsCropMode(false);
@@ -484,7 +626,7 @@ useEffect(() => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedLayerId, draggingLayerId, resizeState.corner, layers]);
+  }, [selectedLayerId, draggingLayerId, resizeState.corner, layers, undoStack, redoStack]);
 
   // Global window mousemove/mouseup listener to lock smoothness
   useEffect(() => {
@@ -743,6 +885,12 @@ try {
     setPreview(URL.createObjectURL(file));
   };
 
+  const applyBackgroundAsset = (asset: BackgroundAsset) => {
+    setPreview(asset.src);
+    setBackgroundOpacity(1);
+    setBackgroundBlur(0);
+  };
+
   const handleImportImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -751,6 +899,32 @@ try {
       newFiles.push({ url: URL.createObjectURL(files[i]), name: files[i].name });
     }
     setImportedImages((prev) => [...prev, ...newFiles]);
+
+    if (selectedLayer && isImageFrame(selectedLayer) && isCompositionFrame(selectedLayer.shapeType)) {
+      const remainingFiles = [...newFiles];
+      const frameUpdate: Partial<Layer> = {};
+
+      if (!selectedLayer.frameImageSrc && remainingFiles[0]) {
+        frameUpdate.frameImageSrc = remainingFiles.shift()?.url;
+      }
+
+      if (!selectedLayer.frameImageSrc2 && remainingFiles[0]) {
+        frameUpdate.frameImageSrc2 = remainingFiles.shift()?.url;
+      }
+
+      if (Object.keys(frameUpdate).length > 0) {
+        frameUpdate.frameImageFit = selectedLayer.frameImageFit || "cover";
+        frameUpdate.name = `${selectedLayer.name} + Images`;
+        updateSelectedLayer(frameUpdate);
+      }
+
+      remainingFiles.forEach((fileObj, index) => {
+        addImageToCanvas(fileObj, { offset: index, allowFrame: false });
+      });
+      e.target.value = "";
+      return;
+    }
+
     newFiles.forEach((fileObj, index) => {
       addImageToCanvas(fileObj, { offset: index, allowFrame: index === 0 });
     });
@@ -766,6 +940,26 @@ const isImageFrame = (layer?: Layer) => {
 const addImageToSelectedFrame = (fileObj: ImportedFile) => {
   if (!selectedLayer || !isImageFrame(selectedLayer)) return false;
 
+  if (isCompositionFrame(selectedLayer.shapeType)) {
+    if (!selectedLayer.frameImageSrc) {
+      updateSelectedLayer({
+        frameImageSrc: fileObj.url,
+        frameImageFit: "cover",
+        name: `${selectedLayer.name} + Image 1`,
+      });
+      return true;
+    }
+
+    if (!selectedLayer.frameImageSrc2) {
+      updateSelectedLayer({
+        frameImageSrc2: fileObj.url,
+        frameImageFit: selectedLayer.frameImageFit || "cover",
+        name: `${selectedLayer.name} + Image 2`,
+      });
+      return true;
+    }
+  }
+
   updateSelectedLayer({
     frameImageSrc: fileObj.url,
     frameImageFit: "cover",
@@ -774,6 +968,130 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
 
   return true;
 };
+
+const isPaperFrame = (shapeType?: Layer["shapeType"]) => {
+  return PAPER_FRAME_SHAPE_TYPES.includes(shapeType || "");
+};
+
+const isDeviceFrame = (shapeType?: Layer["shapeType"]) => {
+  return DEVICE_FRAME_SHAPE_TYPES.includes(shapeType || "");
+};
+
+const isCompositionFrame = (shapeType?: Layer["shapeType"]) => {
+  return COMPOSITION_FRAME_SHAPE_TYPES.includes(shapeType || "");
+};
+
+const getFrameDefaultSize = (shapeType?: Layer["shapeType"]) => {
+  switch (shapeType) {
+    case "paperPortraitFrame":
+      return { width: 150, height: 220 };
+    case "paperSquareFrame":
+      return { width: 170, height: 170 };
+    case "paperStripFrame":
+      return { width: 180, height: 105 };
+    case "paperLeftFrame":
+    case "paperRightFrame":
+      return { width: 210, height: 145 };
+    case "phoneFrame":
+      return { width: 120, height: 240 };
+    case "tabletFrame":
+      return { width: 260, height: 180 };
+    case "laptopFrame":
+      return { width: 310, height: 205 };
+    case "vsDividerFrame":
+      return { width: 290, height: 170 };
+    case "splitScreenFrame":
+      return { width: 290, height: 170 };
+    case "diagonalSplitFrame":
+      return { width: 290, height: 170 };
+    default:
+      return { width: 180, height: 120 };
+  }
+};
+
+const getPaperFrameClipPath = (shapeType?: Layer["shapeType"]) => {
+  switch (shapeType) {
+    case "paperPortraitFrame":
+      return "polygon(9% 0%, 94% 4%, 100% 14%, 97% 92%, 89% 100%, 8% 96%, 0% 88%, 4% 9%)";
+    case "paperSquareFrame":
+      return "polygon(5% 3%, 24% 0%, 47% 4%, 70% 1%, 97% 6%, 100% 31%, 96% 55%, 100% 82%, 89% 100%, 58% 96%, 32% 100%, 4% 94%, 0% 68%, 3% 41%, 0% 15%)";
+    case "paperStripFrame":
+      return "polygon(0% 9%, 14% 0%, 33% 5%, 55% 0%, 78% 6%, 100% 2%, 96% 93%, 82% 100%, 59% 95%, 38% 100%, 18% 94%, 0% 98%)";
+    case "paperLeftFrame":
+      return "polygon(0% 1%, 96% 0%, 98% 12%, 93% 22%, 97% 35%, 91% 48%, 93% 61%, 86% 75%, 82% 89%, 72% 100%, 0% 100%)";
+    case "paperRightFrame":
+      return "polygon(18% 0%, 100% 0%, 100% 100%, 0% 100%, 7% 87%, 11% 74%, 7% 62%, 12% 50%, 9% 37%, 14% 24%, 11% 12%)";
+    default:
+      return "polygon(2% 7%, 18% 2%, 37% 5%, 58% 0%, 81% 4%, 98% 2%, 100% 88%, 88% 98%, 63% 95%, 39% 100%, 17% 94%, 0% 98%)";
+  }
+};
+
+const getFramePlaceholderBackground = (layer: Layer) => {
+  if (isPaperFrame(layer.shapeType)) {
+    return "linear-gradient(180deg, #E0F7FF 0%, #EFFBFF 58%, #A7D444 59%, #79A900 100%)";
+  }
+
+  return "repeating-linear-gradient(45deg, #F8FAFC 0 10px, #E2E8F0 10px 20px)";
+};
+
+const getFrameImagePosition = (layer: Layer, slot: 1 | 2 = 1) => {
+  const x = slot === 1 ? layer.frameImageX ?? 50 : layer.frameImage2X ?? 50;
+  const y = slot === 1 ? layer.frameImageY ?? 50 : layer.frameImage2Y ?? 50;
+  return `${x}% ${y}%`;
+};
+
+const cloneLayers = (items: Layer[]) => items.map((layer) => ({ ...layer }));
+
+useEffect(() => {
+  if (isApplyingHistoryRef.current) {
+    isApplyingHistoryRef.current = false;
+    lastHistorySnapshotRef.current = JSON.stringify(layers);
+    return;
+  }
+
+  if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
+
+  historyTimerRef.current = setTimeout(() => {
+    const nextSnapshot = JSON.stringify(layers);
+    if (nextSnapshot === lastHistorySnapshotRef.current) return;
+
+    const previousLayers = JSON.parse(lastHistorySnapshotRef.current) as Layer[];
+    setUndoStack((prev) => [...prev.slice(-49), previousLayers]);
+    setRedoStack([]);
+    lastHistorySnapshotRef.current = nextSnapshot;
+  }, draggingLayerId || resizeState.corner ? 500 : 120);
+
+  return () => {
+    if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
+  };
+}, [layers, draggingLayerId, resizeState.corner]);
+
+const handleUndo = () => {
+  if (undoStack.length === 0) return;
+  const previousLayers = undoStack[undoStack.length - 1];
+  const nextUndoStack = undoStack.slice(0, -1);
+
+  isApplyingHistoryRef.current = true;
+  setUndoStack(nextUndoStack);
+  setRedoStack((prev) => [...prev.slice(-49), cloneLayers(layers)]);
+  setLayers(cloneLayers(previousLayers));
+  setSelectedLayerId((current) => (previousLayers.some((layer) => layer.id === current) ? current : previousLayers[previousLayers.length - 1]?.id || null));
+  setIsCropMode(false);
+};
+
+const handleRedo = () => {
+  if (redoStack.length === 0) return;
+  const nextLayers = redoStack[redoStack.length - 1];
+  const nextRedoStack = redoStack.slice(0, -1);
+
+  isApplyingHistoryRef.current = true;
+  setRedoStack(nextRedoStack);
+  setUndoStack((prev) => [...prev.slice(-49), cloneLayers(layers)]);
+  setLayers(cloneLayers(nextLayers));
+  setSelectedLayerId((current) => (nextLayers.some((layer) => layer.id === current) ? current : nextLayers[nextLayers.length - 1]?.id || null));
+  setIsCropMode(false);
+};
+
  const addImageToCanvas = (
   fileObj: ImportedFile,
   options: { offset?: number; allowFrame?: boolean } = {}
@@ -819,6 +1137,43 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
   setIsCropMode(false);
 };
 
+const handlePasteFromClipboard = async () => {
+  try {
+    if (!navigator.clipboard || !("read" in navigator.clipboard)) {
+      alert("Your browser does not allow paste from this button. Use Ctrl+V after copying an image.");
+      return;
+    }
+
+    const clipboardItems = await navigator.clipboard.read();
+    for (const item of clipboardItems) {
+      const imageType = item.types.find((type) => type.startsWith("image/"));
+      if (!imageType) continue;
+
+      const blob = await item.getType(imageType);
+      const pastedImage = {
+        url: URL.createObjectURL(blob),
+        name: `Pasted Image ${Date.now()}`,
+      };
+
+      setImportedImages((prev) => [...prev, pastedImage]);
+      addImageToCanvas(pastedImage);
+      return;
+    }
+
+    alert("No image was found in the clipboard.");
+  } catch (error) {
+    console.error("Clipboard paste failed:", error);
+    alert("Paste was blocked by the browser. Use Ctrl+V after copying an image.");
+  }
+};
+
+const handleSelectTopLayer = () => {
+  const topLayer = layers[layers.length - 1];
+  if (!topLayer) return;
+  setSelectedLayerId(topLayer.id);
+  setIsCropMode(false);
+};
+
   const addTextLayer = (preset?: Partial<Layer>) => {
     const uniqueId = `txt-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const newLayer: Layer = {
@@ -858,9 +1213,54 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
     setSelectedLayerId(newLayer.id);
   };
 
+  const addEmojiLayer = (emoji: string, name: string) => {
+    const uniqueId = `emoji-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const newLayer: Layer = {
+      id: uniqueId,
+      type: "text",
+      name: `Emoji: ${name}`,
+      text: emoji,
+      x: 50,
+      y: 50,
+      fontSize: 72,
+      color: "#000000",
+      fontFamily: "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji",
+      strokeColor: "#000000",
+      strokeWidth: 0,
+      glowColor: "#FFFF00",
+      glowRadius: 0,
+      textAlign: "center",
+      letterSpacing: 0,
+      lineHeight: 1,
+      textAnimation: "none",
+      isBold: false,
+      isItalic: false,
+      isUnderline: false,
+      isStrikethrough: false,
+      isUppercase: false,
+      hasTextBg: false,
+      textBgColor: "#FFFFFF",
+      textBgPadding: 6,
+      shadowColor: "#000000",
+      shadowBlur: 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      opacity: 1,
+      angle: 0,
+    };
+
+    setLayers((prev) => [...prev, newLayer]);
+    setSelectedLayerId(newLayer.id);
+    setIsCropMode(false);
+  };
+
   const addShapeLayer = (shapeType: Layer["shapeType"]) => {
     const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const isFrame = FRAME_SHAPE_TYPES.includes(shapeType || "");
+    const isPaper = isPaperFrame(shapeType);
+    const isDevice = isDeviceFrame(shapeType);
+    const isComposition = isCompositionFrame(shapeType);
+    const defaultSize = getFrameDefaultSize(shapeType);
     const newLayer: Layer = {
       id: uniqueId,
       type: "shape",
@@ -868,15 +1268,15 @@ const addImageToSelectedFrame = (fileObj: ImportedFile) => {
       name: `Shape: ${shapeType}`,
       x: 50,
       y: 50,
-      width: 150,
-      height: 150,
-      color: "#3B82F6",
+      width: isPaper || isDevice || isComposition ? defaultSize.width : 150,
+      height: isPaper || isDevice || isComposition ? defaultSize.height : 150,
+      color: isPaper ? "#F8F1E8" : isDevice ? "#111827" : isComposition ? "#FACC15" : "#3B82F6",
       useGradient: false,
 gradientColor1: "#3B82F6",
 gradientColor2: "#8B5CF6",
       gradientDirection: "diagonal",
-      strokeColor: isFrame ? "#3B82F6" : undefined,
-      strokeWidth: isFrame ? 8 : undefined,
+      strokeColor: isPaper ? "#F8F1E8" : isDevice ? "#111827" : isComposition ? "transparent" : isFrame ? "#3B82F6" : undefined,
+      strokeWidth: isPaper ? 14 : isDevice ? 10 : isComposition ? 0 : isFrame ? 8 : undefined,
       shadowColor: "#000000",
       shadowBlur: 0,
       shadowOffsetX: 0,
@@ -893,6 +1293,10 @@ gradientColor2: "#8B5CF6",
   ) => {
   const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   const isFrame = FRAME_SHAPE_TYPES.includes(shape.shapeType || "");
+  const isPaper = isPaperFrame(shape.shapeType);
+  const isDevice = isDeviceFrame(shape.shapeType);
+  const isComposition = isCompositionFrame(shape.shapeType);
+  const defaultSize = getFrameDefaultSize(shape.shapeType);
 
   const newLayer: Layer = {
     id: uniqueId,
@@ -901,11 +1305,11 @@ gradientColor2: "#8B5CF6",
     name: shape.name,
     x: 50,
     y: 50,
-    width: 180,
-    height: 120,
+    width: defaultSize.width,
+    height: defaultSize.height,
     color: shape.color,
-    strokeColor: isFrame ? shape.color : undefined,
-    strokeWidth: isFrame ? 8 : undefined,
+    strokeColor: isFrame || isComposition ? shape.color : undefined,
+    strokeWidth: isPaper ? 14 : isDevice ? 10 : isComposition ? 0 : isFrame ? 8 : undefined,
     useGradient: false,
 gradientColor1: shape.color,
 gradientColor2: "#8B5CF6",
@@ -1902,6 +2306,69 @@ const buyCredits = async (packageId: string) => {
     />
 
     <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+        <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Background</label>
+        {isLoadingBackgrounds && <span style={{ fontSize: "10px", color: "#64748B" }}>Loading...</span>}
+      </div>
+
+      {backgroundCategories.length > 0 ? (
+        <>
+          <select
+            value={backgroundCategory}
+            onChange={(e) => setBackgroundCategory(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "7px",
+              fontSize: "12px",
+              borderRadius: "6px",
+              border: "1px solid #CBD5E1",
+              background: "#FFFFFF",
+              color: "#0F172A",
+            }}
+          >
+            {backgroundCategories.map((category) => (
+              <option key={category.name} value={category.name}>
+                {category.name} ({category.assets.length})
+              </option>
+            ))}
+          </select>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px", maxHeight: "220px", overflowY: "auto", paddingRight: "2px" }}>
+            {selectedBackgroundCategory?.assets.map((asset) => (
+              <button
+                key={asset.src}
+                type="button"
+                onClick={() => applyBackgroundAsset(asset)}
+                title={asset.name}
+                style={{
+                  aspectRatio: "16 / 10",
+                  border: preview === asset.src ? "2px solid #2563EB" : "1px solid #CBD5E1",
+                  borderRadius: "8px",
+                  padding: "0",
+                  overflow: "hidden",
+                  background: "#E2E8F0",
+                  cursor: "pointer",
+                  boxShadow: preview === asset.src ? "0 0 0 2px rgba(37,99,235,0.18)" : "none",
+                }}
+              >
+                <img
+                  src={asset.src}
+                  alt={asset.name}
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p style={{ margin: 0, fontSize: "11px", color: "#64748B", lineHeight: 1.4 }}>
+          Agrega imagenes dentro de las carpetas de public/background para mostrarlas aqui.
+        </p>
+      )}
+    </div>
+
+    <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
       <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Canvas Border / Stroke</label>
 
       <input
@@ -2012,10 +2479,11 @@ const buyCredits = async (packageId: string) => {
         { id: "objects", label: "Objects" },
         { id: "shapes", label: "Shapes" },
         { id: "frames", label: "Frames" },
+        { id: "emojis", label: "Emojis" },
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames")}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis")}
           style={{
             flex: 1,
             padding: "7px",
@@ -2065,6 +2533,31 @@ const buyCredits = async (packageId: string) => {
               }}
             />
           </div>
+        ))}
+      </div>
+    ) : assetTab === "emojis" ? (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+        {PREMADE_EMOJIS.map((item) => (
+          <button
+            key={item.name}
+            type="button"
+            onClick={() => addEmojiLayer(item.emoji, item.name)}
+            title={item.name}
+            style={{
+              aspectRatio: "1",
+              border: "1px solid #E2E8F0",
+              borderRadius: "10px",
+              background: "#FFFFFF",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "28px",
+              boxShadow: "0 4px 12px rgba(15,23,42,0.05)",
+            }}
+          >
+            {item.emoji}
+          </button>
         ))}
       </div>
     ) : (
@@ -2161,6 +2654,95 @@ const buyCredits = async (packageId: string) => {
 
 {shape.shapeType === "circleFrame" && (
   <div style={{ width: "40px", height: "40px", border: `4px solid ${shape.color}`, borderRadius: "50%" }} />
+)}
+
+{isPaperFrame(shape.shapeType) && (
+  <div
+    style={{
+      width: shape.shapeType === "paperPortraitFrame" ? "34px" : shape.shapeType === "paperSquareFrame" ? "40px" : "50px",
+      height: shape.shapeType === "paperPortraitFrame" ? "48px" : shape.shapeType === "paperStripFrame" ? "28px" : "36px",
+      background: shape.color,
+      clipPath: getPaperFrameClipPath(shape.shapeType),
+      padding: "5px",
+      boxSizing: "border-box",
+      filter: "drop-shadow(0 2px 2px rgba(15,23,42,0.18))",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        clipPath: getPaperFrameClipPath(shape.shapeType),
+        background: "linear-gradient(180deg, #BEEBFF 0%, #E9FAFF 60%, #98C93C 61%, #6E9F00 100%)",
+      }}
+    />
+  </div>
+)}
+
+{isDeviceFrame(shape.shapeType) && (
+  <div
+    style={{
+      width: shape.shapeType === "phoneFrame" ? "28px" : shape.shapeType === "laptopFrame" ? "54px" : "50px",
+      height: shape.shapeType === "phoneFrame" ? "52px" : shape.shapeType === "laptopFrame" ? "38px" : "36px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        height: shape.shapeType === "laptopFrame" ? "82%" : "100%",
+        border: shape.shapeType === "phoneFrame" ? "4px solid #111827" : "5px solid #111827",
+        borderRadius: shape.shapeType === "phoneFrame" ? "12px" : "6px",
+        background: "linear-gradient(180deg, #BEEBFF 0%, #E9FAFF 62%, #98C93C 63%, #6E9F00 100%)",
+        boxSizing: "border-box",
+        position: "relative",
+      }}
+    >
+      {shape.shapeType === "phoneFrame" && (
+        <div style={{ position: "absolute", top: "-2px", left: "30%", right: "30%", height: "5px", borderRadius: "0 0 6px 6px", background: "#111827" }} />
+      )}
+    </div>
+    {shape.shapeType === "laptopFrame" && (
+      <div style={{ width: "115%", height: "6px", borderRadius: "0 0 10px 10px", background: "#111827", marginTop: "1px" }} />
+    )}
+  </div>
+)}
+
+{isCompositionFrame(shape.shapeType) && (
+  <div
+    style={{
+      width: shape.shapeType === "vsDividerFrame" ? "26px" : "54px",
+      height: shape.shapeType === "vsDividerFrame" ? "54px" : "34px",
+      position: "relative",
+      borderRadius: "8px",
+      background: shape.shapeType === "vsDividerFrame" ? "transparent" : "#EFF6FF",
+      border: shape.shapeType === "vsDividerFrame" ? "none" : "2px solid #CBD5E1",
+      overflow: "hidden",
+      boxSizing: "border-box",
+    }}
+  >
+    {shape.shapeType === "vsDividerFrame" ? (
+      <>
+        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: "5px", transform: "translateX(-50%)", borderRadius: "999px", background: shape.color }} />
+        <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: "24px", height: "24px", borderRadius: "50%", background: "#111827", color: "#FFFFFF", fontSize: "9px", fontWeight: 900, display: "grid", placeItems: "center", border: `2px solid ${shape.color}` }}>VS</div>
+      </>
+    ) : shape.shapeType === "splitScreenFrame" ? (
+      <>
+        <div style={{ position: "absolute", inset: "0 50% 0 0", background: "#BEEBFF" }} />
+        <div style={{ position: "absolute", inset: "0 0 0 50%", background: "#FECACA" }} />
+        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: "4px", transform: "translateX(-50%)", background: shape.color }} />
+      </>
+    ) : (
+      <>
+        <div style={{ position: "absolute", inset: 0, background: "#BEEBFF" }} />
+        <div style={{ position: "absolute", inset: 0, background: "#FECACA", clipPath: "polygon(100% 0, 100% 100%, 26% 100%)" }} />
+        <div style={{ position: "absolute", left: "48%", top: "-18%", width: "5px", height: "140%", transform: "rotate(27deg)", background: shape.color }} />
+      </>
+    )}
+  </div>
 )}
           </div>
         ))}
@@ -2307,6 +2889,44 @@ const buyCredits = async (packageId: string) => {
           ) : (
             <div style={{ height: "40px", marginBottom: "12px" }} />
           )}
+
+          <div style={{ width: "100%", maxWidth: isMobileLayout ? "100%" : "820px", display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+            <button
+              type="button"
+              title="Undo"
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              style={{ width: "38px", height: "34px", borderRadius: "10px", border: "1px solid #CBD5E1", background: undoStack.length === 0 ? "#F1F5F9" : "#FFFFFF", color: undoStack.length === 0 ? "#94A3B8" : "#2563EB", cursor: undoStack.length === 0 ? "not-allowed" : "pointer", fontSize: "20px", fontWeight: 800, display: "grid", placeItems: "center" }}
+            >
+              ↶
+            </button>
+            <button
+              type="button"
+              title="Redo"
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              style={{ width: "38px", height: "34px", borderRadius: "10px", border: "1px solid #CBD5E1", background: redoStack.length === 0 ? "#F1F5F9" : "#FFFFFF", color: redoStack.length === 0 ? "#94A3B8" : "#2563EB", cursor: redoStack.length === 0 ? "not-allowed" : "pointer", fontSize: "20px", fontWeight: 800, display: "grid", placeItems: "center" }}
+            >
+              ↷
+            </button>
+            <button
+              type="button"
+              title="Paste image"
+              onClick={handlePasteFromClipboard}
+              style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", cursor: "pointer", fontSize: "12px", fontWeight: 800 }}
+            >
+              Paste
+            </button>
+            <button
+              type="button"
+              title="Select top layer"
+              onClick={handleSelectTopLayer}
+              disabled={layers.length === 0}
+              style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #CBD5E1", background: layers.length === 0 ? "#F1F5F9" : "#FFFFFF", color: layers.length === 0 ? "#94A3B8" : "#334155", cursor: layers.length === 0 ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: 800 }}
+            >
+              Select
+            </button>
+          </div>
 
           {/* CANVAS AREA */}
           <div
@@ -2565,6 +3185,7 @@ const buyCredits = async (packageId: string) => {
           width: "100%",
           height: "100%",
           objectFit: layer.frameImageFit || "cover",
+          objectPosition: getFrameImagePosition(layer),
           display: "block",
         }}
       />
@@ -2596,6 +3217,7 @@ const buyCredits = async (packageId: string) => {
           width: "100%",
           height: "100%",
           objectFit: layer.frameImageFit || "cover",
+          objectPosition: getFrameImagePosition(layer),
           display: "block",
         }}
       />
@@ -2625,9 +3247,171 @@ const buyCredits = async (packageId: string) => {
           width: "100%",
           height: "100%",
           objectFit: layer.frameImageFit || "cover",
+          objectPosition: getFrameImagePosition(layer),
           display: "block",
         }}
       />
+    )}
+  </div>
+  ) : isDeviceFrame(layer.shapeType) ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      position: "relative",
+      filter: "drop-shadow(0 8px 12px rgba(15,23,42,0.22))",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        height: layer.shapeType === "laptopFrame" ? "84%" : "100%",
+        background: layer.strokeColor || layer.color || "#111827",
+        borderRadius: layer.shapeType === "phoneFrame" ? "24px" : layer.shapeType === "tabletFrame" ? "16px" : "10px 10px 2px 2px",
+        padding: `${layer.strokeWidth ?? 10}px`,
+        boxSizing: "border-box",
+        position: "relative",
+      }}
+    >
+      {layer.shapeType === "phoneFrame" && (
+        <>
+          <div style={{ position: "absolute", top: "7px", left: "33%", right: "33%", height: "9px", borderRadius: "0 0 8px 8px", background: "#020617", zIndex: 2 }} />
+          <div style={{ position: "absolute", top: "9px", right: "38%", width: "4px", height: "4px", borderRadius: "50%", background: "#64748B", zIndex: 3 }} />
+        </>
+      )}
+
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: layer.shapeType === "phoneFrame" ? "16px" : layer.shapeType === "tabletFrame" ? "8px" : "2px",
+          overflow: "hidden",
+          background: layer.frameImageSrc ? "transparent" : getFramePlaceholderBackground(layer),
+          position: "relative",
+        }}
+      >
+        {layer.frameImageSrc ? (
+          <img
+            src={layer.frameImageSrc}
+            alt=""
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: layer.frameImageFit || "cover",
+              objectPosition: getFrameImagePosition(layer),
+              display: "block",
+            }}
+          />
+        ) : (
+          <>
+            <div style={{ position: "absolute", top: "18%", left: "30%", width: "22%", height: "12%", borderRadius: "999px", background: "#FFFFFF" }} />
+            <div style={{ position: "absolute", top: "14%", left: "38%", width: "14%", height: "14%", borderRadius: "50%", background: "#FFFFFF" }} />
+            <div style={{ position: "absolute", top: "20%", left: "45%", width: "18%", height: "10%", borderRadius: "999px", background: "#FFFFFF" }} />
+          </>
+        )}
+      </div>
+    </div>
+
+    {layer.shapeType === "laptopFrame" && (
+      <>
+        <div style={{ width: "112%", height: "10px", borderRadius: "0 0 16px 16px", background: layer.strokeColor || layer.color || "#111827", position: "relative" }}>
+          <div style={{ position: "absolute", left: "43%", right: "43%", top: 0, height: "4px", borderRadius: "0 0 8px 8px", background: "#CBD5E1" }} />
+        </div>
+        <div style={{ width: "126%", height: "8px", borderRadius: "999px", background: "#D1D5DB", marginTop: "1px" }} />
+      </>
+    )}
+  </div>
+  ) : isPaperFrame(layer.shapeType) ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      clipPath: getPaperFrameClipPath(layer.shapeType),
+      background: layer.strokeColor || layer.color || "#F8F1E8",
+      padding: `${layer.strokeWidth ?? 14}px`,
+      boxSizing: "border-box",
+      filter: "drop-shadow(0 6px 10px rgba(15,23,42,0.18))",
+      position: "relative",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        clipPath: getPaperFrameClipPath(layer.shapeType),
+        overflow: "hidden",
+        position: "relative",
+        background: layer.frameImageSrc ? "transparent" : getFramePlaceholderBackground(layer),
+        boxShadow: !layer.frameImageSrc ? "inset 0 0 0 2px rgba(148,163,184,0.45)" : "none",
+      }}
+    >
+      {layer.frameImageSrc ? (
+        <img
+          src={layer.frameImageSrc}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: layer.frameImageFit || "cover",
+            objectPosition: getFrameImagePosition(layer),
+            display: "block",
+          }}
+        />
+      ) : (
+        <>
+          <div style={{ position: "absolute", top: "18%", left: "30%", width: "22%", height: "12%", borderRadius: "999px", background: "#FFFFFF" }} />
+          <div style={{ position: "absolute", top: "14%", left: "38%", width: "14%", height: "14%", borderRadius: "50%", background: "#FFFFFF" }} />
+          <div style={{ position: "absolute", top: "20%", left: "45%", width: "18%", height: "10%", borderRadius: "999px", background: "#FFFFFF" }} />
+        </>
+      )}
+    </div>
+  </div>
+  ) : isCompositionFrame(layer.shapeType) ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      position: "relative",
+      overflow: "hidden",
+      borderRadius: `${layer.borderRadius || 14}px`,
+      border: isCompositionFrame(layer.shapeType) ? "none" : `${Math.max(2, layer.strokeWidth || 6)}px solid ${layer.strokeColor || layer.color || "#FACC15"}`,
+      background: "#EFF6FF",
+      boxSizing: "border-box",
+      filter: (layer.shadowBlur || 0) > 0 ? `drop-shadow(${layer.shadowOffsetX || 0}px ${layer.shadowOffsetY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000000"})` : "none",
+    }}
+  >
+    {layer.shapeType === "vsDividerFrame" || layer.shapeType === "splitScreenFrame" ? (
+      <>
+        <div style={{ position: "absolute", inset: "0 50% 0 0", background: "linear-gradient(180deg, #BAE6FD 0%, #E0F2FE 62%, #A3E635 63%, #65A30D 100%)", zIndex: 0, overflow: "hidden" }}>
+          {layer.frameImageSrc && (
+            <img src={layer.frameImageSrc} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer), display: "block" }} />
+          )}
+        </div>
+        <div style={{ position: "absolute", inset: "0 0 0 50%", background: "linear-gradient(180deg, #FECACA 0%, #FFE4E6 62%, #FDBA74 63%, #EA580C 100%)", zIndex: 0, overflow: "hidden" }}>
+          {layer.frameImageSrc2 && (
+            <img src={layer.frameImageSrc2} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer, 2), display: "block" }} />
+          )}
+        </div>
+      </>
+    ) : (
+      <>
+        <div style={{ position: "absolute", inset: 0, clipPath: "polygon(0 0, 78% 0, 22% 100%, 0 100%)", background: "linear-gradient(180deg, #BAE6FD 0%, #E0F2FE 62%, #A3E635 63%, #65A30D 100%)", zIndex: 0, overflow: "hidden" }}>
+          {layer.frameImageSrc && (
+            <img src={layer.frameImageSrc} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer), display: "block" }} />
+          )}
+        </div>
+        <div style={{ position: "absolute", inset: 0, clipPath: "polygon(78% 0, 100% 0, 100% 100%, 22% 100%)", background: "linear-gradient(180deg, #FECACA 0%, #FFE4E6 62%, #FDBA74 63%, #EA580C 100%)", zIndex: 0, overflow: "hidden" }}>
+          {layer.frameImageSrc2 && (
+            <img src={layer.frameImageSrc2} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer, 2), display: "block" }} />
+          )}
+        </div>
+        {!layer.frameImageSrc2 && (
+          <div style={{ position: "absolute", inset: 0, clipPath: "polygon(78% 0, 100% 0, 100% 100%, 22% 100%)", boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.45)", zIndex: 1, pointerEvents: "none" }} />
+        )}
+      </>
     )}
   </div>
   ) : layer.shapeType === "arrow" ? (
@@ -3103,35 +3887,63 @@ const buyCredits = async (packageId: string) => {
 
               {isImageFrame(selectedLayer) && (
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "8px" }}>Frame Stroke</label>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "8px" }}>Frame Image</label>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <input
-                      type="color"
-                      value={selectedLayer.strokeColor || selectedLayer.color || "#3B82F6"}
-                      onChange={(e) => updateSelectedLayer({ strokeColor: e.target.value, color: e.target.value })}
-                      style={{ width: "100%", height: "28px", border: "none", cursor: "pointer" }}
-                    />
+                    {!isCompositionFrame(selectedLayer.shapeType) && (
+                      <>
+                        <input
+                          type="color"
+                          value={selectedLayer.strokeColor || selectedLayer.color || "#3B82F6"}
+                          onChange={(e) => updateSelectedLayer({ strokeColor: e.target.value, color: e.target.value })}
+                          style={{ width: "100%", height: "28px", border: "none", cursor: "pointer" }}
+                        />
 
-                    <label style={{ fontSize: "10px", color: "#64748B" }}>Thickness ({selectedLayer.strokeWidth ?? 8}px)</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="32"
-                      value={selectedLayer.strokeWidth ?? 8}
-                      onChange={(e) => updateSelectedLayer({ strokeWidth: Number(e.target.value) })}
-                      style={{ width: "100%" }}
-                    />
+                        <label style={{ fontSize: "10px", color: "#64748B" }}>Frame Thickness ({selectedLayer.strokeWidth ?? 8}px)</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="32"
+                          value={selectedLayer.strokeWidth ?? 8}
+                          onChange={(e) => updateSelectedLayer({ strokeWidth: Number(e.target.value) })}
+                          style={{ width: "100%" }}
+                        />
+                      </>
+                    )}
 
                     {selectedLayer.frameImageSrc && (
-                      <select
-                        value={selectedLayer.frameImageFit || "cover"}
-                        onChange={(e) => updateSelectedLayer({ frameImageFit: e.target.value as "cover" | "contain" })}
-                        style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFF" }}
-                      >
-                        <option value="cover">Image Fill: Cover</option>
-                        <option value="contain">Image Fit: Contain</option>
-                      </select>
+                      <>
+                        <select
+                          value={selectedLayer.frameImageFit || "cover"}
+                          onChange={(e) => updateSelectedLayer({ frameImageFit: e.target.value as "cover" | "contain" })}
+                          style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFF" }}
+                        >
+                          <option value="cover">Image Fill: Cover</option>
+                          <option value="contain">Image Fit: Contain</option>
+                        </select>
+
+                        <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 1 Horizontal ({selectedLayer.frameImageX ?? 50}%)</label>
+                        <input type="range" min="0" max="100" value={selectedLayer.frameImageX ?? 50} onChange={(e) => updateSelectedLayer({ frameImageX: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                        <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 1 Vertical ({selectedLayer.frameImageY ?? 50}%)</label>
+                        <input type="range" min="0" max="100" value={selectedLayer.frameImageY ?? 50} onChange={(e) => updateSelectedLayer({ frameImageY: Number(e.target.value) })} style={{ width: "100%" }} />
+                      </>
+                    )}
+
+                    {isCompositionFrame(selectedLayer.shapeType) && selectedLayer.frameImageSrc2 && (
+                      <>
+                        <label style={{ fontSize: "10px", color: "#64748B", borderTop: "1px solid #E2E8F0", paddingTop: "8px" }}>Photo 2 Horizontal ({selectedLayer.frameImage2X ?? 50}%)</label>
+                        <input type="range" min="0" max="100" value={selectedLayer.frameImage2X ?? 50} onChange={(e) => updateSelectedLayer({ frameImage2X: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                        <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 2 Vertical ({selectedLayer.frameImage2Y ?? 50}%)</label>
+                        <input type="range" min="0" max="100" value={selectedLayer.frameImage2Y ?? 50} onChange={(e) => updateSelectedLayer({ frameImage2Y: Number(e.target.value) })} style={{ width: "100%" }} />
+                      </>
+                    )}
+
+                    {(selectedLayer.frameImageSrc || selectedLayer.frameImageSrc2) && (
+                      <button type="button" onClick={() => updateSelectedLayer({ frameImageX: 50, frameImageY: 50, frameImage2X: 50, frameImage2Y: 50 })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                        Center Frame Photos
+                      </button>
                     )}
                   </div>
                 </div>
