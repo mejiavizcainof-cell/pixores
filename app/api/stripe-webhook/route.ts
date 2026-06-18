@@ -16,7 +16,10 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get("stripe-signature");
 
   if (!signature) {
-    return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing Stripe signature" },
+      { status: 400 }
+    );
   }
 
   let event: Stripe.Event;
@@ -40,13 +43,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const rawSession = event.data.object as Stripe.Checkout.Session;
-
     const session = await stripe.checkout.sessions.retrieve(rawSession.id);
 
     const userId = session.metadata?.userId;
     const creditsToAdd = Number(session.metadata?.credits || 0);
-
-    console.log("STRIPE SESSION METADATA:", session.metadata);
 
     if (!userId || !creditsToAdd) {
       return NextResponse.json(
@@ -58,43 +58,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: existingCredits, error: fetchError } = await supabaseAdmin
-      .from("user_credits")
-      .select("credits")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const { error: rpcError } = await supabaseAdmin.rpc("add_user_credits", {
+      p_user_id: userId,
+      p_credits: creditsToAdd,
+    });
 
-    if (fetchError) {
-      console.error("FETCH ERROR:", fetchError);
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
-    }
-
-    if (!existingCredits) {
-      const { error: insertError } = await supabaseAdmin
-        .from("user_credits")
-        .insert({
-          user_id: userId,
-          credits: creditsToAdd,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (insertError) {
-        console.error("INSERT ERROR:", insertError);
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
-      }
-    } else {
-      const { error: updateError } = await supabaseAdmin
-        .from("user_credits")
-        .update({
-          credits: existingCredits.credits + creditsToAdd,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId);
-
-      if (updateError) {
-        console.error("UPDATE ERROR:", updateError);
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
-      }
+    if (rpcError) {
+      console.error("RPC ERROR:", rpcError);
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
     return NextResponse.json({ received: true });
