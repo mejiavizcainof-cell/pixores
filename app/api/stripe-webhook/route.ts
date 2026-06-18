@@ -34,61 +34,72 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (event.type !== "checkout.session.completed") {
+    return NextResponse.json({ received: true });
+  }
+
   try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
+    const rawSession = event.data.object as Stripe.Checkout.Session;
 
-      const userId = session.metadata?.userId;
-      const creditsToAdd = Number(session.metadata?.credits || 0);
+    const session = await stripe.checkout.sessions.retrieve(rawSession.id);
 
-      if (!userId || !creditsToAdd) {
-        return NextResponse.json(
-          { error: "Missing userId or credits in metadata" },
-          { status: 400 }
-        );
-      }
+    const userId = session.metadata?.userId;
+    const creditsToAdd = Number(session.metadata?.credits || 0);
 
-      const { data: existingCredits, error: fetchError } = await supabaseAdmin
+    console.log("STRIPE SESSION METADATA:", session.metadata);
+
+    if (!userId || !creditsToAdd) {
+      return NextResponse.json(
+        {
+          error: "Missing userId or credits in metadata",
+          metadata: session.metadata,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { data: existingCredits, error: fetchError } = await supabaseAdmin
+      .from("user_credits")
+      .select("credits")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("FETCH ERROR:", fetchError);
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    if (!existingCredits) {
+      const { error: insertError } = await supabaseAdmin
         .from("user_credits")
-        .select("credits")
-        .eq("user_id", userId)
-        .single();
+        .insert({
+          user_id: userId,
+          credits: creditsToAdd,
+          updated_at: new Date().toISOString(),
+        });
 
-      if (fetchError && fetchError.code !== "PGRST116") {
-        return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      if (insertError) {
+        console.error("INSERT ERROR:", insertError);
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
       }
+    } else {
+      const { error: updateError } = await supabaseAdmin
+        .from("user_credits")
+        .update({
+          credits: existingCredits.credits + creditsToAdd,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
 
-      if (!existingCredits) {
-        const { error: insertError } = await supabaseAdmin
-          .from("user_credits")
-          .insert({
-            user_id: userId,
-            credits: creditsToAdd,
-            updated_at: new Date().toISOString(),
-          });
-
-        if (insertError) {
-          return NextResponse.json({ error: insertError.message }, { status: 500 });
-        }
-      } else {
-        const newTotal = existingCredits.credits + creditsToAdd;
-
-        const { error: updateError } = await supabaseAdmin
-          .from("user_credits")
-          .update({
-            credits: newTotal,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId);
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 500 });
-        }
+      if (updateError) {
+        console.error("UPDATE ERROR:", updateError);
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
+    console.error("WEBHOOK ERROR:", error);
     return NextResponse.json(
       { error: error.message || "Webhook failed" },
       { status: 500 }
