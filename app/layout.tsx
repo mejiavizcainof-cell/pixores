@@ -62,6 +62,7 @@ export default function RootLayout({
   suppressHydrationWarning
 >
       <body
+        suppressHydrationWarning
         style={{
           margin: 0,
           minHeight: "100vh",

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import { templates } from "@/lib/templates";
+import type { AdminAsset } from "@/lib/adminAssets";
 
 
 
@@ -135,6 +136,34 @@ type BackgroundCategory = {
   name: string;
   assets: BackgroundAsset[];
 };
+
+type BrandAsset = {
+  id: string;
+  name: string;
+  url: string;
+};
+
+type EditorImageAsset = {
+  category: "people" | "objects";
+  name: string;
+  src: string;
+};
+
+type EditorShapeAsset = {
+  name: string;
+  shapeType: Layer["shapeType"];
+  color: string;
+};
+
+type EditableTemplateData = {
+  canvasWidth: number;
+  canvasHeight: number;
+  canvasBgColor: string;
+  canvasStrokeColor: string;
+  canvasStrokeWidth: number;
+  preview: string | null;
+  layers: Layer[];
+};
 const PREMADE_ASSETS = [
 
   { category: "people", name: "Shocked Man", src: "/template-assets/people/shocked-man.png" },
@@ -243,6 +272,7 @@ const COMPOSITION_FRAME_SHAPE_TYPES = ["vsDividerFrame", "splitScreenFrame", "di
 const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", "triangleFrame", ...PAPER_FRAME_SHAPE_TYPES, ...DEVICE_FRAME_SHAPE_TYPES, ...COMPOSITION_FRAME_SHAPE_TYPES];
 
 const BACKGROUND_VISIBLE_STEP = 12;
+const BRAND_ASSETS_STORAGE_KEY = "pixores-brand-assets-v1";
 
 const PRESET_SIZES = {
   youtube: { name: "YouTube Thumbnail", width: 1280, height: 720 },
@@ -289,6 +319,7 @@ export default function ThumbnailEditorV2() {
   const [backgroundCategory, setBackgroundCategory] = useState<string>("");
   const [visibleBackgroundCount, setVisibleBackgroundCount] = useState<number>(BACKGROUND_VISIBLE_STEP);
   const [isLoadingBackgrounds, setIsLoadingBackgrounds] = useState<boolean>(false);
+  const [adminAssets, setAdminAssets] = useState<AdminAsset[]>([]);
 
   const [currentPreset, setCurrentPreset] = useState<keyof typeof PRESET_SIZES>("youtube");
   const [canvasWidth, setCanvasWidth] = useState<number>(1280);
@@ -296,18 +327,22 @@ export default function ThumbnailEditorV2() {
 
   const [draggingLayerId, setDraggingLayerId] = useState<string | number | null>(null);
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
+  const [brandAssets, setBrandAssets] = useState<BrandAsset[]>([]);
+  const [saveImportsToBrand, setSaveImportsToBrand] = useState<boolean>(false);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
-  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "emojis">("people");
+  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "emojis" | "brand">("people");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
   const [textSearch, setTextSearch] = useState<string>("");
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
 
   const [savedProjects, setSavedProjects] = useState<any[]>([]);
   const [showProjects, setShowProjects] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
  const [layers, setLayers] = useState<Layer[]>([]);
 
@@ -335,10 +370,70 @@ export default function ThumbnailEditorV2() {
   });
   const searchParams = useSearchParams();
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
+  const adminBackgroundAssets: BackgroundAsset[] = adminAssets
+    .filter((asset) => asset.category === "backgrounds" && (asset.preview_url || asset.original_url))
+    .map((asset) => ({
+      name: asset.name,
+      src: asset.preview_url || asset.original_url || "",
+    }));
+  const allBackgroundCategories = adminBackgroundAssets.length
+    ? [...backgroundCategories, { name: "Admin Uploads", assets: adminBackgroundAssets }]
+    : backgroundCategories;
   const selectedBackgroundCategory =
-    backgroundCategories.find((category) => category.name === backgroundCategory) ||
-    backgroundCategories[0];
+    allBackgroundCategories.find((category) => category.name === backgroundCategory) ||
+    allBackgroundCategories[0];
   const visibleBackgroundAssets = selectedBackgroundCategory?.assets.slice(0, visibleBackgroundCount) || [];
+  const editorImageAssets: EditorImageAsset[] = [
+    ...(PREMADE_ASSETS as EditorImageAsset[]),
+    ...adminAssets
+      .filter((asset) => (asset.category === "people" || asset.category === "objects") && (asset.preview_url || asset.original_url))
+      .map((asset) => ({
+        category: asset.category as "people" | "objects",
+        name: asset.name,
+        src: asset.preview_url || asset.original_url || "",
+      })),
+  ];
+  const editorShapeAssets: EditorShapeAsset[] = [
+    ...PREMADE_SHAPES,
+    ...adminAssets
+      .filter((asset) => asset.category === "shapes" && asset.metadata?.shapeType)
+      .map((asset) => ({
+        name: asset.name,
+        shapeType: asset.metadata?.shapeType as Layer["shapeType"],
+        color: typeof asset.metadata?.color === "string" ? asset.metadata.color : "#3B82F6",
+      })),
+  ];
+  const editorFrameAssets: EditorShapeAsset[] = [
+    ...PREMADE_FRAMES,
+    ...adminAssets
+      .filter((asset) => asset.category === "frames" && asset.metadata?.shapeType)
+      .map((asset) => ({
+        name: asset.name,
+        shapeType: asset.metadata?.shapeType as Layer["shapeType"],
+        color: typeof asset.metadata?.color === "string" ? asset.metadata.color : "#FFFFFF",
+      })),
+  ];
+
+  useEffect(() => {
+    try {
+      const savedAssets = window.localStorage.getItem(BRAND_ASSETS_STORAGE_KEY);
+      if (!savedAssets) return;
+      const parsedAssets = JSON.parse(savedAssets);
+      if (Array.isArray(parsedAssets)) {
+        setBrandAssets(parsedAssets);
+      }
+    } catch (error) {
+      console.error("Unable to load My Brand assets:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(BRAND_ASSETS_STORAGE_KEY, JSON.stringify(brandAssets));
+    } catch (error) {
+      console.error("Unable to save My Brand assets:", error);
+    }
+  }, [brandAssets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -369,102 +464,178 @@ export default function ThumbnailEditorV2() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminAssets = async () => {
+      try {
+        const response = await fetch("/api/admin/assets", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled && Array.isArray(data.assets)) {
+          setAdminAssets(data.assets);
+        }
+      } catch (error) {
+        console.error("Unable to load admin assets:", error);
+      }
+    };
+
+    loadAdminAssets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkAdmin = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!active) return;
+
+      if (!userId) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (active) setIsAdmin(data?.role === "admin");
+    };
+
+    void checkAdmin();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      void checkAdmin();
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     setVisibleBackgroundCount(BACKGROUND_VISIBLE_STEP);
   }, [backgroundCategory]);
 
   useEffect(() => {
-  const templateId = searchParams.get("template");
+    const templateId = searchParams.get("template");
 
-  if (!templateId) return;
+    if (!templateId) return;
 
-  const template = templates.find((t) => t.id === templateId);
+    const publicTemplate = adminAssets.find(
+      (asset) => asset.category === "templates" && asset.id === templateId
+    );
+    const templateData = publicTemplate?.metadata?.templateData as EditableTemplateData | undefined;
 
-  if (!template) return;
+    if (templateData?.layers?.length) {
+      setCanvasWidth(templateData.canvasWidth || 1280);
+      setCanvasHeight(templateData.canvasHeight || 720);
+      setCanvasBgColor(templateData.canvasBgColor || "#FFFFFF");
+      setCanvasStrokeColor(templateData.canvasStrokeColor || "#0F172A");
+      setCanvasStrokeWidth(templateData.canvasStrokeWidth || 0);
+      setPreview(templateData.preview || publicTemplate?.preview_url || null);
+      setLayers(templateData.layers);
+      setSelectedLayerId(templateData.layers[0]?.id || null);
+      return;
+    }
 
-  setCanvasWidth(template.width);
-  setCanvasHeight(template.height);
-  setCanvasBgColor(template.canvas.background || "#FFFFFF");
+    const template = templates.find((item) => item.id === templateId);
 
- const loadedLayers: Layer[] = template.canvas.elements.map((element: any, index: number) => {
-  const baseLayer = {
-    id: `template-${index}`,
-    type: element.type,
-    name: element.name || `Template Layer ${index + 1}`,
-    x: element.x,
-    y: element.y,
-    opacity: element.opacity ?? 1,
-    angle: element.angle ?? 0,
-  };
+    if (!template) return;
 
-  if (element.type === "text") {
-    return {
-      ...baseLayer,
-      type: "text",
-      text: element.text,
-      fontSize: element.fontSize || 80,
-      color: element.color || "#ffffff",
-      fontFamily: element.fontFamily || "Impact",
-      strokeColor: element.strokeColor || "#000000",
-      strokeWidth: element.strokeWidth ?? 2,
-      glowColor: element.glowColor || "#3B82F6",
-      glowRadius: element.glowRadius ?? 0,
-      textAlign: element.textAlign || "center",
-      isBold: element.isBold ?? true,
-      isItalic: false,
-      isUnderline: false,
-      isUppercase: false,
-      hasTextBg: false,
-      textBgColor: "#000000",
-      textBgPadding: 8,
-      shadowColor: "#000000",
-      shadowBlur: element.shadowBlur ?? 0,
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-    };
-  }
+    setCanvasWidth(template.width);
+    setCanvasHeight(template.height);
+    setCanvasBgColor(template.canvas.background || "#FFFFFF");
 
-  if (element.type === "image") {
-    return {
-      ...baseLayer,
-      type: "image",
-      src: element.src,
-      width: element.width || 300,
-      height: element.height || 300,
-      shadowColor: "#000000",
-      shadowBlur: element.shadowBlur ?? 0,
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-      blendMode: "normal",
-      isFlippedH: false,
-      isFlippedV: false,
-      hasImageStroke: element.hasImageStroke ?? false,
-      imageStrokeColor: element.imageStrokeColor || "#3B82F6",
-      imageStrokeWidth: element.imageStrokeWidth ?? 4,
-      blur: 0,
-      cropTop: 0,
-      constrainBottom: 0,
-      cropLeft: 0,
-      cropRight: 0,
-    };
-  }
+    const loadedLayers: Layer[] = template.canvas.elements.map((element: any, index: number) => {
+      const baseLayer = {
+        id: `template-${index}`,
+        type: element.type,
+        name: element.name || `Template Layer ${index + 1}`,
+        x: element.x,
+        y: element.y,
+        opacity: element.opacity ?? 1,
+        angle: element.angle ?? 0,
+      };
 
-  return {
-    ...baseLayer,
-    type: "shape",
-    shapeType: element.shapeType || "rectangle",
-    width: element.width || 200,
-    height: element.height || 200,
-    color: element.color || "#3B82F6",
-    shadowColor: "#000000",
-    shadowBlur: element.shadowBlur ?? 0,
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-  };
-});
+      if (element.type === "text") {
+        return {
+          ...baseLayer,
+          type: "text",
+          text: element.text,
+          fontSize: element.fontSize || 80,
+          color: element.color || "#ffffff",
+          fontFamily: element.fontFamily || "Impact",
+          strokeColor: element.strokeColor || "#000000",
+          strokeWidth: element.strokeWidth ?? 2,
+          glowColor: element.glowColor || "#3B82F6",
+          glowRadius: element.glowRadius ?? 0,
+          textAlign: element.textAlign || "center",
+          isBold: element.isBold ?? true,
+          isItalic: false,
+          isUnderline: false,
+          isUppercase: false,
+          hasTextBg: false,
+          textBgColor: "#000000",
+          textBgPadding: 8,
+          shadowColor: "#000000",
+          shadowBlur: element.shadowBlur ?? 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+        };
+      }
 
-  setLayers(loadedLayers);
-  setSelectedLayerId(loadedLayers[0]?.id || null);
-}, [searchParams]);
+      if (element.type === "image") {
+        return {
+          ...baseLayer,
+          type: "image",
+          src: element.src,
+          width: element.width || 300,
+          height: element.height || 300,
+          shadowColor: "#000000",
+          shadowBlur: element.shadowBlur ?? 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+          blendMode: "normal",
+          isFlippedH: false,
+          isFlippedV: false,
+          hasImageStroke: element.hasImageStroke ?? false,
+          imageStrokeColor: element.imageStrokeColor || "#3B82F6",
+          imageStrokeWidth: element.imageStrokeWidth ?? 4,
+          blur: 0,
+          cropTop: 0,
+          constrainBottom: 0,
+          cropLeft: 0,
+          cropRight: 0,
+        };
+      }
+
+      return {
+        ...baseLayer,
+        type: "shape",
+        shapeType: element.shapeType || "rectangle",
+        width: element.width || 200,
+        height: element.height || 200,
+        color: element.color || "#3B82F6",
+        shadowColor: "#000000",
+        shadowBlur: element.shadowBlur ?? 0,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+      };
+    });
+
+    setLayers(loadedLayers);
+    setSelectedLayerId(loadedLayers[0]?.id || null);
+  }, [searchParams, adminAssets]);
 
 useEffect(() => {
   const handlePaste = (event: ClipboardEvent) => {
@@ -906,20 +1077,76 @@ try {
     setPreview(URL.createObjectURL(file));
   };
 
+  const fileToDataUrl = (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const saveFilesToBrandAssets = async (files: File[]) => {
+    try {
+      const nextAssets = await Promise.all(
+        files.map(async (file) => ({
+          id: `brand-${Date.now()}-${Math.floor(Math.random() * 10000)}-${file.name}`,
+          name: file.name,
+          url: await fileToDataUrl(file),
+        }))
+      );
+
+      setBrandAssets((prev) => [...nextAssets, ...prev]);
+    } catch (error) {
+      console.error("Unable to save files to My Brand:", error);
+      alert("The files could not be saved to My Brand. Try smaller images or fewer files.");
+    }
+  };
+
+  const saveImportedImageToBrand = async (fileObj: ImportedFile) => {
+    try {
+      const response = await fetch(fileObj.url);
+      const blob = await response.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+
+      setBrandAssets((prev) => [
+        {
+          id: `brand-${Date.now()}-${Math.floor(Math.random() * 10000)}-${fileObj.name}`,
+          name: fileObj.name,
+          url: dataUrl,
+        },
+        ...prev,
+      ]);
+      setAssetTab("brand");
+    } catch (error) {
+      console.error("Unable to save imported image to My Brand:", error);
+      alert("This image could not be saved to My Brand.");
+    }
+  };
+
   const applyBackgroundAsset = (asset: BackgroundAsset) => {
     setPreview(asset.src);
     setBackgroundOpacity(1);
     setBackgroundBlur(0);
   };
 
-  const handleImportImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+    const fileList = Array.from(files);
     const newFiles: ImportedFile[] = [];
-    for (let i = 0; i < files.length; i++) {
-      newFiles.push({ url: URL.createObjectURL(files[i]), name: files[i].name });
+    for (let i = 0; i < fileList.length; i++) {
+      newFiles.push({ url: URL.createObjectURL(fileList[i]), name: fileList[i].name });
     }
     setImportedImages((prev) => [...prev, ...newFiles]);
+    if (saveImportsToBrand) {
+      await saveFilesToBrandAssets(fileList);
+    }
 
     if (selectedLayer && isImageFrame(selectedLayer) && isCompositionFrame(selectedLayer.shapeType)) {
       const remainingFiles = [...newFiles];
@@ -1318,9 +1545,7 @@ gradientColor2: "#8B5CF6",
     setSelectedLayerId(newLayer.id);
   };
 
-  const addPremadeShape = (
-    shape: (typeof PREMADE_SHAPES)[number] | (typeof PREMADE_FRAMES)[number]
-  ) => {
+  const addPremadeShape = (shape: EditorShapeAsset) => {
   const uniqueId = `shp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   const isFrame = FRAME_SHAPE_TYPES.includes(shape.shapeType || "");
   const isPaper = isPaperFrame(shape.shapeType);
@@ -1520,6 +1745,12 @@ const downloadSelectedNoBgPNG = async () => {
   }
 };
 
+const dataUrlToFile = async (dataUrl: string, fileName: string) => {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], fileName, { type: blob.type || "image/png" });
+};
+
   const updateSelectedLayer = (fields: Partial<Layer>) => {
     if (!selectedLayerId) return;
     setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
@@ -1633,6 +1864,70 @@ const downloadSelectedNoBgPNG = async () => {
     setCurrentProjectId(data.id);
     setSavedProjects((prev) => [data, ...prev]);
     alert("Project saved successfully!");
+  };
+
+  const saveAsPublicTemplate = async () => {
+    if (!isAdmin) {
+      alert("Admin access is required to publish templates.");
+      return;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      alert("Please login first.");
+      return;
+    }
+
+    const templateName = prompt("Public template name:", "New Pixores Template");
+    if (!templateName) return;
+
+    const templateCategory = prompt("Template category:", "YouTube") || "YouTube";
+    const thumbnail = await createProjectThumbnail();
+
+    if (!thumbnail) {
+      alert("Template preview could not be generated. Please try again.");
+      return;
+    }
+
+    const templateData: EditableTemplateData = {
+      canvasWidth,
+      canvasHeight,
+      canvasBgColor,
+      canvasStrokeColor,
+      canvasStrokeWidth,
+      preview,
+      layers,
+    };
+
+    const formData = new FormData();
+    formData.set("category", "templates");
+    formData.set("name", templateName);
+    formData.set("alt_text", `${templateName} editable Pixores template`);
+    formData.set("tags", templateCategory);
+    formData.set("metadata", JSON.stringify({
+      assetType: "template",
+      templateCategory,
+      templateData,
+    }));
+    formData.set("file", await dataUrlToFile(thumbnail, `${templateName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-preview.png`));
+
+    const response = await fetch("/api/admin/assets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Template could not be published.");
+      return;
+    }
+
+    setAdminAssets((prev) => [data.asset, ...prev]);
+    alert("Public template saved successfully.");
   };
 
   const updateProject = async () => {
@@ -1948,7 +2243,47 @@ const buyCredits = async (packageId: string) => {
       `}</style>
 
       {/* HEADER */}
-      <header style={{ minHeight: isMobileLayout ? "56px" : "68px", background: isMobileLayout ? "#0F172A" : "rgba(255,255,255,0.96)", color: isMobileLayout ? "#FFFFFF" : "#0F172A", display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobileLayout ? "12px" : "14px", padding: isMobileLayout ? "8px 14px" : "0 18px", borderBottom: isMobileLayout ? "none" : "1px solid #E2E8F0", boxShadow: isMobileLayout ? "0 2px 4px rgba(0,0,0,0.1)" : "0 8px 24px rgba(15,23,42,0.06)", zIndex: 10, flexWrap: "nowrap" }}>
+      <header style={{ minHeight: isMobileLayout ? "54px" : "62px", background: "#FFFFFF", color: "#0F172A", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: isMobileLayout ? "8px 14px" : "0 18px", borderBottom: "1px solid #E2E8F0", boxShadow: "0 8px 24px rgba(15,23,42,0.04)", zIndex: 10, flexWrap: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: "0 1 260px" }}>
+          <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#EFF6FF", color: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
+            P
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ fontSize: isMobileLayout ? "14px" : "16px", fontWeight: 850, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Studio</h1>
+            {!isMobileLayout && <p style={{ margin: 0, color: "#64748B", fontSize: "12px" }}>Thumbnail editor</p>}
+          </div>
+        </div>
+
+        <div style={{ display: isMobileLayout ? "none" : "flex", alignItems: "center", gap: "8px", flex: "1 1 auto", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", border: "1px solid #E2E8F0", borderRadius: "10px", background: "#F8FAFC", color: "#334155", fontWeight: 800, fontSize: "13px" }}>
+            <span>Credits: {credits ?? 0}</span>
+            <button suppressHydrationWarning onClick={() => setShowCreditsModal(true)} style={{ padding: "5px 8px", background: "#FFFFFF", color: "#2563EB", border: "1px solid #BFDBFE", borderRadius: "8px", cursor: "pointer", fontWeight: 800 }}>
+              Buy
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px", border: "1px solid #E2E8F0", borderRadius: "12px", background: "#FFFFFF" }}>
+            <button onClick={saveProject} style={{ padding: "8px 11px", background: "#2563EB", color: "#FFFFFF", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Save</button>
+            <button onClick={updateProject} disabled={!currentProjectId} style={{ padding: "8px 11px", background: currentProjectId ? "#FFFFFF" : "#F1F5F9", color: currentProjectId ? "#334155" : "#94A3B8", border: "none", borderRadius: "9px", fontWeight: 800, cursor: currentProjectId ? "pointer" : "not-allowed", fontSize: "13px" }}>Update</button>
+            <button onClick={loadMyProjects} style={{ padding: "8px 11px", background: "#FFFFFF", color: "#334155", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Projects</button>
+            {isAdmin && <button onClick={saveAsPublicTemplate} style={{ padding: "8px 11px", background: "#F5F3FF", color: "#6D28D9", border: "none", borderRadius: "9px", fontWeight: 850, cursor: "pointer", fontSize: "13px" }}>Template</button>}
+          </div>
+
+          <div style={{ position: "relative" }}>
+            <button disabled={isExporting} onClick={() => setShowExportMenu((current) => !current)} style={{ padding: "10px 14px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 850, cursor: isExporting ? "wait" : "pointer", fontSize: "13px", boxShadow: isExporting ? "none" : "0 8px 18px rgba(16,185,129,0.18)" }}>
+              Export
+            </button>
+            {showExportMenu && (
+              <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: "220px", padding: "8px", border: "1px solid #E2E8F0", borderRadius: "12px", background: "#FFFFFF", boxShadow: "0 18px 40px rgba(15,23,42,0.16)", zIndex: 50 }}>
+                <button onClick={() => { setShowExportMenu(false); void downloadPNG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>PNG HD</button>
+                <button onClick={() => { setShowExportMenu(false); void downloadTransparentPNG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>Transparent PNG</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <header style={{ display: "none", minHeight: isMobileLayout ? "56px" : "68px", background: isMobileLayout ? "#0F172A" : "rgba(255,255,255,0.96)", color: isMobileLayout ? "#FFFFFF" : "#0F172A", alignItems: "center", justifyContent: "space-between", gap: isMobileLayout ? "12px" : "14px", padding: isMobileLayout ? "8px 14px" : "0 18px", borderBottom: isMobileLayout ? "none" : "1px solid #E2E8F0", boxShadow: isMobileLayout ? "0 2px 4px rgba(0,0,0,0.1)" : "0 8px 24px rgba(15,23,42,0.06)", zIndex: 10, flexWrap: "nowrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: isMobileLayout ? "1 1 180px" : "0 0 auto" }}>
           <span style={{ fontSize: "20px" }}>🎨</span>
           <h1 style={{ fontSize: isMobileLayout ? "15px" : "17px", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Studio V2</h1>
@@ -1956,33 +2291,35 @@ const buyCredits = async (packageId: string) => {
 
         <div
   style={{
-    display: isMobileLayout ? "none" : "block",
-    padding: "8px 10px",
-    borderRadius: "999px",
-    background: "#FFF7ED",
-    color: "#B45309",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    background: "#1E293B",
+    color: "#FACC15",
     fontWeight: 700,
-    fontSize: "14px",
-    border: "1px solid #FED7AA",
+    fontSize: isMobileLayout ? "13px" : "15px",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexWrap: "wrap",
   }}
 >
-  ⭐ Credits: {credits ?? "-"}
+  <span>⭐ Credits: {credits ?? 0}</span>
 
   <button
-  onClick={() => setShowCreditsModal(true)}
-  style={{
-    marginLeft: "8px",
-    padding: "6px 10px",
-    background: "#F59E0B",
-    color: "#FFF",
-    border: "none",
-    borderRadius: "999px",
-    cursor: "pointer",
-    fontWeight: 700,
-  }}
->
-  Buy Credits
-</button>
+    suppressHydrationWarning
+    onClick={() => setShowCreditsModal(true)}
+    style={{
+      padding: "6px 10px",
+      background: "#F59E0B",
+      color: "#FFF",
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontWeight: 700,
+    }}
+  >
+    Buy Credits
+  </button>
 </div>
 
         <button
@@ -2001,6 +2338,25 @@ const buyCredits = async (packageId: string) => {
 >
   💾 Save Project
 </button>
+
+{isAdmin && (
+  <button
+    onClick={saveAsPublicTemplate}
+    style={{
+      display: isMobileLayout ? "none" : "block",
+      padding: "10px 16px",
+      background: "#7C3AED",
+      color: "#FFF",
+      border: "none",
+      borderRadius: "999px",
+      fontWeight: 700,
+      cursor: "pointer",
+      fontSize: "14px",
+    }}
+  >
+    Save as Public Template
+  </button>
+)}
 
 <button
   onClick={updateProject}
@@ -2354,7 +2710,7 @@ const buyCredits = async (packageId: string) => {
       }}
     >
       <span>Upload Background Image</span>
-      <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B" }}>Importa una imagen para usarla como fondo</span>
+      <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B" }}>Import an image to use as the canvas background</span>
       <input
         type="file"
         accept="image/*"
@@ -2369,7 +2725,7 @@ const buyCredits = async (packageId: string) => {
         {isLoadingBackgrounds && <span style={{ fontSize: "10px", color: "#64748B" }}>Loading...</span>}
       </div>
 
-      {backgroundCategories.length > 0 ? (
+      {allBackgroundCategories.length > 0 ? (
         <>
           <select
             value={backgroundCategory}
@@ -2384,7 +2740,7 @@ const buyCredits = async (packageId: string) => {
               color: "#0F172A",
             }}
           >
-            {backgroundCategories.map((category) => (
+            {allBackgroundCategories.map((category) => (
               <option key={category.name} value={category.name}>
                 {category.name} ({category.assets.length})
               </option>
@@ -2535,6 +2891,14 @@ const buyCredits = async (packageId: string) => {
     📥 Import Graphics / PNGs
     <input type="file" accept="image/*" multiple onChange={handleImportImage} style={{ display: "none" }} />
   </label>
+  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#475569", fontWeight: 700 }}>
+    <input
+      type="checkbox"
+      checked={saveImportsToBrand}
+      onChange={(e) => setSaveImportsToBrand(e.target.checked)}
+    />
+    Save imported files to My Brand
+  </label>
 
   <div style={{ marginTop: "14px" }}>
     <h2 style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: "8px" }}>
@@ -2548,10 +2912,11 @@ const buyCredits = async (packageId: string) => {
         { id: "shapes", label: "Shapes" },
         { id: "frames", label: "Frames" },
         { id: "emojis", label: "Emojis" },
+        { id: "brand", label: "My Brand" },
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis")}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis" | "brand")}
           style={{
             flex: 1,
             padding: "7px",
@@ -2571,7 +2936,7 @@ const buyCredits = async (packageId: string) => {
 
     {assetTab === "people" || assetTab === "objects" ? (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-        {PREMADE_ASSETS.filter((asset) => asset.category === assetTab).map((asset) => (
+        {editorImageAssets.filter((asset) => asset.category === assetTab).map((asset) => (
           <div
             key={asset.src}
             onClick={() =>
@@ -2603,6 +2968,37 @@ const buyCredits = async (packageId: string) => {
           </div>
         ))}
       </div>
+    ) : assetTab === "brand" ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {brandAssets.length === 0 ? (
+          <div style={{ border: "1px dashed #CBD5E1", borderRadius: "10px", padding: "14px", color: "#64748B", fontSize: "12px", lineHeight: 1.5, textAlign: "center" }}>
+            Import logos, images, or personal objects and enable "Save imported files to My Brand" to reuse them here.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+            {brandAssets.map((asset) => (
+              <div key={asset.id} style={{ position: "relative", aspectRatio: "1", border: "1px solid #E2E8F0", borderRadius: "8px", overflow: "hidden", background: "#F8FAFC" }}>
+                <button
+                  type="button"
+                  onClick={() => addImageToCanvas({ url: asset.url, name: asset.name })}
+                  title={asset.name}
+                  style={{ width: "100%", height: "100%", border: "none", padding: "6px", background: "transparent", cursor: "pointer" }}
+                >
+                  <img src={asset.url} alt={asset.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBrandAssets((prev) => prev.filter((item) => item.id !== asset.id))}
+                  title="Remove from My Brand"
+                  style={{ position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px", borderRadius: "999px", border: "1px solid #FCA5A5", background: "#FEF2F2", color: "#DC2626", fontSize: "12px", fontWeight: 900, cursor: "pointer" }}
+                >
+                  x
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     ) : assetTab === "emojis" ? (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
         {PREMADE_EMOJIS.map((item) => (
@@ -2630,7 +3026,7 @@ const buyCredits = async (packageId: string) => {
       </div>
     ) : (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-        {(assetTab === "frames" ? PREMADE_FRAMES : PREMADE_SHAPES).map((shape) => (
+        {(assetTab === "frames" ? editorFrameAssets : editorShapeAssets).map((shape) => (
           <div
             key={shape.name}
             onClick={() => addPremadeShape(shape)}
@@ -2836,8 +3232,20 @@ const buyCredits = async (packageId: string) => {
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
                 {importedImages.map((imgObj, idx) => (
-                  <div key={idx} onClick={() => addImageToCanvas(imgObj)} style={{ aspectRatio: "1", border: "1px solid #E2E8F0", borderRadius: "6px", overflow: "hidden", cursor: "pointer" }} title={imgObj.name}>
-                    <img src={imgObj.url} alt="imported" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                  <div key={idx} style={{ position: "relative", aspectRatio: "1", border: "1px solid #E2E8F0", borderRadius: "6px", overflow: "hidden", cursor: "pointer", background: "#F8FAFC" }} title={imgObj.name}>
+                    <button type="button" onClick={() => addImageToCanvas(imgObj)} style={{ width: "100%", height: "100%", border: "none", padding: 0, background: "transparent", cursor: "pointer" }}>
+                      <img src={imgObj.url} alt="imported" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        saveImportedImageToBrand(imgObj);
+                      }}
+                      style={{ position: "absolute", left: "4px", right: "4px", bottom: "4px", padding: "4px", borderRadius: "5px", border: "1px solid #BFDBFE", background: "rgba(239,246,255,0.95)", color: "#1D4ED8", fontSize: "10px", fontWeight: 800, cursor: "pointer" }}
+                    >
+                      Save
+                    </button>
                   </div>
                 ))}
               </div>
@@ -3228,7 +3636,7 @@ const buyCredits = async (packageId: string) => {
       height: 0,
       borderLeft: `${(layer.width || 100) / 2}px solid transparent`,
       borderRight: `${(layer.width || 100) / 2}px solid transparent`,
-      borderBottom: `${layer.height}px solid ${layer.gradientColor1 || layer.color}`,
+      borderBottom: `${layer.height}px solid ${layer.useGradient ? layer.gradientColor1 || layer.color : layer.color}`,
     }}
   />
 ) : layer.shapeType === "star" ? (
@@ -3875,7 +4283,18 @@ const buyCredits = async (packageId: string) => {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <label style={{ fontSize: "11px", fontWeight: 600 }}>Element Primary Color</label>
-                <input type="color" value={selectedLayer.color || "#FFFFFF"} onChange={(e) => updateSelectedLayer({ color: e.target.value })} />
+                <input
+                  type="color"
+                  value={selectedLayer.color || "#FFFFFF"}
+                  onChange={(e) =>
+                    updateSelectedLayer({
+                      color: e.target.value,
+                      ...(selectedLayer.type === "shape" && !selectedLayer.useGradient
+                        ? { gradientColor1: e.target.value }
+                        : {}),
+                    })
+                  }
+                />
                 {selectedLayer.type === "shape" && (
   <div
     style={{
@@ -4194,7 +4613,7 @@ const buyCredits = async (packageId: string) => {
 
           <div style={{ padding: "10px 12px", borderRadius: "10px", background: "#FEF3C7", color: "#92400E", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
             <span>Credits: {credits ?? "-"}</span>
-            <button onClick={() => setShowCreditsModal(true)} style={{ padding: "7px 10px", background: "#F59E0B", color: "#FFFFFF", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 700 }}>Buy Credits</button>
+            <button suppressHydrationWarning onClick={() => setShowCreditsModal(true)} style={{ padding: "7px 10px", background: "#F59E0B", color: "#FFFFFF", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 700 }}>Buy Credits</button>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -4203,6 +4622,12 @@ const buyCredits = async (packageId: string) => {
             <button onClick={loadMyProjects} style={{ padding: "12px 10px", background: "#0F172A", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>My Projects</button>
             <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>PNG HD</button>
           </div>
+
+          {isAdmin && (
+            <button onClick={saveAsPublicTemplate} style={{ padding: "12px 10px", background: "#7C3AED", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>
+              Save as Public Template
+            </button>
+          )}
 
           <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
             Download Transparent PNG

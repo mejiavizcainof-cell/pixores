@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import AdminGuard from "@/components/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -34,30 +35,43 @@ export default function NewBlogPostPage() {
       .replace(/\s+/g, "-");
 
   const uploadImageFile = async (file: File) => {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2)}.${fileExt}`;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
 
-    const { error } = await supabase.storage
-      .from("blog-images")
-      .upload(fileName, file);
-
-    if (error) {
-      alert(error.message);
+    if (!token) {
+      alert("Please login first.");
       return;
     }
 
-    const { data } = supabase.storage
-      .from("blog-images")
-      .getPublicUrl(fileName);
+    const formData = new FormData();
+    formData.set("category", "blog");
+    formData.set("name", file.name);
+    formData.set("alt_text", file.name.replace(/\.[^/.]+$/, ""));
+    formData.set("metadata", "{}");
+    formData.set("file", file);
+
+    const response = await fetch("/api/admin/assets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      alert(result.error || "Image upload failed.");
+      return;
+    }
+
+    const imageUrl = result.asset?.preview_url || result.asset?.original_url;
+    if (!imageUrl) return;
 
  editor
   ?.chain()
   .focus()
   .insertContent(`
     <img
-      src="${data.publicUrl}"
+      src="${imageUrl}"
       alt="${file.name}"
       title="${file.name}"
       style="width:100%;max-width:800px;display:block;margin:20px auto;border-radius:12px;"
@@ -66,7 +80,7 @@ export default function NewBlogPostPage() {
   .run();
 
     if (!coverImage) {
-      setCoverImage(data.publicUrl);
+      setCoverImage(imageUrl);
     }
   };
 
@@ -97,29 +111,6 @@ export default function NewBlogPostPage() {
       setCoverImage(url);
     }
   };
-
-  const setImageSize = (size: "small" | "medium" | "large" | "full") => {
-  const sizes = {
-    small: "300px",
-    medium: "500px",
-    large: "800px",
-    full: "100%",
-  };
-
-  const width = sizes[size];
-
-  const url = prompt("Paste the image URL you want to resize:");
-  if (!url) return;
-
-  editor
-    ?.chain()
-    .focus()
-    .setImage({
-      src: url,
-      style: `width:${width}; max-width:100%; display:block; margin:20px auto; border-radius:12px;`,
-    } as any)
-    .run();
-};
 
   const savePost = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -156,6 +147,7 @@ export default function NewBlogPostPage() {
   };
 
   return (
+    <AdminGuard>
     <main style={{ maxWidth: "900px", margin: "40px auto", padding: "20px" }}>
       <h1>New Blog Post</h1>
 
@@ -275,6 +267,7 @@ export default function NewBlogPostPage() {
         Save Post
       </button>
     </main>
+    </AdminGuard>
   );
 }
 

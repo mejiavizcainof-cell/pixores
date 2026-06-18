@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import AdminGuard from "@/components/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -54,30 +55,43 @@ export default function EditBlogPostPage() {
   const uploadImageFile = async (file: File) => {
     if (!editor) return;
 
-    const fileExt = file.name.split(".").pop() || "png";
-    const fileName = `${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2)}.${fileExt}`;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
 
-    const { error } = await supabase.storage
-      .from("blog-images")
-      .upload(fileName, file);
-
-    if (error) {
-      alert(error.message);
+    if (!token) {
+      alert("Please login first.");
       return;
     }
 
-    const { data } = supabase.storage
-      .from("blog-images")
-      .getPublicUrl(fileName);
+    const formData = new FormData();
+    formData.set("category", "blog");
+    formData.set("name", file.name);
+    formData.set("alt_text", file.name.replace(/\.[^/.]+$/, ""));
+    formData.set("metadata", "{}");
+    formData.set("file", file);
+
+    const response = await fetch("/api/admin/assets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      alert(result.error || "Image upload failed.");
+      return;
+    }
+
+    const imageUrl = result.asset?.preview_url || result.asset?.original_url;
+    if (!imageUrl) return;
 
     editor
       .chain()
       .focus()
       .insertContent(`
         <img
-          src="${data.publicUrl}"
+          src="${imageUrl}"
           alt="${file.name}"
           title="${file.name}"
           style="width:100%;max-width:800px;display:block;margin:20px auto;border-radius:12px;"
@@ -169,6 +183,7 @@ useEffect(() => {
   };
 
   return (
+    <AdminGuard>
     <main
       style={{
         maxWidth: "900px",
@@ -300,6 +315,7 @@ useEffect(() => {
         Save Changes
       </button>
     </main>
+    </AdminGuard>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import AdminGuard from "@/components/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
 
 type BlogPost = {
@@ -51,10 +52,11 @@ export default function AdminBlogPage() {
   };
 
   useEffect(() => {
-    loadPosts();
+    void Promise.resolve().then(loadPosts);
   }, []);
 
   return (
+    <AdminGuard>
     <main style={{ maxWidth: "1000px", margin: "40px auto", padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h1>Blog Admin</h1>
@@ -116,6 +118,7 @@ export default function AdminBlogPage() {
         </div>
       )}
     </main>
+    </AdminGuard>
   );
 }
 

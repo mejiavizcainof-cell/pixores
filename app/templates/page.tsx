@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
 import { templates } from "@/lib/templates";
 
@@ -10,7 +11,65 @@ export const metadata: Metadata = {
     "Choose free templates for YouTube thumbnails, TikTok posts, Instagram posts, and creator designs.",
 };
 
-export default function TemplatesPage() {
+type PublicTemplateCard = {
+  id: string;
+  name: string;
+  category: string;
+  preview: string;
+  width: number;
+  height: number;
+  isRemote?: boolean;
+};
+
+async function getAdminTemplates(): Promise<PublicTemplateCard[]> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) return [];
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  const { data, error } = await supabase
+    .from("admin_assets")
+    .select("id,name,preview_url,thumbnail_url,width,height,metadata")
+    .eq("category", "templates")
+    .eq("is_published", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data
+    .filter((asset) => asset.preview_url || asset.thumbnail_url)
+    .map((asset) => {
+      const metadata = asset.metadata as { templateCategory?: string; templateData?: { canvasWidth?: number; canvasHeight?: number } } | null;
+
+      return {
+        id: asset.id,
+        name: asset.name,
+        category: metadata?.templateCategory || "Pixores",
+        preview: asset.preview_url || asset.thumbnail_url || "",
+        width: metadata?.templateData?.canvasWidth || asset.width || 1280,
+        height: metadata?.templateData?.canvasHeight || asset.height || 720,
+        isRemote: true,
+      };
+    });
+}
+
+export default async function TemplatesPage() {
+  const adminTemplates = await getAdminTemplates();
+  const templateCards: PublicTemplateCard[] = [
+    ...adminTemplates,
+    ...templates.map((template) => ({
+      id: template.id,
+      name: template.name,
+      category: template.category,
+      preview: template.preview,
+      width: template.width,
+      height: template.height,
+    })),
+  ];
+
   return (
     <main
       style={{
@@ -51,7 +110,7 @@ export default function TemplatesPage() {
           gap: "22px",
         }}
       >
-        {templates.map((template) => (
+        {templateCards.map((template) => (
           <div
             key={template.id}
             style={{
@@ -61,18 +120,32 @@ export default function TemplatesPage() {
               background: "#FFFFFF",
             }}
           >
-            <Image
-              src={template.preview}
-              alt={template.name}
-              width={template.width}
-              height={template.height}
-              style={{
-                width: "100%",
-                height: "220px",
-                objectFit: "cover",
-                background: "#F1F5F9",
-              }}
-            />
+            {template.isRemote ? (
+              <img
+                src={template.preview}
+                alt={template.name}
+                style={{
+                  width: "100%",
+                  height: "220px",
+                  objectFit: "cover",
+                  background: "#F1F5F9",
+                  display: "block",
+                }}
+              />
+            ) : (
+              <Image
+                src={template.preview}
+                alt={template.name}
+                width={template.width}
+                height={template.height}
+                style={{
+                  width: "100%",
+                  height: "220px",
+                  objectFit: "cover",
+                  background: "#F1F5F9",
+                }}
+              />
+            )}
 
             <div style={{ padding: "18px" }}>
               <p
