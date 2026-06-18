@@ -9,6 +9,12 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    title: "Instagram Reel Saver Guide",
+    href: "/instagram-reel-downloader",
+    description:
+      "Safe guide for saving your own Instagram Reels or content you have permission to use.",
+  },
+  {
   title: "Thumbnail Creator Pro",
   href: "/thumbnail-creator",
   description:

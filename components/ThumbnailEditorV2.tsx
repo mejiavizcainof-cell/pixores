@@ -20,6 +20,12 @@ type Layer = {
   frameImageY?: number;
   frameImage2X?: number;
   frameImage2Y?: number;
+  frameImageScale?: number;
+  frameImage2Scale?: number;
+  frameImageFlipH?: boolean;
+  frameImageFlipV?: boolean;
+  frameImage2FlipH?: boolean;
+  frameImage2FlipV?: boolean;
   shapeType?:
   | "rectangle"
   | "circle"
@@ -33,6 +39,7 @@ type Layer = {
   | "frame"
   | "roundedFrame"
   | "circleFrame"
+  | "triangleFrame"
   | "paperFrame"
   | "paperPortraitFrame"
   | "paperSquareFrame"
@@ -95,6 +102,7 @@ gradientDirection?:
   cropLeft?: number;
   cropRight?: number;
   angle?: number; 
+  isLocked?: boolean;
 };
 
 type ResizeState = {
@@ -167,6 +175,7 @@ const PREMADE_FRAMES = [
   { name: "Frame", shapeType: "frame" as const, color: "#EF4444" },
   { name: "Rounded Frame", shapeType: "roundedFrame" as const, color: "#3B82F6" },
   { name: "Circle Frame", shapeType: "circleFrame" as const, color: "#FACC15" },
+  { name: "Triangle Frame", shapeType: "triangleFrame" as const, color: "#22C55E" },
   { name: "Paper Wide", shapeType: "paperFrame" as const, color: "#F8F1E8" },
   { name: "Paper Portrait", shapeType: "paperPortraitFrame" as const, color: "#F8F1E8" },
   { name: "Paper Square", shapeType: "paperSquareFrame" as const, color: "#F8F1E8" },
@@ -231,7 +240,9 @@ const PREMADE_EMOJIS = [
 const PAPER_FRAME_SHAPE_TYPES = ["paperFrame", "paperPortraitFrame", "paperSquareFrame", "paperStripFrame", "paperLeftFrame", "paperRightFrame"];
 const DEVICE_FRAME_SHAPE_TYPES = ["phoneFrame", "tabletFrame", "laptopFrame"];
 const COMPOSITION_FRAME_SHAPE_TYPES = ["vsDividerFrame", "splitScreenFrame", "diagonalSplitFrame"];
-const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", ...PAPER_FRAME_SHAPE_TYPES, ...DEVICE_FRAME_SHAPE_TYPES, ...COMPOSITION_FRAME_SHAPE_TYPES];
+const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", "triangleFrame", ...PAPER_FRAME_SHAPE_TYPES, ...DEVICE_FRAME_SHAPE_TYPES, ...COMPOSITION_FRAME_SHAPE_TYPES];
+
+const BACKGROUND_VISIBLE_STEP = 12;
 
 const PRESET_SIZES = {
   youtube: { name: "YouTube Thumbnail", width: 1280, height: 720 },
@@ -276,6 +287,7 @@ export default function ThumbnailEditorV2() {
   const [backgroundBlur, setBackgroundBlur] = useState<number>(0);
   const [backgroundCategories, setBackgroundCategories] = useState<BackgroundCategory[]>([]);
   const [backgroundCategory, setBackgroundCategory] = useState<string>("");
+  const [visibleBackgroundCount, setVisibleBackgroundCount] = useState<number>(BACKGROUND_VISIBLE_STEP);
   const [isLoadingBackgrounds, setIsLoadingBackgrounds] = useState<boolean>(false);
 
   const [currentPreset, setCurrentPreset] = useState<keyof typeof PRESET_SIZES>("youtube");
@@ -326,6 +338,7 @@ export default function ThumbnailEditorV2() {
   const selectedBackgroundCategory =
     backgroundCategories.find((category) => category.name === backgroundCategory) ||
     backgroundCategories[0];
+  const visibleBackgroundAssets = selectedBackgroundCategory?.assets.slice(0, visibleBackgroundCount) || [];
 
   useEffect(() => {
     let cancelled = false;
@@ -356,6 +369,10 @@ export default function ThumbnailEditorV2() {
   }, []);
 
   useEffect(() => {
+    setVisibleBackgroundCount(BACKGROUND_VISIBLE_STEP);
+  }, [backgroundCategory]);
+
+  useEffect(() => {
   const templateId = searchParams.get("template");
 
   if (!templateId) return;
@@ -366,7 +383,7 @@ export default function ThumbnailEditorV2() {
 
   setCanvasWidth(template.width);
   setCanvasHeight(template.height);
-  setCanvasBgColor(template.canvas.background);
+  setCanvasBgColor(template.canvas.background || "#FFFFFF");
 
  const loadedLayers: Layer[] = template.canvas.elements.map((element: any, index: number) => {
   const baseLayer = {
@@ -528,6 +545,8 @@ useEffect(() => {
 
   const deleteLayer = () => {
     if (layers.length === 0 || !selectedLayerId) return;
+    const layerToDelete = layers.find((layer) => layer.id === selectedLayerId);
+    if (layerToDelete?.isLocked) return;
     const updated = layers.filter((layer) => layer.id !== selectedLayerId);
     setLayers(updated);
     setSelectedLayerId(updated.length > 0 ? updated[updated.length - 1].id : null);
@@ -598,6 +617,8 @@ useEffect(() => {
       }
 
       if (!selectedLayerId || draggingLayerId || resizeState.corner) return;
+      const keyboardLayer = layers.find((layer) => layer.id === selectedLayerId);
+      if (keyboardLayer?.isLocked) return;
       const step = e.shiftKey ? 3 : 1; 
       let deltaX = 0;
       let deltaY = 0;
@@ -998,6 +1019,8 @@ const getFrameDefaultSize = (shapeType?: Layer["shapeType"]) => {
       return { width: 260, height: 180 };
     case "laptopFrame":
       return { width: 310, height: 205 };
+    case "triangleFrame":
+      return { width: 190, height: 170 };
     case "vsDividerFrame":
       return { width: 290, height: 170 };
     case "splitScreenFrame":
@@ -1038,6 +1061,13 @@ const getFrameImagePosition = (layer: Layer, slot: 1 | 2 = 1) => {
   const x = slot === 1 ? layer.frameImageX ?? 50 : layer.frameImage2X ?? 50;
   const y = slot === 1 ? layer.frameImageY ?? 50 : layer.frameImage2Y ?? 50;
   return `${x}% ${y}%`;
+};
+
+const getFrameImageTransform = (layer: Layer, slot: 1 | 2 = 1) => {
+  const scale = slot === 1 ? layer.frameImageScale ?? 1 : layer.frameImage2Scale ?? 1;
+  const flipH = slot === 1 ? layer.frameImageFlipH : layer.frameImage2FlipH;
+  const flipV = slot === 1 ? layer.frameImageFlipV : layer.frameImage2FlipV;
+  return `scale(${flipH ? -scale : scale}, ${flipV ? -scale : scale})`;
 };
 
 const cloneLayers = (items: Layer[]) => items.map((layer) => ({ ...layer }));
@@ -1498,6 +1528,11 @@ const downloadSelectedNoBgPNG = async () => {
  const startResizing = (e: React.MouseEvent | React.TouchEvent, layer: Layer, corner: ResizeState["corner"]) => {
   e.preventDefault();
   e.stopPropagation();
+  if (layer.isLocked) {
+    setSelectedLayerId(layer.id);
+    setDraggingLayerId(null);
+    return;
+  }
   const { clientX, clientY } = getCoords(e);
   setSelectedLayerId(layer.id);
   setDraggingLayerId(null);
@@ -2285,9 +2320,10 @@ const buyCredits = async (packageId: string) => {
   </h2>
 
   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <label style={{ fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>Background Color</label>
     <input
       type="color"
-      value={canvasBgColor}
+      value={canvasBgColor || "#FFFFFF"}
       onChange={(e) => setCanvasBgColor(e.target.value)}
       style={{
         width: "100%",
@@ -2298,12 +2334,34 @@ const buyCredits = async (packageId: string) => {
       }}
     />
 
-    <input
-      type="file"
-      accept="image/*"
-      onChange={handleUploadBackground}
-      style={{ fontSize: "12px", width: "100%" }}
-    />
+    <label
+      style={{
+        width: "100%",
+        padding: "12px",
+        borderRadius: "10px",
+        border: "1px dashed #2563EB",
+        background: "#EFF6FF",
+        color: "#1D4ED8",
+        fontWeight: 800,
+        fontSize: "13px",
+        textAlign: "center",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "3px",
+        boxSizing: "border-box",
+      }}
+    >
+      <span>Upload Background Image</span>
+      <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B" }}>Importa una imagen para usarla como fondo</span>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleUploadBackground}
+        style={{ display: "none" }}
+      />
+    </label>
 
     <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
@@ -2334,7 +2392,7 @@ const buyCredits = async (packageId: string) => {
           </select>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px", maxHeight: "220px", overflowY: "auto", paddingRight: "2px" }}>
-            {selectedBackgroundCategory?.assets.map((asset) => (
+            {visibleBackgroundAssets.map((asset) => (
               <button
                 key={asset.src}
                 type="button"
@@ -2360,6 +2418,16 @@ const buyCredits = async (packageId: string) => {
               </button>
             ))}
           </div>
+
+          {(selectedBackgroundCategory?.assets.length || 0) > visibleBackgroundCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleBackgroundCount((count) => count + BACKGROUND_VISIBLE_STEP)}
+              style={{ padding: "8px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 800, cursor: "pointer" }}
+            >
+              Load more backgrounds ({Math.min(visibleBackgroundCount, selectedBackgroundCategory?.assets.length || 0)} / {selectedBackgroundCategory?.assets.length || 0})
+            </button>
+          )}
         </>
       ) : (
         <p style={{ margin: 0, fontSize: "11px", color: "#64748B", lineHeight: 1.4 }}>
@@ -2656,6 +2724,21 @@ const buyCredits = async (packageId: string) => {
   <div style={{ width: "40px", height: "40px", border: `4px solid ${shape.color}`, borderRadius: "50%" }} />
 )}
 
+{shape.shapeType === "triangleFrame" && (
+  <div
+    style={{
+      width: "46px",
+      height: "42px",
+      clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)",
+      background: shape.color,
+      padding: "5px",
+      boxSizing: "border-box",
+    }}
+  >
+    <div style={{ width: "100%", height: "100%", clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)", background: "linear-gradient(180deg, #BEEBFF 0%, #E9FAFF 62%, #98C93C 63%, #6E9F00 100%)" }} />
+  </div>
+)}
+
 {isPaperFrame(shape.shapeType) && (
   <div
     style={{
@@ -2718,28 +2801,26 @@ const buyCredits = async (packageId: string) => {
       height: shape.shapeType === "vsDividerFrame" ? "54px" : "34px",
       position: "relative",
       borderRadius: "8px",
-      background: shape.shapeType === "vsDividerFrame" ? "transparent" : "#EFF6FF",
-      border: shape.shapeType === "vsDividerFrame" ? "none" : "2px solid #CBD5E1",
+      background: "#EFF6FF",
+      border: "1px solid #CBD5E1",
       overflow: "hidden",
       boxSizing: "border-box",
     }}
   >
     {shape.shapeType === "vsDividerFrame" ? (
       <>
-        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: "5px", transform: "translateX(-50%)", borderRadius: "999px", background: shape.color }} />
-        <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: "24px", height: "24px", borderRadius: "50%", background: "#111827", color: "#FFFFFF", fontSize: "9px", fontWeight: 900, display: "grid", placeItems: "center", border: `2px solid ${shape.color}` }}>VS</div>
+        <div style={{ position: "absolute", inset: "0 50% 0 0", background: "#BEEBFF" }} />
+        <div style={{ position: "absolute", inset: "0 0 0 50%", background: "#FECACA" }} />
       </>
     ) : shape.shapeType === "splitScreenFrame" ? (
       <>
         <div style={{ position: "absolute", inset: "0 50% 0 0", background: "#BEEBFF" }} />
         <div style={{ position: "absolute", inset: "0 0 0 50%", background: "#FECACA" }} />
-        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: "4px", transform: "translateX(-50%)", background: shape.color }} />
       </>
     ) : (
       <>
         <div style={{ position: "absolute", inset: 0, background: "#BEEBFF" }} />
         <div style={{ position: "absolute", inset: 0, background: "#FECACA", clipPath: "polygon(100% 0, 100% 100%, 26% 100%)" }} />
-        <div style={{ position: "absolute", left: "48%", top: "-18%", width: "5px", height: "140%", transform: "rotate(27deg)", background: shape.color }} />
       </>
     )}
   </div>
@@ -3026,6 +3107,10 @@ const buyCredits = async (packageId: string) => {
     e.stopPropagation();
     setSelectedLayerId(layer.id);
     setIsCropMode(false);
+    if (layer.isLocked) {
+      setDraggingLayerId(null);
+      return;
+    }
     setDraggingLayerId(layer.id);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     initialDragOffset.current = {
@@ -3047,6 +3132,10 @@ const buyCredits = async (packageId: string) => {
     e.stopPropagation();
     setSelectedLayerId(layer.id);
     setIsCropMode(false);
+    if (layer.isLocked) {
+      setDraggingLayerId(null);
+      return;
+    }
     setDraggingLayerId(layer.id);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     initialDragOffset.current = {
@@ -3061,7 +3150,7 @@ const buyCredits = async (packageId: string) => {
                     top: `${layer.y}%`,
                     transform: `translate(-50%, -50%) rotate(${layer.angle || 0}deg) ${layer.isFlippedH ? "scaleX(-1)" : "scaleX(1)"} ${layer.isFlippedV ? "scaleY(-1)" : "scaleY(1)"}`,
                     userSelect: "none",
-                    cursor: isCropMode ? "default" : (draggingLayerId === layer.id ? "grabbing" : "move"),
+                    cursor: layer.isLocked ? "not-allowed" : isCropMode ? "default" : (draggingLayerId === layer.id ? "grabbing" : "move"),
                     padding: "4px",
                     outline: !isExporting && isSelected ? (isCropMode ? "2px dashed #000" : "2px solid #3B82F6") : "none",
                     zIndex: !isExporting && isSelected ? 100 : index + 10, 
@@ -3186,6 +3275,8 @@ const buyCredits = async (packageId: string) => {
           height: "100%",
           objectFit: layer.frameImageFit || "cover",
           objectPosition: getFrameImagePosition(layer),
+          transform: getFrameImageTransform(layer),
+          transformOrigin: "center",
           display: "block",
         }}
       />
@@ -3218,6 +3309,8 @@ const buyCredits = async (packageId: string) => {
           height: "100%",
           objectFit: layer.frameImageFit || "cover",
           objectPosition: getFrameImagePosition(layer),
+          transform: getFrameImageTransform(layer),
+          transformOrigin: "center",
           display: "block",
         }}
       />
@@ -3248,10 +3341,51 @@ const buyCredits = async (packageId: string) => {
           height: "100%",
           objectFit: layer.frameImageFit || "cover",
           objectPosition: getFrameImagePosition(layer),
+          transform: getFrameImageTransform(layer),
+          transformOrigin: "center",
           display: "block",
         }}
       />
     )}
+  </div>
+  ) : layer.shapeType === "triangleFrame" ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)",
+      background: layer.strokeColor || layer.color || "#22C55E",
+      padding: `${layer.strokeWidth ?? 8}px`,
+      boxSizing: "border-box",
+      position: "relative",
+      filter: "drop-shadow(0 6px 10px rgba(15,23,42,0.15))",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)",
+        overflow: "hidden",
+        background: layer.frameImageSrc ? "transparent" : getFramePlaceholderBackground(layer),
+      }}
+    >
+      {layer.frameImageSrc && (
+        <img
+          src={layer.frameImageSrc}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: layer.frameImageFit || "cover",
+            objectPosition: getFrameImagePosition(layer),
+            transform: getFrameImageTransform(layer),
+            transformOrigin: "center",
+            display: "block",
+          }}
+        />
+      )}
+    </div>
   </div>
   ) : isDeviceFrame(layer.shapeType) ? (
   <div
@@ -3302,6 +3436,8 @@ const buyCredits = async (packageId: string) => {
               height: "100%",
               objectFit: layer.frameImageFit || "cover",
               objectPosition: getFrameImagePosition(layer),
+              transform: getFrameImageTransform(layer),
+              transformOrigin: "center",
               display: "block",
             }}
           />
@@ -3357,6 +3493,8 @@ const buyCredits = async (packageId: string) => {
             height: "100%",
             objectFit: layer.frameImageFit || "cover",
             objectPosition: getFrameImagePosition(layer),
+            transform: getFrameImageTransform(layer),
+            transformOrigin: "center",
             display: "block",
           }}
         />
@@ -3387,12 +3525,12 @@ const buyCredits = async (packageId: string) => {
       <>
         <div style={{ position: "absolute", inset: "0 50% 0 0", background: "linear-gradient(180deg, #BAE6FD 0%, #E0F2FE 62%, #A3E635 63%, #65A30D 100%)", zIndex: 0, overflow: "hidden" }}>
           {layer.frameImageSrc && (
-            <img src={layer.frameImageSrc} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer), display: "block" }} />
+            <img src={layer.frameImageSrc} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer), transform: getFrameImageTransform(layer), transformOrigin: "center", display: "block" }} />
           )}
         </div>
         <div style={{ position: "absolute", inset: "0 0 0 50%", background: "linear-gradient(180deg, #FECACA 0%, #FFE4E6 62%, #FDBA74 63%, #EA580C 100%)", zIndex: 0, overflow: "hidden" }}>
           {layer.frameImageSrc2 && (
-            <img src={layer.frameImageSrc2} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer, 2), display: "block" }} />
+            <img src={layer.frameImageSrc2} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer, 2), transform: getFrameImageTransform(layer, 2), transformOrigin: "center", display: "block" }} />
           )}
         </div>
       </>
@@ -3400,12 +3538,12 @@ const buyCredits = async (packageId: string) => {
       <>
         <div style={{ position: "absolute", inset: 0, clipPath: "polygon(0 0, 78% 0, 22% 100%, 0 100%)", background: "linear-gradient(180deg, #BAE6FD 0%, #E0F2FE 62%, #A3E635 63%, #65A30D 100%)", zIndex: 0, overflow: "hidden" }}>
           {layer.frameImageSrc && (
-            <img src={layer.frameImageSrc} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer), display: "block" }} />
+            <img src={layer.frameImageSrc} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer), transform: getFrameImageTransform(layer), transformOrigin: "center", display: "block" }} />
           )}
         </div>
         <div style={{ position: "absolute", inset: 0, clipPath: "polygon(78% 0, 100% 0, 100% 100%, 22% 100%)", background: "linear-gradient(180deg, #FECACA 0%, #FFE4E6 62%, #FDBA74 63%, #EA580C 100%)", zIndex: 0, overflow: "hidden" }}>
           {layer.frameImageSrc2 && (
-            <img src={layer.frameImageSrc2} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer, 2), display: "block" }} />
+            <img src={layer.frameImageSrc2} alt="" style={{ width: "100%", height: "100%", objectFit: layer.frameImageFit || "cover", objectPosition: getFrameImagePosition(layer, 2), transform: getFrameImageTransform(layer, 2), transformOrigin: "center", display: "block" }} />
           )}
         </div>
         {!layer.frameImageSrc2 && (
@@ -3444,7 +3582,7 @@ const buyCredits = async (packageId: string) => {
 )}
 
                  {/* TRANSFORM ANCHORS (CORNER HANDLERS) */}
-{!isExporting && isSelected && (
+{!isExporting && isSelected && !layer.isLocked && (
   <>
     {[
       { corner: "topLeft", cursor: "nwse-resize" },
@@ -3511,6 +3649,29 @@ const buyCredits = async (packageId: string) => {
     )}
   </>
 )}
+{!isExporting && isSelected && layer.isLocked && (
+  <div
+    style={{
+      position: "absolute",
+      top: "-12px",
+      right: "-12px",
+      width: "24px",
+      height: "24px",
+      borderRadius: "999px",
+      background: "#111827",
+      color: "#FFFFFF",
+      display: "grid",
+      placeItems: "center",
+      fontSize: "13px",
+      border: "2px solid #FFFFFF",
+      boxShadow: "0 4px 10px rgba(15,23,42,0.24)",
+      pointerEvents: "none",
+      zIndex: 25,
+    }}
+  >
+    🔒
+  </div>
+)}
                 </div>
               );
             })}
@@ -3556,6 +3717,24 @@ const buyCredits = async (packageId: string) => {
                 <button onClick={() => duplicateLayer()} style={{ flex: 1, padding: "6px", background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE", borderRadius: "6px", fontSize: "11px", fontWeight: 600 }}>📋 Duplicate</button>
                 <button onClick={() => deleteLayer()} style={{ padding: "6px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5", borderRadius: "6px", fontSize: "11px", cursor: "pointer" }}>🗑️ Delete</button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => updateSelectedLayer({ isLocked: !selectedLayer.isLocked })}
+                style={{
+                  width: "100%",
+                  padding: "9px",
+                  background: selectedLayer.isLocked ? "#111827" : "#F8FAFC",
+                  color: selectedLayer.isLocked ? "#FFFFFF" : "#334155",
+                  border: selectedLayer.isLocked ? "1px solid #111827" : "1px solid #CBD5E1",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                {selectedLayer.isLocked ? "Unlock Layer" : "Lock Layer"}
+              </button>
 
               <hr style={{ border: "none", borderTop: "1px solid #F1F5F9" }} />
 
@@ -3927,6 +4106,18 @@ const buyCredits = async (packageId: string) => {
 
                         <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 1 Vertical ({selectedLayer.frameImageY ?? 50}%)</label>
                         <input type="range" min="0" max="100" value={selectedLayer.frameImageY ?? 50} onChange={(e) => updateSelectedLayer({ frameImageY: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                        <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 1 Zoom ({((selectedLayer.frameImageScale ?? 1) * 100).toFixed(0)}%)</label>
+                        <input type="range" min="0.5" max="3" step="0.05" value={selectedLayer.frameImageScale ?? 1} onChange={(e) => updateSelectedLayer({ frameImageScale: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                          <button type="button" onClick={() => updateSelectedLayer({ frameImageFlipH: !selectedLayer.frameImageFlipH })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: selectedLayer.frameImageFlipH ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                            Flip Photo 1 H
+                          </button>
+                          <button type="button" onClick={() => updateSelectedLayer({ frameImageFlipV: !selectedLayer.frameImageFlipV })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: selectedLayer.frameImageFlipV ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                            Flip Photo 1 V
+                          </button>
+                        </div>
                       </>
                     )}
 
@@ -3937,12 +4128,24 @@ const buyCredits = async (packageId: string) => {
 
                         <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 2 Vertical ({selectedLayer.frameImage2Y ?? 50}%)</label>
                         <input type="range" min="0" max="100" value={selectedLayer.frameImage2Y ?? 50} onChange={(e) => updateSelectedLayer({ frameImage2Y: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                        <label style={{ fontSize: "10px", color: "#64748B" }}>Photo 2 Zoom ({((selectedLayer.frameImage2Scale ?? 1) * 100).toFixed(0)}%)</label>
+                        <input type="range" min="0.5" max="3" step="0.05" value={selectedLayer.frameImage2Scale ?? 1} onChange={(e) => updateSelectedLayer({ frameImage2Scale: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                          <button type="button" onClick={() => updateSelectedLayer({ frameImage2FlipH: !selectedLayer.frameImage2FlipH })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: selectedLayer.frameImage2FlipH ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                            Flip Photo 2 H
+                          </button>
+                          <button type="button" onClick={() => updateSelectedLayer({ frameImage2FlipV: !selectedLayer.frameImage2FlipV })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: selectedLayer.frameImage2FlipV ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                            Flip Photo 2 V
+                          </button>
+                        </div>
                       </>
                     )}
 
                     {(selectedLayer.frameImageSrc || selectedLayer.frameImageSrc2) && (
-                      <button type="button" onClick={() => updateSelectedLayer({ frameImageX: 50, frameImageY: 50, frameImage2X: 50, frameImage2Y: 50 })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-                        Center Frame Photos
+                      <button type="button" onClick={() => updateSelectedLayer({ frameImageX: 50, frameImageY: 50, frameImage2X: 50, frameImage2Y: 50, frameImageScale: 1, frameImage2Scale: 1, frameImageFlipH: false, frameImageFlipV: false, frameImage2FlipH: false, frameImage2FlipV: false })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                        Reset Frame Photos
                       </button>
                     )}
                   </div>

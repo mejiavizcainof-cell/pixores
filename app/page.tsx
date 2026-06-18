@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Pixores - Free Online Image & File Tools",
   description:
     "Convert, compress and optimize images online. JPG, PNG, WebP, HEIC, PDF and thumbnail tools for free.",
+  alternates: {
+    canonical: "https://www.pixores.com",
+  },
 };
 
 export default function Home() {
@@ -22,6 +25,7 @@ export default function Home() {
     { icon: "🗜️", title: "Compress Image", description: "Reduce image file size while maintaining quality.", link: "/compress-image", color: "#FFF7ED" },
     { icon: "📐", title: "Resize Image", description: "Change image dimensions instantly.", link: "/resize-image", color: "#F0FDFA" },
     { icon: "🎨", title: "Thumbnail Creator Pro", description: "Create professional YouTube thumbnails online.", link: "/thumbnail-creator", color: "#EEF2FF" },
+    { icon: "IG", title: "Instagram Reel Saver Guide", description: "Safe ways to save your own reels or permitted content.", link: "/instagram-reel-downloader", color: "#FCE7F3" },
   ];
 
   return (

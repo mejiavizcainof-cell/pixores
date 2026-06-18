@@ -7,6 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
     },
 
-    sitemap: "https://pixores.com/sitemap.xml",
+    sitemap: "https://www.pixores.com/sitemap.xml",
+    host: "https://www.pixores.com",
   };
 }
