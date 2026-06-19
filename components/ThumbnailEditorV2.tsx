@@ -3,8 +3,10 @@ import { supabase } from "@/lib/supabaseClient";
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
+import html2canvas from "html2canvas";
 import { templates } from "@/lib/templates";
 import type { AdminAsset } from "@/lib/adminAssets";
+import type { EditorBrandAsset } from "@/lib/brandAssets";
 
 
 
@@ -13,6 +15,7 @@ type Layer = {
   type: "text" | "image" | "shape";
   name: string;
   text?: string;
+  textHtml?: string;
   src?: string;
   frameImageSrc?: string;
   frameImageSrc2?: string;
@@ -137,11 +140,7 @@ type BackgroundCategory = {
   assets: BackgroundAsset[];
 };
 
-type BrandAsset = {
-  id: string;
-  name: string;
-  url: string;
-};
+type BrandAsset = EditorBrandAsset;
 
 type EditorImageAsset = {
   category: "people" | "objects";
@@ -273,6 +272,8 @@ const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", "triangleFram
 
 const BACKGROUND_VISIBLE_STEP = 12;
 const BRAND_ASSETS_STORAGE_KEY = "pixores-brand-assets-v1";
+const BRAND_ASSETS_MAX_ITEMS = 24;
+const BRAND_ASSETS_MAX_STORAGE_CHARS = 3_800_000;
 
 const PRESET_SIZES = {
   youtube: { name: "YouTube Thumbnail", width: 1280, height: 720 },
@@ -300,7 +301,20 @@ const TEXT_PRESETS = [
   { label: "Body Caption", text: "Body Caption", fontSize: 26, fontFamily: "Georgia", isBold: false, color: "#334155" },
 ];
 
+const escapeTextHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+
 export default function ThumbnailEditorV2() {
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
+
   useEffect(() => {
     console.log("Supabase:", supabase);
   }, []);
@@ -328,12 +342,14 @@ export default function ThumbnailEditorV2() {
   const [draggingLayerId, setDraggingLayerId] = useState<string | number | null>(null);
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
   const [brandAssets, setBrandAssets] = useState<BrandAsset[]>([]);
+  const [brandStorageWarning, setBrandStorageWarning] = useState<string | null>(null);
   const [saveImportsToBrand, setSaveImportsToBrand] = useState<boolean>(false);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
   const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "emojis" | "brand">("people");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
   const [textSearch, setTextSearch] = useState<string>("");
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
+  const [textSelectionPreview, setTextSelectionPreview] = useState<{ layerId: string | number; start: number; end: number; text: string } | null>(null);
 
   const [savedProjects, setSavedProjects] = useState<any[]>([]);
   const [showProjects, setShowProjects] = useState(false);
@@ -352,6 +368,8 @@ export default function ThumbnailEditorV2() {
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isApplyingHistoryRef = useRef(false);
   const lastHistorySnapshotRef = useRef<string>("[]");
+  const savedTextSelectionRef = useRef<{ layerId: string | number; start: number; end: number } | null>(null);
+  const hasLoadedBrandAssetsRef = useRef(false);
 
   const [resizeState, setResizeState] = useState<ResizeState>({
     corner: null,
@@ -417,23 +435,85 @@ export default function ThumbnailEditorV2() {
   useEffect(() => {
     try {
       const savedAssets = window.localStorage.getItem(BRAND_ASSETS_STORAGE_KEY);
-      if (!savedAssets) return;
-      const parsedAssets = JSON.parse(savedAssets);
-      if (Array.isArray(parsedAssets)) {
-        setBrandAssets(parsedAssets);
+      if (savedAssets) {
+        const parsedAssets = JSON.parse(savedAssets);
+        if (Array.isArray(parsedAssets)) {
+          setBrandAssets(parsedAssets);
+        }
       }
     } catch (error) {
       console.error("Unable to load My Brand assets:", error);
+    } finally {
+      hasLoadedBrandAssetsRef.current = true;
     }
   }, []);
 
   useEffect(() => {
+    if (!hasLoadedBrandAssetsRef.current) return;
+
     try {
-      window.localStorage.setItem(BRAND_ASSETS_STORAGE_KEY, JSON.stringify(brandAssets));
+      const localOnlyAssets = brandAssets.filter((asset) => !asset.isRemote);
+      const compactAssets = localOnlyAssets.slice(0, BRAND_ASSETS_MAX_ITEMS);
+      let payload = JSON.stringify(compactAssets);
+      let limitedAssets = compactAssets;
+
+      while (payload.length > BRAND_ASSETS_MAX_STORAGE_CHARS && limitedAssets.length > 0) {
+        limitedAssets = limitedAssets.slice(0, -1);
+        payload = JSON.stringify(limitedAssets);
+      }
+
+      window.localStorage.setItem(BRAND_ASSETS_STORAGE_KEY, payload);
+      setBrandStorageWarning(
+        limitedAssets.length < localOnlyAssets.length
+          ? `My Brand local storage is almost full. ${limitedAssets.length} of ${localOnlyAssets.length} unsynced items will stay saved after reload.`
+          : null
+      );
     } catch (error) {
       console.error("Unable to save My Brand assets:", error);
+      const fallbackAssets = brandAssets.filter((asset) => !asset.isRemote).slice(0, Math.min(3, brandAssets.length));
+      try {
+        window.localStorage.setItem(BRAND_ASSETS_STORAGE_KEY, JSON.stringify(fallbackAssets));
+        setBrandStorageWarning(
+          `Browser storage is full. ${fallbackAssets.length} My Brand item${fallbackAssets.length === 1 ? "" : "s"} will stay saved after reload.`
+        );
+      } catch {
+        setBrandStorageWarning("Browser storage is full. My Brand items are available in this session, but they may not stay saved after reload.");
+      }
     }
   }, [brandAssets]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncBrandAssets = async () => {
+      try {
+        await loadBrandAssetsFromSupabase();
+        if (!cancelled) setBrandStorageWarning(null);
+      } catch (error) {
+        console.error("Unable to sync My Brand assets:", error);
+        if (!cancelled) {
+          setBrandStorageWarning("My Brand could not sync with Supabase. Local items are still available on this device.");
+        }
+      }
+    };
+
+    void syncBrandAssets();
+
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void syncBrandAssets();
+      }
+
+      if (event === "SIGNED_OUT") {
+        setBrandAssets((prev) => prev.filter((asset) => !asset.isRemote));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1077,26 +1157,160 @@ try {
     setPreview(URL.createObjectURL(file));
   };
 
-  const fileToDataUrl = (file: File) => {
+  const blobToDataUrl = (blob: Blob) => {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(blob);
     });
+  };
+
+  const imageBlobToBrandDataUrl = async (blob: Blob) => {
+    const sourceUrl = URL.createObjectURL(blob);
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Brand asset image could not be loaded."));
+        img.src = sourceUrl;
+      });
+
+      const maxSize = 480;
+      const ratio = Math.min(1, maxSize / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+      const width = Math.max(1, Math.round((image.naturalWidth || 1) * ratio));
+      const height = Math.max(1, Math.round((image.naturalHeight || 1) * ratio));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas is not available.");
+      context.drawImage(image, 0, 0, width, height);
+
+      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((nextBlob) => {
+          if (nextBlob) resolve(nextBlob);
+          else reject(new Error("Brand asset could not be compressed."));
+        }, "image/webp", 0.72);
+      });
+
+      return blobToDataUrl(compressedBlob);
+    } finally {
+      URL.revokeObjectURL(sourceUrl);
+    }
+  };
+
+  const getSupabaseAccessToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  };
+
+  const loadBrandAssetsFromSupabase = async () => {
+    const token = await getSupabaseAccessToken();
+    if (!token) return;
+
+    const response = await fetch("/api/brand/assets", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Unable to load My Brand from Supabase.");
+    }
+
+    const payload = await response.json();
+    const remoteAssets = Array.isArray(payload.assets) ? payload.assets as BrandAsset[] : [];
+
+    setBrandAssets((prev) => {
+      const localAssets = prev.filter((asset) => !asset.isRemote);
+      const localIds = new Set(localAssets.map((asset) => asset.id));
+      return [
+        ...remoteAssets.filter((asset) => !localIds.has(asset.id)),
+        ...localAssets,
+      ].slice(0, BRAND_ASSETS_MAX_ITEMS);
+    });
+  };
+
+  const uploadBrandFileToSupabase = async (file: File) => {
+    const token = await getSupabaseAccessToken();
+    if (!token) return null;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", file.name);
+
+    const response = await fetch("/api/brand/assets", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Unable to save this item to My Brand.");
+    }
+
+    const payload = await response.json();
+    return payload.asset as BrandAsset;
+  };
+
+  const deleteBrandAssetFromSupabase = async (asset: BrandAsset) => {
+    if (!asset.isRemote) return;
+
+    const token = await getSupabaseAccessToken();
+    if (!token) throw new Error("Sign in required.");
+
+    const response = await fetch(`/api/brand/assets?id=${encodeURIComponent(asset.id)}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Unable to remove this item from My Brand.");
+    }
   };
 
   const saveFilesToBrandAssets = async (files: File[]) => {
     try {
-      const nextAssets = await Promise.all(
-        files.map(async (file) => ({
+      const nextAssets: BrandAsset[] = [];
+      let usedLocalFallback = false;
+
+      for (const file of files) {
+        try {
+          const remoteAsset = await uploadBrandFileToSupabase(file);
+          if (remoteAsset) {
+            nextAssets.push(remoteAsset);
+            continue;
+          }
+        } catch (error) {
+          console.error("Unable to sync file to My Brand:", error);
+          usedLocalFallback = true;
+        }
+
+        usedLocalFallback = true;
+        nextAssets.push({
           id: `brand-${Date.now()}-${Math.floor(Math.random() * 10000)}-${file.name}`,
           name: file.name,
-          url: await fileToDataUrl(file),
-        }))
-      );
+          url: await imageBlobToBrandDataUrl(file),
+          isRemote: false,
+        });
+      }
 
-      setBrandAssets((prev) => [...nextAssets, ...prev]);
+      setBrandAssets((prev) => [...nextAssets, ...prev].slice(0, BRAND_ASSETS_MAX_ITEMS));
+      setBrandStorageWarning(
+        usedLocalFallback
+          ? "Some My Brand items were saved locally because Supabase sync was not available. Sign in and run the Supabase SQL to keep them permanently."
+          : null
+      );
     } catch (error) {
       console.error("Unable to save files to My Brand:", error);
       alert("The files could not be saved to My Brand. Try smaller images or fewer files.");
@@ -1107,21 +1321,31 @@ try {
     try {
       const response = await fetch(fileObj.url);
       const blob = await response.blob();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
+      const file = new File([blob], fileObj.name, { type: blob.type || "image/png" });
+      const remoteAsset = await uploadBrandFileToSupabase(file).catch((error) => {
+        console.error("Unable to sync imported image to My Brand:", error);
+        return null;
       });
+
+      if (remoteAsset) {
+        setBrandAssets((prev) => [remoteAsset, ...prev].slice(0, BRAND_ASSETS_MAX_ITEMS));
+        setBrandStorageWarning(null);
+        setAssetTab("brand");
+        return;
+      }
+
+      const dataUrl = await imageBlobToBrandDataUrl(blob);
 
       setBrandAssets((prev) => [
         {
           id: `brand-${Date.now()}-${Math.floor(Math.random() * 10000)}-${fileObj.name}`,
           name: fileObj.name,
           url: dataUrl,
+          isRemote: false,
         },
         ...prev,
-      ]);
+      ].slice(0, BRAND_ASSETS_MAX_ITEMS));
+      setBrandStorageWarning("This item was saved locally because Supabase sync was not available. Sign in and run the Supabase SQL to keep it permanently.");
       setAssetTab("brand");
     } catch (error) {
       console.error("Unable to save imported image to My Brand:", error);
@@ -1616,6 +1840,183 @@ gradientDirection: "diagonal",
       )
     );
   };
+
+  const imageToDataUrlForExport = async (src: string) => {
+    if (!src || src.startsWith("data:") || src.startsWith("blob:")) return src;
+
+    const response = await fetch(src, { mode: "cors", cache: "force-cache" });
+    if (!response.ok) throw new Error(`Image could not be fetched for export: ${src}`);
+    const blob = await response.blob();
+    return blobToDataUrl(blob);
+  };
+
+  const prepareWorkspaceForExport = async (workspace: HTMLElement) => {
+    const rect = workspace.getBoundingClientRect();
+    const clone = workspace.cloneNode(true) as HTMLElement;
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.maxWidth = "none";
+    clone.style.boxShadow = "none";
+    clone.style.transform = "none";
+    clone.style.aspectRatio = "auto";
+
+    const cloneImages = Array.from(clone.querySelectorAll("img"));
+
+    await Promise.all(
+      cloneImages.map(async (image) => {
+        const src = image.getAttribute("src");
+        if (!src) return;
+
+        try {
+          image.setAttribute("crossorigin", "anonymous");
+          image.setAttribute("src", await imageToDataUrlForExport(src));
+        } catch (error) {
+          console.warn("Export image fallback skipped:", error);
+        }
+      })
+    );
+
+    clone.querySelectorAll('[contenteditable="true"]').forEach((node) => {
+      (node as HTMLElement).removeAttribute("contenteditable");
+    });
+
+    clone.querySelectorAll("[data-layer-text-id]").forEach((node) => {
+      (node as HTMLElement).style.outline = "none";
+    });
+
+    clone.style.position = "fixed";
+    clone.style.left = "0";
+    clone.style.top = "0";
+    clone.style.zIndex = "-1";
+    clone.style.pointerEvents = "none";
+    document.body.appendChild(clone);
+
+    await waitForCanvasImages(clone);
+
+    return clone;
+  };
+
+  const getExportErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === "string") return error;
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown export error.";
+    }
+  };
+
+  const isBlankWhitePng = async (dataUrl: string) => {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Export preview could not be checked."));
+      img.src = dataUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 24;
+    canvas.height = 14;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let nonWhitePixels = 0;
+
+    for (let index = 0; index < pixels.length; index += 4) {
+      const alpha = pixels[index + 3];
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+
+      if (alpha > 10 && (red < 245 || green < 245 || blue < 245)) {
+        nonWhitePixels += 1;
+      }
+    }
+
+    return nonWhitePixels < 4;
+  };
+
+  const exportNodeToPng = async (node: HTMLElement, transparent: boolean) => {
+    const rect = node.getBoundingClientRect();
+    const nodeWidth = rect.width || node.offsetWidth || canvasWidth;
+    const nodeHeight = rect.height || node.offsetHeight || canvasHeight;
+    const exportScale = canvasWidth / nodeWidth;
+
+    const normalizeDataUrl = (sourceCanvas: HTMLCanvasElement) => {
+      if (sourceCanvas.width === canvasWidth && sourceCanvas.height === canvasHeight) {
+        return sourceCanvas.toDataURL("image/png");
+      }
+
+      const finalCanvas = document.createElement("canvas");
+      finalCanvas.width = canvasWidth;
+      finalCanvas.height = canvasHeight;
+      const context = finalCanvas.getContext("2d");
+      if (!context) return sourceCanvas.toDataURL("image/png");
+      context.drawImage(sourceCanvas, 0, 0, canvasWidth, canvasHeight);
+      return finalCanvas.toDataURL("image/png");
+    };
+
+    const exportWithHtml2Canvas = async () => {
+      if (transparent) {
+        node.querySelectorAll("img").forEach((image) => {
+          if (image.alt === "Bg") image.style.display = "none";
+        });
+        node.style.background = "transparent";
+        node.style.backgroundColor = "transparent";
+        node.style.border = "none";
+      }
+
+      const canvas = await html2canvas(node, {
+        backgroundColor: transparent ? null : canvasBgColor,
+        scale: exportScale,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        width: nodeWidth,
+        height: nodeHeight,
+        windowWidth: Math.ceil(nodeWidth),
+        windowHeight: Math.ceil(nodeHeight),
+        scrollX: 0,
+        scrollY: 0,
+      });
+
+      return normalizeDataUrl(canvas);
+    };
+
+    try {
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: exportScale,
+        skipFonts: true,
+        backgroundColor: transparent ? "transparent" : canvasBgColor,
+        filter: transparent
+          ? (childNode) => !(childNode instanceof HTMLImageElement && childNode.alt === "Bg")
+          : undefined,
+        style: transparent
+          ? {
+              background: "transparent",
+              backgroundColor: "transparent",
+              border: "none",
+              boxShadow: "none",
+            }
+          : {
+              boxShadow: "none",
+            },
+      });
+
+      if (!transparent && await isBlankWhitePng(dataUrl)) {
+        console.warn("html-to-image returned a blank export, trying html2canvas fallback.");
+        return await exportWithHtml2Canvas();
+      }
+
+      return dataUrl;
+    } catch (error) {
+      console.warn("html-to-image export failed, trying html2canvas fallback:", error);
+      return await exportWithHtml2Canvas();
+    }
+  };
 const duplicateLayer = () => {
   if (!selectedLayer) return;
 
@@ -1634,6 +2035,7 @@ const duplicateLayer = () => {
 const downloadPNG = async () => {
   const workspace = workspaceRef.current;
   if (!workspace || isExporting) return;
+  let exportNode: HTMLElement | null = null;
 
   try {
     setIsExporting(true);
@@ -1644,18 +2046,9 @@ const downloadPNG = async () => {
     );
     await document.fonts.ready;
     await waitForCanvasImages(workspace);
+    exportNode = await prepareWorkspaceForExport(workspace);
 
-    const dataUrl = await toPng(workspace, {
-      cacheBust: false,
-      canvasWidth,
-      canvasHeight,
-      pixelRatio: 1,
-      skipFonts: true,
-      backgroundColor: canvasBgColor,
-      style: {
-        boxShadow: "none",
-      },
-    });
+    const dataUrl = await exportNodeToPng(exportNode, false);
 
     const link =
       document.createElement("a");
@@ -1669,9 +2062,10 @@ const downloadPNG = async () => {
     link.click();
     document.body.removeChild(link);
   } catch (err) {
-    console.error(err);
-    alert("The PNG could not be generated. Please check that all images are loaded and try again.");
+    console.error("PNG export failed:", err);
+    alert(`The PNG could not be generated. ${getExportErrorMessage(err)}`);
   } finally {
+    exportNode?.remove();
     setIsExporting(false);
   }
 };
@@ -1679,6 +2073,7 @@ const downloadPNG = async () => {
 const downloadTransparentPNG = async () => {
   const workspace = workspaceRef.current;
   if (!workspace || isExporting) return;
+  let exportNode: HTMLElement | null = null;
 
   try {
     setIsExporting(true);
@@ -1689,25 +2084,9 @@ const downloadTransparentPNG = async () => {
     );
     await document.fonts.ready;
     await waitForCanvasImages(workspace);
+    exportNode = await prepareWorkspaceForExport(workspace);
 
-    const dataUrl = await toPng(workspace, {
-      cacheBust: false,
-      canvasWidth,
-      canvasHeight,
-      pixelRatio: 1,
-      skipFonts: true,
-      backgroundColor: "transparent",
-      filter: (node) => {
-        if (node instanceof HTMLImageElement && node.alt === "Bg") return false;
-        return true;
-      },
-      style: {
-        background: "transparent",
-        backgroundColor: "transparent",
-        border: "none",
-        boxShadow: "none",
-      },
-    });
+    const dataUrl = await exportNodeToPng(exportNode, true);
 
     const link = document.createElement("a");
     link.download = "pixores-design-transparent.png";
@@ -1716,9 +2095,63 @@ const downloadTransparentPNG = async () => {
     link.click();
     document.body.removeChild(link);
   } catch (err) {
-    console.error(err);
-    alert("The transparent PNG could not be generated. Please check that all images are loaded and try again.");
+    console.error("Transparent PNG export failed:", err);
+    alert(`The transparent PNG could not be generated. ${getExportErrorMessage(err)}`);
   } finally {
+    exportNode?.remove();
+    setIsExporting(false);
+  }
+};
+
+const pngDataUrlToJpeg = async (pngDataUrl: string, quality = 0.95) => {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("The JPG could not be prepared."));
+    img.src = pngDataUrl;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || canvasWidth;
+  canvas.height = image.naturalHeight || canvasHeight;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas is not available.");
+  context.fillStyle = "#FFFFFF";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0);
+  return canvas.toDataURL("image/jpeg", quality);
+};
+
+const downloadJPG = async () => {
+  const workspace = workspaceRef.current;
+  if (!workspace || isExporting) return;
+  let exportNode: HTMLElement | null = null;
+
+  try {
+    setIsExporting(true);
+    setIsCropMode(false);
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    await document.fonts.ready;
+    await waitForCanvasImages(workspace);
+    exportNode = await prepareWorkspaceForExport(workspace);
+
+    const pngDataUrl = await exportNodeToPng(exportNode, false);
+    const jpgDataUrl = await pngDataUrlToJpeg(pngDataUrl, 0.95);
+
+    const link = document.createElement("a");
+    link.download = "pixores-design.jpg";
+    link.href = jpgDataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error("JPG export failed:", err);
+    alert(`The JPG could not be generated. ${getExportErrorMessage(err)}`);
+  } finally {
+    exportNode?.remove();
     setIsExporting(false);
   }
 };
@@ -1754,6 +2187,129 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
   const updateSelectedLayer = (fields: Partial<Layer>) => {
     if (!selectedLayerId) return;
     setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
+  };
+
+  const getTextSelectionOffsets = (element: HTMLElement) => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!element.contains(range.commonAncestorContainer)) return;
+
+    const beforeStart = range.cloneRange();
+    beforeStart.selectNodeContents(element);
+    beforeStart.setEnd(range.startContainer, range.startOffset);
+
+    const beforeEnd = range.cloneRange();
+    beforeEnd.selectNodeContents(element);
+    beforeEnd.setEnd(range.endContainer, range.endOffset);
+
+    const start = beforeStart.toString().length;
+    const end = beforeEnd.toString().length;
+
+    if (start === end) return;
+
+    return {
+      start: Math.min(start, end),
+      end: Math.max(start, end),
+    };
+  };
+
+  const rememberTextSelection = (layerId: string | number, element: HTMLElement) => {
+    const offsets = getTextSelectionOffsets(element);
+    if (!offsets) return;
+
+    savedTextSelectionRef.current = { layerId, ...offsets };
+    setTextSelectionPreview({
+      layerId,
+      ...offsets,
+      text: element.innerText || "",
+    });
+  };
+
+  const getEditableTextElement = (layerId: string | number) =>
+    document.querySelector(`[data-layer-text-id="${String(layerId).replace(/"/g, '\\"')}"]`) as HTMLElement | null;
+
+  const htmlWithColorRange = (text: string, start: number, end: number, color: string) => {
+    const safeStart = Math.max(0, Math.min(start, text.length));
+    const safeEnd = Math.max(safeStart, Math.min(end, text.length));
+
+    return [
+      escapeTextHtml(text.slice(0, safeStart)),
+      `<span style="color: ${color};">${escapeTextHtml(text.slice(safeStart, safeEnd))}</span>`,
+      escapeTextHtml(text.slice(safeEnd)),
+    ].join("");
+  };
+
+  const htmlWithSelectionPreview = (text: string, start: number, end: number) => {
+    const safeStart = Math.max(0, Math.min(start, text.length));
+    const safeEnd = Math.max(safeStart, Math.min(end, text.length));
+
+    return [
+      escapeTextHtml(text.slice(0, safeStart)),
+      `<span data-pixores-selection="true" style="background: rgba(37, 99, 235, 0.42); color: inherit;">${escapeTextHtml(text.slice(safeStart, safeEnd))}</span>`,
+      escapeTextHtml(text.slice(safeEnd)),
+    ].join("");
+  };
+
+  const stripSelectionPreviewHtml = (html: string) => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    wrapper.querySelectorAll("[data-pixores-selection]").forEach((node) => {
+      const parent = node.parentNode;
+      if (!parent) return;
+      while (node.firstChild) parent.insertBefore(node.firstChild, node);
+      parent.removeChild(node);
+    });
+    return wrapper.innerHTML;
+  };
+
+  const getTextLayerHtml = (layer: Layer) => {
+    if (
+      editingTextLayerId === layer.id &&
+      textSelectionPreview?.layerId === layer.id &&
+      textSelectionPreview.end > textSelectionPreview.start
+    ) {
+      return htmlWithSelectionPreview(layer.text || textSelectionPreview.text, textSelectionPreview.start, textSelectionPreview.end);
+    }
+
+    return layer.textHtml || escapeTextHtml(layer.text || "");
+  };
+
+  const applyColorToSelectedText = (color: string) => {
+    if (!selectedLayer || selectedLayer.type !== "text") {
+      updateSelectedLayer({ color });
+      return;
+    }
+
+    const editableElement = getEditableTextElement(selectedLayer.id);
+    const liveOffsets = editableElement ? getTextSelectionOffsets(editableElement) : undefined;
+    const savedSelection = savedTextSelectionRef.current;
+    const offsets =
+      liveOffsets ||
+      (savedSelection?.layerId === selectedLayer.id
+        ? { start: savedSelection.start, end: savedSelection.end }
+        : undefined);
+
+    if (editableElement && offsets && offsets.end > offsets.start) {
+      const plainText = editableElement.innerText || selectedLayer.text || "";
+      const textHtml = htmlWithColorRange(plainText, offsets.start, offsets.end, color);
+      updateSelectedLayer({
+        text: plainText,
+        textHtml,
+        color: selectedLayer.color || color,
+      });
+      setTextSelectionPreview(null);
+      savedTextSelectionRef.current = {
+        layerId: selectedLayer.id,
+        start: offsets.start,
+        end: offsets.end,
+      };
+      return;
+    }
+
+    setTextSelectionPreview(null);
+    updateSelectedLayer({ color, textHtml: undefined });
   };
 
  const startResizing = (e: React.MouseEvent | React.TouchEvent, layer: Layer, corner: ResizeState["corner"]) => {
@@ -2227,6 +2783,25 @@ const buyCredits = async (packageId: string) => {
   }
 };
 
+  if (!isClientMounted) {
+    return (
+      <div
+        suppressHydrationWarning
+        style={{
+          minHeight: "70vh",
+          display: "grid",
+          placeItems: "center",
+          background: "#F8FAFC",
+          color: "#475569",
+          fontFamily: "Inter, Arial, sans-serif",
+          fontWeight: 800,
+        }}
+      >
+        Loading Pixores Studio...
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
       
@@ -2276,6 +2851,7 @@ const buyCredits = async (packageId: string) => {
             {showExportMenu && (
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: "220px", padding: "8px", border: "1px solid #E2E8F0", borderRadius: "12px", background: "#FFFFFF", boxShadow: "0 18px 40px rgba(15,23,42,0.16)", zIndex: 50 }}>
                 <button onClick={() => { setShowExportMenu(false); void downloadPNG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>PNG HD</button>
+                <button onClick={() => { setShowExportMenu(false); void downloadJPG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>JPG High Quality</button>
                 <button onClick={() => { setShowExportMenu(false); void downloadTransparentPNG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>Transparent PNG</button>
               </div>
             )}
@@ -2905,28 +3481,49 @@ const buyCredits = async (packageId: string) => {
       Elements
     </h2>
 
-    <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "6px" }}>
       {[
         { id: "people", label: "People" },
-        { id: "objects", label: "Objects" },
-        { id: "shapes", label: "Shapes" },
-        { id: "frames", label: "Frames" },
-        { id: "emojis", label: "Emojis" },
         { id: "brand", label: "My Brand" },
       ].map((tab) => (
         <button
           key={tab.id}
           onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis" | "brand")}
           style={{
-            flex: 1,
-            padding: "7px",
+            padding: "9px 7px",
             borderRadius: "8px",
             border: "1px solid #CBD5E1",
             background: assetTab === tab.id ? "#2563EB" : "#F8FAFC",
             color: assetTab === tab.id ? "#FFFFFF" : "#334155",
-            fontSize: "11px",
-            fontWeight: 700,
+            fontSize: "12px",
+            fontWeight: 800,
             cursor: "pointer",
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "6px", marginBottom: "10px" }}>
+      {[
+        { id: "objects", label: "Objects" },
+        { id: "shapes", label: "Shapes" },
+        { id: "frames", label: "Frames" },
+        { id: "emojis", label: "Emojis" },
+      ].map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis" | "brand")}
+          style={{
+            padding: "7px 5px",
+            borderRadius: "8px",
+            border: "1px solid #CBD5E1",
+            background: assetTab === tab.id ? "#2563EB" : "#F8FAFC",
+            color: assetTab === tab.id ? "#FFFFFF" : "#334155",
+            fontSize: "10px",
+            fontWeight: 800,
+            cursor: "pointer",
+            minWidth: 0,
           }}
         >
           {tab.label}
@@ -2970,6 +3567,11 @@ const buyCredits = async (packageId: string) => {
       </div>
     ) : assetTab === "brand" ? (
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {brandStorageWarning && (
+          <div style={{ border: "1px solid #FDE68A", borderRadius: "10px", padding: "10px", background: "#FFFBEB", color: "#92400E", fontSize: "11px", lineHeight: 1.4, fontWeight: 700 }}>
+            {brandStorageWarning}
+          </div>
+        )}
         {brandAssets.length === 0 ? (
           <div style={{ border: "1px dashed #CBD5E1", borderRadius: "10px", padding: "14px", color: "#64748B", fontSize: "12px", lineHeight: 1.5, textAlign: "center" }}>
             Import logos, images, or personal objects and enable "Save imported files to My Brand" to reuse them here.
@@ -2984,11 +3586,21 @@ const buyCredits = async (packageId: string) => {
                   title={asset.name}
                   style={{ width: "100%", height: "100%", border: "none", padding: "6px", background: "transparent", cursor: "pointer" }}
                 >
-                  <img src={asset.url} alt={asset.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                  <img src={asset.thumbnailUrl || asset.url} alt={asset.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </button>
                 <button
                   type="button"
-                  onClick={() => setBrandAssets((prev) => prev.filter((item) => item.id !== asset.id))}
+                  onClick={() => {
+                    void (async () => {
+                      try {
+                        await deleteBrandAssetFromSupabase(asset);
+                        setBrandAssets((prev) => prev.filter((item) => item.id !== asset.id));
+                      } catch (error) {
+                        console.error("Unable to delete My Brand asset:", error);
+                        alert("This item could not be removed from My Brand. Try again.");
+                      }
+                    })();
+                  }}
                   title="Remove from My Brand"
                   style={{ position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px", borderRadius: "999px", border: "1px solid #FCA5A5", background: "#FEF2F2", color: "#DC2626", fontSize: "12px", fontWeight: 900, cursor: "pointer" }}
                 >
@@ -3445,6 +4057,7 @@ const buyCredits = async (packageId: string) => {
               <img 
                 src={preview} 
                 alt="Bg" 
+                crossOrigin="anonymous"
                 style={{ 
                   width: "100%", 
                   height: "100%", 
@@ -3583,12 +4196,24 @@ const buyCredits = async (packageId: string) => {
       setEditingTextLayerId(layer.id);
       requestAnimationFrame(() => editableElement.focus());
     }}
+    onMouseDown={(e) => {
+      if (editingTextLayerId === layer.id) {
+        e.stopPropagation();
+      }
+    }}
     onBlur={(e) => {
-      updateSelectedLayer({ text: e.currentTarget.innerText });
+      updateSelectedLayer({ text: e.currentTarget.innerText, textHtml: stripSelectionPreviewHtml(e.currentTarget.innerHTML) });
       setEditingTextLayerId(null);
+      setTextSelectionPreview(null);
     }}
     onInput={(e) => {
-      updateSelectedLayer({ text: e.currentTarget.innerText });
+      updateSelectedLayer({ text: e.currentTarget.innerText, textHtml: stripSelectionPreviewHtml(e.currentTarget.innerHTML) });
+    }}
+    onMouseUp={(e) => {
+      rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
+    }}
+    onKeyUp={(e) => {
+      rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
     }}
     onKeyDown={(e) => {
       if (e.key === "Escape") {
@@ -3600,6 +4225,8 @@ const buyCredits = async (packageId: string) => {
       width: layer.width ? `${layer.width}px` : "max-content",
       maxWidth: `${canvasWidth}px`,
       minWidth: "24px",
+      boxSizing: "border-box",
+      display: "inline-block",
       fontSize: `${layer.fontSize}px`,
       color: layer.color,
       fontFamily: `${layer.fontFamily || "Inter"}, Inter, Arial, sans-serif`,
@@ -3608,8 +4235,8 @@ const buyCredits = async (packageId: string) => {
       fontStyle: layer.isItalic ? "italic" : "normal",
       textDecoration: `${layer.isUnderline ? "underline" : ""} ${layer.isStrikethrough ? "line-through" : ""}`.trim() || "none",
       textTransform: layer.isUppercase ? "uppercase" : "none",
-      background: layer.hasTextBg ? layer.textBgColor : "transparent",
-      padding: layer.hasTextBg ? `${layer.textBgPadding}px` : "0px",
+      background: layer.hasTextBg ? layer.textBgColor || "#000000" : "transparent",
+      padding: layer.hasTextBg ? `${layer.textBgPadding || 6}px ${Math.max(8, (layer.textBgPadding || 6) * 2)}px` : "0px",
       borderRadius: `${layer.borderRadius || 4}px`,
       whiteSpace: layer.width ? "pre-wrap" : "pre",
       overflowWrap: layer.width ? "break-word" : "normal",
@@ -3617,12 +4244,15 @@ const buyCredits = async (packageId: string) => {
       lineHeight: layer.lineHeight || 1,
       letterSpacing: `${layer.letterSpacing || 0}px`,
       cursor: editingTextLayerId === layer.id ? "text" : "move",
+      userSelect: editingTextLayerId === layer.id ? "text" : "none",
+      WebkitUserSelect: editingTextLayerId === layer.id ? "text" : "none",
       outline: editingTextLayerId === layer.id ? "1px dashed rgba(37, 99, 235, 0.55)" : "none",
       animation: !isExporting && layer.textAnimation === "pop" ? "pixoresTextPop 1.4s ease-in-out infinite" : !isExporting && layer.textAnimation === "float" ? "pixoresTextFloat 1.8s ease-in-out infinite" : "none",
       ...getEfectosEstilo(layer),
     }}
+    data-layer-text-id={String(layer.id)}
+    dangerouslySetInnerHTML={{ __html: getTextLayerHtml(layer) }}
   >
-    {layer.text}
   </div>
 ) : layer.type === "shape" ? (
   layer.shapeType === "rectangle" ? (
@@ -3969,6 +4599,7 @@ const buyCredits = async (packageId: string) => {
   <img
     src={layer.src}
     alt="layer"
+    crossOrigin="anonymous"
     style={{
       width: `${layer.width}px`,
       height: `${layer.height}px`,
@@ -4286,15 +4917,37 @@ const buyCredits = async (packageId: string) => {
                 <input
                   type="color"
                   value={selectedLayer.color || "#FFFFFF"}
-                  onChange={(e) =>
+                  onMouseDown={() => {
+                    if (selectedLayer.type === "text") {
+                      const editableElement = getEditableTextElement(selectedLayer.id);
+                      if (editableElement) rememberTextSelection(selectedLayer.id, editableElement);
+                    }
+                  }}
+                  onTouchStart={() => {
+                    if (selectedLayer.type === "text") {
+                      const editableElement = getEditableTextElement(selectedLayer.id);
+                      if (editableElement) rememberTextSelection(selectedLayer.id, editableElement);
+                    }
+                  }}
+                  onChange={(e) => {
+                    if (selectedLayer.type === "text") {
+                      applyColorToSelectedText(e.target.value);
+                      return;
+                    }
+
                     updateSelectedLayer({
                       color: e.target.value,
                       ...(selectedLayer.type === "shape" && !selectedLayer.useGradient
                         ? { gradientColor1: e.target.value }
                         : {}),
-                    })
-                  }
+                    });
+                  }}
                 />
+                {selectedLayer.type === "text" && (
+                  <span style={{ fontSize: "11px", color: "#64748B", lineHeight: 1.4 }}>
+                    Select part of the text on the canvas, then choose a color to recolor only that selection.
+                  </span>
+                )}
                 {selectedLayer.type === "shape" && (
   <div
     style={{
@@ -4628,6 +5281,10 @@ const buyCredits = async (packageId: string) => {
               Save as Public Template
             </button>
           )}
+
+          <button disabled={isExporting} onClick={() => downloadJPG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#F59E0B", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
+            JPG High Quality
+          </button>
 
           <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
             Download Transparent PNG
