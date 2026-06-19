@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import { supabase } from "@/lib/supabaseClient";
+import styles from "./Header.module.css";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
@@ -55,65 +57,31 @@ export default function Header() {
   }, []);
 
   return (
-    <header
-      style={{
-        background: "rgba(255, 255, 255, 0.96)",
-        borderBottom: "1px solid #E2E8F0",
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-        backdropFilter: "blur(14px)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1240px",
-          margin: "0 auto",
-          padding: "12px 22px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "18px",
-        }}
-      >
+    <header className={styles.header}>
+      <div className={styles.bar}>
         <Link
           href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            textDecoration: "none",
-            minWidth: 0,
-          }}
+          className={styles.brand}
+          onClick={() => setMenuOpen(false)}
         >
-          <Image src="/logo.png" alt="Pixores" width={38} height={38} priority />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: "24px", fontWeight: 900, color: "#2563EB", lineHeight: 1 }}>
-              PIXORES
-            </div>
-            <div style={{ fontSize: "12px", color: "#64748B" }}>Convert. Compress. Create.</div>
+          <Image className={styles.brandImage} src="/logo.png" alt="Pixores" width={38} height={38} priority />
+          <div>
+            <div className={styles.brandName}>PIXORES</div>
+            <div className={styles.brandTagline}>Convert. Compress. Create.</div>
           </div>
         </Link>
 
-        <nav
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            flex: "1 1 auto",
-            justifyContent: "center",
-          }}
-        >
+        <nav className={styles.desktopNav} aria-label="Main navigation">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} style={navLinkStyle}>
+            <Link key={item.href} href={item.href} className={styles.navLink}>
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className={styles.actions}>
           {isAdmin && (
-            <Link href="/admin" style={adminButtonStyle}>
+            <Link href="/admin" className={styles.adminButton}>
               Admin
             </Link>
           )}
@@ -123,72 +91,28 @@ export default function Header() {
           <button
             type="button"
             onClick={() => setMenuOpen((current) => !current)}
-            aria-label="Open menu"
-            style={menuButtonStyle}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            className={styles.menuButton}
           >
-            {menuOpen ? "Close" : "Menu"}
+            {menuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
           </button>
         </div>
       </div>
 
       {menuOpen && (
-        <nav
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "2px",
-            padding: "10px 22px 18px",
-            borderTop: "1px solid #E2E8F0",
-            backgroundColor: "#FFFFFF",
-          }}
-        >
-          {isAdmin && <Link href="/admin" style={mobileLinkStyle}>Admin Dashboard</Link>}
-          <Link href="/" style={mobileLinkStyle}>Home</Link>
+        <nav className={styles.mobileNav} aria-label="Mobile navigation">
+          {isAdmin && <Link href="/admin" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>}
+          <Link href="/" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Home</Link>
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} style={mobileLinkStyle}>
+            <Link key={item.href} href={item.href} className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
               {item.label}
             </Link>
           ))}
-          <Link href="/contact" style={mobileLinkStyle}>Contact</Link>
-          <Link href="/es" style={mobileLinkStyle}>Spanish</Link>
+          <Link href="/contact" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Contact</Link>
+          <Link href="/es" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Spanish</Link>
         </nav>
       )}
     </header>
   );
 }
-
-const navLinkStyle: React.CSSProperties = {
-  padding: "9px 12px",
-  borderRadius: "10px",
-  color: "#334155",
-  textDecoration: "none",
-  fontSize: "14px",
-  fontWeight: 750,
-};
-
-const adminButtonStyle: React.CSSProperties = {
-  padding: "9px 13px",
-  borderRadius: "10px",
-  background: "#0F172A",
-  color: "#FFFFFF",
-  textDecoration: "none",
-  fontWeight: 850,
-  fontSize: "14px",
-};
-
-const menuButtonStyle: React.CSSProperties = {
-  padding: "9px 12px",
-  borderRadius: "10px",
-  border: "1px solid #CBD5E1",
-  background: "#FFFFFF",
-  color: "#0F172A",
-  cursor: "pointer",
-  fontWeight: 800,
-};
-
-const mobileLinkStyle: React.CSSProperties = {
-  padding: "12px 4px",
-  color: "#0F172A",
-  textDecoration: "none",
-  fontWeight: 750,
-};
