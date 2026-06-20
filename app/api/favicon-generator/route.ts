@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
 
-    const image = sharp(Buffer.from(bytes));
+    const image = sharp(Buffer.from(bytes)).rotate();
 
     const favicon16 = await image
       .clone()

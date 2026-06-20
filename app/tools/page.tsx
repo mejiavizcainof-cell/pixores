@@ -9,6 +9,11 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    title: "Rotate and Flip Image",
+    href: "/rotate-image",
+    description: "Correct photo orientation, rotate images, and flip them horizontally or vertically.",
+  },
+  {
     title: "Instagram Reel Saver Guide",
     href: "/instagram-reel-downloader",
     description:

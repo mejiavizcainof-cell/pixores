@@ -20,6 +20,7 @@ const publicPages = [
   { path: "/jpg-to-pdf", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/compress-image", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/resize-image", changeFrequency: "monthly" as const, priority: 0.85 },
+  { path: "/rotate-image", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/favicon-generator", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/about", changeFrequency: "yearly" as const, priority: 0.4 },
   { path: "/faq", changeFrequency: "yearly" as const, priority: 0.45 },

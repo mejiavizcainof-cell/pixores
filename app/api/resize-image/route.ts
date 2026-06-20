@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
 
     const resized = await sharp(Buffer.from(bytes))
+      .rotate()
       .resize(width, height)
       .jpeg()
       .toBuffer();

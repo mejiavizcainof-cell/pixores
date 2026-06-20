@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const pngBuffer = await sharp(
       Buffer.from(bytes)
     )
+      .rotate()
       .png()
       .toBuffer();
 

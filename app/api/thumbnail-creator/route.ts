@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
 
     // 2. PROCESAMIENTO GRÁFICO CON SHARP
     const output = await sharp(backgroundBuffer)
+      .rotate()
       .resize(width, height, { fit: "cover" })
       .composite([{ input: Buffer.from(svgComposite) }])
       .png()

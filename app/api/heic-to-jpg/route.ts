@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import heicConvert from "heic-convert";
+import sharp from "sharp";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +24,13 @@ export async function POST(request: NextRequest) {
       format: "JPEG",
       quality: 1,
     });
+    const orientedOutput = await sharp(Buffer.from(outputBuffer as Buffer))
+      .rotate()
+      .jpeg({ quality: 95, chromaSubsampling: "4:4:4" })
+      .toBuffer();
 
     return new NextResponse(
-      new Uint8Array(outputBuffer as Buffer),
+      new Uint8Array(orientedOutput),
       {
         headers: {
           "Content-Type": "image/jpeg",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,10 +16,14 @@ export async function POST(request: NextRequest) {
     }
 
     const bytes = await file.arrayBuffer();
+    const orientedJpg = await sharp(Buffer.from(bytes))
+      .rotate()
+      .jpeg({ quality: 95 })
+      .toBuffer();
 
     const pdfDoc = await PDFDocument.create();
 
-    const image = await pdfDoc.embedJpg(bytes);
+    const image = await pdfDoc.embedJpg(orientedJpg);
 
     const page = pdfDoc.addPage([
       image.width,

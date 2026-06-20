@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const webpBuffer = await sharp(
       Buffer.from(bytes)
     )
+      .rotate()
       .webp({
         quality: 90,
       })

@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   const tools = [
+    { icon: "↻", title: "Rotate & Flip Image", description: "Correct photo orientation or mirror an image.", link: "/rotate-image", color: "#E0F2FE" },
     { icon: "🖼️", title: "JPG → PNG", description: "Convert JPG images to PNG format.", link: "/jpg-to-png", color: "#EFF6FF" },
     { icon: "📷", title: "PNG → JPG", description: "Convert PNG images to JPG format.", link: "/png-to-jpg", color: "#FEF3C7" },
     { icon: "🌐", title: "WebP → JPG", description: "Convert WebP images to JPG format.", link: "/webp-to-jpg", color: "#DCFCE7" },

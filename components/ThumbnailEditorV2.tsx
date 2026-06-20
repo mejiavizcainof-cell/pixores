@@ -2,7 +2,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { toPng } from "html-to-image";
+import { getFontEmbedCSS, toPng } from "html-to-image";
 import html2canvas from "html2canvas";
 import { templates } from "@/lib/templates";
 import type { AdminAsset } from "@/lib/adminAssets";
@@ -283,17 +283,66 @@ const PRESET_SIZES = {
   custom: { name: "Custom Size", width: 1080, height: 990 }
 };
 
-const FONT_OPTIONS = [
-  "Inter",
-  "Montserrat",
-  "Poppins",
-  "Anton",
-  "Impact",
-  "Georgia",
-  "Trebuchet MS",
-  "Verdana",
-  "Times New Roman",
-];
+const FONT_GROUPS = [
+  {
+    label: "Popular",
+    fonts: ["Inter", "Montserrat", "Poppins", "Roboto", "Open Sans", "Lato", "Oswald", "Bebas Neue"],
+  },
+  {
+    label: "Bold & Display",
+    fonts: [
+      "Anton", "Archivo Black", "Alfa Slab One", "Black Ops One", "Bowlby One SC", "Bungee",
+      "Fjalla One", "League Spartan", "Luckiest Guy", "Passion One", "Permanent Marker", "Russo One",
+      "Staatliches", "Teko", "Titan One", "Ultra",
+    ],
+  },
+  {
+    label: "Modern Sans Serif",
+    fonts: [
+      "Archivo", "Barlow", "Cabin", "DM Sans", "Exo 2", "Figtree", "Josefin Sans", "Kanit",
+      "Manrope", "Mulish", "Nunito Sans", "Outfit", "Plus Jakarta Sans", "Quicksand", "Raleway",
+      "Roboto Condensed", "Rubik", "Space Grotesk", "Ubuntu", "Work Sans",
+    ],
+  },
+  {
+    label: "Serif & Editorial",
+    fonts: [
+      "Abril Fatface", "Bitter", "Bodoni Moda", "Cinzel", "Cormorant Garamond", "DM Serif Display",
+      "Libre Baskerville", "Lora", "Merriweather", "Noto Serif", "Playfair Display", "Roboto Slab",
+      "Source Serif 4", "Spectral",
+    ],
+  },
+  {
+    label: "Script & Handwritten",
+    fonts: [
+      "Caveat", "Courgette", "Dancing Script", "Great Vibes", "Kaushan Script", "Lobster",
+      "Pacifico", "Patrick Hand", "Sacramento", "Satisfy", "Shadows Into Light", "Yellowtail",
+    ],
+  },
+  {
+    label: "System Fonts",
+    fonts: [
+      "Arial", "Arial Black", "Comic Sans MS", "Courier New", "Georgia", "Impact", "Tahoma",
+      "Times New Roman", "Trebuchet MS", "Verdana",
+    ],
+  },
+] as const;
+
+const SYSTEM_FONT_NAMES = new Set(FONT_GROUPS.find((group) => group.label === "System Fonts")?.fonts || []);
+const PRELOADED_GOOGLE_FONTS = new Set(["Anton", "Bebas Neue", "Inter", "Montserrat", "Poppins"]);
+
+const ensureEditorFontLoaded = (fontFamily?: string) => {
+  if (!fontFamily || typeof document === "undefined" || SYSTEM_FONT_NAMES.has(fontFamily as never) || PRELOADED_GOOGLE_FONTS.has(fontFamily)) return;
+
+  const linkId = `pixores-font-${fontFamily.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  if (document.getElementById(linkId)) return;
+
+  const link = document.createElement("link");
+  link.id = linkId;
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily).replace(/%20/g, "+")}&display=swap`;
+  document.head.appendChild(link);
+};
 
 const TEXT_PRESETS = [
   { label: "Bold Title", text: "Bold Title", fontSize: 64, fontFamily: "Anton", isBold: true, color: "#111827" },
@@ -307,6 +356,20 @@ const escapeTextHtml = (value: string) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/\n/g, "<br>");
+
+const normalizeColorToHex = (color?: string) => {
+  if (!color) return null;
+  const value = color.trim();
+  const hexMatch = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    return `#${hex.length === 3 ? hex.split("").map((part) => part + part).join("") : hex}`.toUpperCase();
+  }
+
+  const rgbMatch = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!rgbMatch) return null;
+  return `#${rgbMatch.slice(1, 4).map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+};
 
 export default function ThumbnailEditorV2() {
   const [isClientMounted, setIsClientMounted] = useState(false);
@@ -350,6 +413,7 @@ export default function ThumbnailEditorV2() {
   const [textSearch, setTextSearch] = useState<string>("");
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
   const [textSelectionPreview, setTextSelectionPreview] = useState<{ layerId: string | number; start: number; end: number; text: string } | null>(null);
+  const [activeTextColor, setActiveTextColor] = useState<string | null>(null);
 
   const [savedProjects, setSavedProjects] = useState<any[]>([]);
   const [showProjects, setShowProjects] = useState(false);
@@ -362,6 +426,12 @@ export default function ThumbnailEditorV2() {
 
  const [layers, setLayers] = useState<Layer[]>([]);
 
+  useEffect(() => {
+    layers.forEach((layer) => {
+      if (layer.type === "text") ensureEditorFontLoaded(layer.fontFamily);
+    });
+  }, [layers]);
+
   const [selectedLayerId, setSelectedLayerId] = useState<string | number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const initialDragOffset = useRef({ x: 0, y: 0 });
@@ -369,7 +439,23 @@ export default function ThumbnailEditorV2() {
   const isApplyingHistoryRef = useRef(false);
   const lastHistorySnapshotRef = useRef<string>("[]");
   const savedTextSelectionRef = useRef<{ layerId: string | number; start: number; end: number } | null>(null);
+  const textEditDraftRef = useRef<{ layerId: string | number; text: string; textHtml: string } | null>(null);
+  const lastTextTouchRef = useRef<{ layerId: string | number | null; time: number }>({ layerId: null, time: 0 });
   const hasLoadedBrandAssetsRef = useRef(false);
+
+  useEffect(() => {
+    const draft = textEditDraftRef.current;
+    if (!draft || selectedLayerId === draft.layerId) return;
+
+    setLayers((currentLayers) => currentLayers.map((currentLayer) => (
+      currentLayer.id === draft.layerId
+        ? { ...currentLayer, text: draft.text, textHtml: draft.textHtml }
+        : currentLayer
+    )));
+    textEditDraftRef.current = null;
+    setEditingTextLayerId(null);
+    setTextSelectionPreview(null);
+  }, [selectedLayerId]);
 
   const [resizeState, setResizeState] = useState<ResizeState>({
     corner: null,
@@ -388,6 +474,16 @@ export default function ThumbnailEditorV2() {
   });
   const searchParams = useSearchParams();
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
+
+  useEffect(() => {
+    if (!selectedLayer || selectedLayer.type !== "text") {
+      setActiveTextColor(null);
+      return;
+    }
+
+    const richTextColor = selectedLayer.textHtml?.match(/color\s*:\s*([^;"']+)/i)?.[1];
+    setActiveTextColor(normalizeColorToHex(richTextColor) || normalizeColorToHex(selectedLayer.color) || "#000000");
+  }, [selectedLayerId]);
   const adminBackgroundAssets: BackgroundAsset[] = adminAssets
     .filter((asset) => asset.category === "backgrounds" && (asset.preview_url || asset.original_url))
     .map((asset) => ({
@@ -800,6 +896,10 @@ useEffect(() => {
     if (layerToDelete?.isLocked) return;
     const updated = layers.filter((layer) => layer.id !== selectedLayerId);
     setLayers(updated);
+    if (editingTextLayerId === selectedLayerId) setEditingTextLayerId(null);
+    if (textEditDraftRef.current?.layerId === selectedLayerId) textEditDraftRef.current = null;
+    savedTextSelectionRef.current = null;
+    setTextSelectionPreview(null);
     setSelectedLayerId(updated.length > 0 ? updated[updated.length - 1].id : null);
   };
 
@@ -836,9 +936,6 @@ useEffect(() => {
         (document.activeElement as HTMLElement | null)?.isContentEditable;
 
       if (isTyping) {
-        if (e.key === "Enter") {
-          (document.activeElement as HTMLElement).blur();
-        }
         return;
       }
 
@@ -1841,6 +1938,41 @@ gradientDirection: "diagonal",
     );
   };
 
+  const waitForEditorFonts = async () => {
+    const fontFamilies = Array.from(new Set(
+      layers
+        .filter((layer) => layer.type === "text" && layer.fontFamily)
+        .map((layer) => layer.fontFamily as string)
+    ));
+
+    fontFamilies.forEach((fontFamily) => ensureEditorFontLoaded(fontFamily));
+
+    await Promise.all(fontFamilies.map(async (fontFamily) => {
+      const linkId = `pixores-font-${fontFamily.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+      const link = document.getElementById(linkId) as HTMLLinkElement | null;
+
+      if (link && !link.sheet) {
+        await new Promise<void>((resolve) => {
+          const timeout = window.setTimeout(resolve, 5000);
+          const finish = () => {
+            window.clearTimeout(timeout);
+            resolve();
+          };
+          link.addEventListener("load", finish, { once: true });
+          link.addEventListener("error", finish, { once: true });
+        });
+      }
+
+      await Promise.all([
+        document.fonts.load(`400 48px "${fontFamily}"`),
+        document.fonts.load(`700 48px "${fontFamily}"`),
+        document.fonts.load(`900 48px "${fontFamily}"`),
+      ]);
+    }));
+
+    await document.fonts.ready;
+  };
+
   const imageToDataUrlForExport = async (src: string) => {
     if (!src || src.startsWith("data:") || src.startsWith("blob:")) return src;
 
@@ -1985,11 +2117,19 @@ gradientDirection: "diagonal",
       return normalizeDataUrl(canvas);
     };
 
+    let fontEmbedCSS: string | undefined;
+    try {
+      fontEmbedCSS = await getFontEmbedCSS(node, { preferredFontFormat: "woff2" });
+    } catch (fontError) {
+      console.warn("Font embedding could not be prepared; using loaded document fonts.", fontError);
+    }
+
     try {
       const dataUrl = await toPng(node, {
         cacheBust: true,
         pixelRatio: exportScale,
-        skipFonts: true,
+        skipFonts: false,
+        fontEmbedCSS,
         backgroundColor: transparent ? "transparent" : canvasBgColor,
         filter: transparent
           ? (childNode) => !(childNode instanceof HTMLImageElement && childNode.alt === "Bg")
@@ -2044,7 +2184,7 @@ const downloadPNG = async () => {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
-    await document.fonts.ready;
+    await waitForEditorFonts();
     await waitForCanvasImages(workspace);
     exportNode = await prepareWorkspaceForExport(workspace);
 
@@ -2082,7 +2222,7 @@ const downloadTransparentPNG = async () => {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
-    await document.fonts.ready;
+    await waitForEditorFonts();
     await waitForCanvasImages(workspace);
     exportNode = await prepareWorkspaceForExport(workspace);
 
@@ -2134,7 +2274,7 @@ const downloadJPG = async () => {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
-    await document.fonts.ready;
+    await waitForEditorFonts();
     await waitForCanvasImages(workspace);
     exportNode = await prepareWorkspaceForExport(workspace);
 
@@ -2215,20 +2355,90 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     };
   };
 
+  const getTextColorAtSelection = (element: HTMLElement) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0);
+    if (!element.contains(range.startContainer) && range.startContainer !== element) return null;
+
+    let colorNode: Node | null = range.startContainer;
+    if (colorNode === element && range.startOffset > 0) {
+      colorNode = element.childNodes[Math.min(range.startOffset - 1, element.childNodes.length - 1)] || element;
+    }
+    if (colorNode.nodeType === Node.TEXT_NODE) colorNode = colorNode.parentNode;
+    const colorElement = colorNode instanceof HTMLElement ? colorNode : element;
+    return normalizeColorToHex(window.getComputedStyle(colorElement).color);
+  };
+
   const rememberTextSelection = (layerId: string | number, element: HTMLElement) => {
+    const selectionColor = getTextColorAtSelection(element);
+    if (selectionColor) setActiveTextColor(selectionColor);
+
     const offsets = getTextSelectionOffsets(element);
     if (!offsets) return;
 
     savedTextSelectionRef.current = { layerId, ...offsets };
-    setTextSelectionPreview({
-      layerId,
-      ...offsets,
-      text: element.innerText || "",
-    });
+    // Keep the browser's native blue selection while editing. Re-rendering a
+    // preview span here would replace the live contentEditable DOM and undo typing.
+    setTextSelectionPreview(null);
   };
 
   const getEditableTextElement = (layerId: string | number) =>
     document.querySelector(`[data-layer-text-id="${String(layerId).replace(/"/g, '\\"')}"]`) as HTMLElement | null;
+
+  const beginTextEditing = (layerId: string | number, selectAll = false) => {
+    const currentElement = getEditableTextElement(layerId);
+    const preservedText = currentElement?.innerText || "";
+    const preservedHtml = currentElement ? stripSelectionPreviewHtml(currentElement.innerHTML) : "";
+
+    setSelectedLayerId(layerId);
+    setDraggingLayerId(null);
+    setEditingTextLayerId(layerId);
+    setTextSelectionPreview(null);
+
+    if (currentElement) {
+      setLayers((currentLayers) => currentLayers.map((currentLayer) => (
+        currentLayer.id === layerId
+          ? { ...currentLayer, text: preservedText, textHtml: preservedHtml }
+          : currentLayer
+      )));
+    }
+
+    // Focus during the touch event so mobile browsers open the keyboard reliably.
+    currentElement?.setAttribute("contenteditable", "true");
+    currentElement?.focus();
+    if (currentElement) {
+      textEditDraftRef.current = {
+        layerId,
+        text: currentElement.innerText || "",
+        textHtml: stripSelectionPreviewHtml(currentElement.innerHTML),
+      };
+    }
+
+    requestAnimationFrame(() => {
+      const editableElement = getEditableTextElement(layerId);
+      if (!editableElement) return;
+
+      if (!editableElement.innerHTML && preservedHtml) {
+        editableElement.innerHTML = preservedHtml;
+      }
+      editableElement.focus();
+
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editableElement);
+      if (!selectAll) range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      const selectionColor = getTextColorAtSelection(editableElement);
+      if (selectionColor) setActiveTextColor(selectionColor);
+
+      if (selectAll) {
+        const text = editableElement.innerText || "";
+        savedTextSelectionRef.current = { layerId, start: 0, end: text.length };
+      }
+    });
+  };
 
   const htmlWithColorRange = (text: string, start: number, end: number, color: string) => {
     const safeStart = Math.max(0, Math.min(start, text.length));
@@ -2277,6 +2487,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
   };
 
   const applyColorToSelectedText = (color: string) => {
+    setActiveTextColor(normalizeColorToHex(color) || color);
     if (!selectedLayer || selectedLayer.type !== "text") {
       updateSelectedLayer({ color });
       return;
@@ -2353,7 +2564,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       );
 
-    await document.fonts.ready;
+    await waitForEditorFonts();
     await waitForCanvasImages(workspace);
 
       const thumbnail = await toPng(workspace, {
@@ -2361,7 +2572,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
         canvasWidth,
         canvasHeight,
         pixelRatio: 0.25,
-        skipFonts: true,
+        skipFonts: false,
         backgroundColor: canvasBgColor,
         style: {
           boxShadow: "none",
@@ -2803,7 +3014,7 @@ const buyCredits = async (packageId: string) => {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
+    <div style={{ position: "relative", display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
       
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@700;900&family=Poppins:wght@600;900&family=Inter:wght@400;800&display=swap" />
       <style>{`
@@ -3209,7 +3420,7 @@ const buyCredits = async (packageId: string) => {
 >
         
         {/* LEFT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "elements" || mobilePanel === "tools" ? "flex" : "none") : "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0, position: isMobileLayout ? "fixed" : "static", left: isMobileLayout ? 0 : undefined, right: isMobileLayout ? 0 : undefined, bottom: isMobileLayout ? "76px" : undefined, maxHeight: isMobileLayout ? "62dvh" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderTopLeftRadius: isMobileLayout ? "18px" : undefined, borderTopRightRadius: isMobileLayout ? "18px" : undefined, boxShadow: isMobileLayout ? "0 -18px 40px rgba(15, 23, 42, 0.22)" : undefined }}>
+        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "elements" || mobilePanel === "tools" ? "flex" : "none") : "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, top: isMobileLayout ? "62px" : undefined, maxHeight: isMobileLayout ? "58dvh" : undefined, zIndex: isMobileLayout ? 400 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 18px 45px rgba(15, 23, 42, 0.24)" : undefined }}>
           {isMobileLayout && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
               <strong style={{ fontSize: "14px", color: "#0F172A" }}>{mobilePanel === "elements" ? "Elements" : "Tools"}</strong>
@@ -3893,12 +4104,19 @@ const buyCredits = async (packageId: string) => {
             <div style={{ position: isMobileLayout ? "static" : "fixed", top: isMobileLayout ? undefined : "78px", left: isMobileLayout ? undefined : "50%", transform: isMobileLayout ? undefined : "translateX(-50%)", zIndex: isMobileLayout ? undefined : 200, display: "flex", alignItems: "center", gap: "6px", background: "#FFFFFF", padding: "6px", borderRadius: "18px", boxShadow: "0 10px 30px rgba(15,23,42,0.14)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: isMobileLayout ? "100%" : "calc(100vw - 56px)", overflowX: "auto" }}>
               <select
                 value={selectedLayer.fontFamily || "Inter"}
-                onChange={(e) => updateSelectedLayer({ fontFamily: e.target.value })}
+                onChange={(e) => {
+                  ensureEditorFontLoaded(e.target.value);
+                  updateSelectedLayer({ fontFamily: e.target.value });
+                }}
                 style={{ minWidth: "150px", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "8px 10px", fontSize: "14px", fontWeight: 700, outline: "none", cursor: "pointer", background: "#FFFFFF" }}
                 title="Font"
               >
-                {FONT_OPTIONS.map((font) => (
-                  <option key={font} value={font}>{font}</option>
+                {FONT_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.fonts.map((font) => (
+                      <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
 
@@ -3910,8 +4128,8 @@ const buyCredits = async (packageId: string) => {
 
               <label title="Text color" style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: "#FFFFFF", cursor: "pointer", display: "grid", placeItems: "center", fontWeight: 900, position: "relative" }}>
                 A
-                <span style={{ position: "absolute", bottom: "4px", width: "22px", height: "4px", borderRadius: "99px", background: selectedLayer.color || "#000000" }} />
-                <input type="color" value={selectedLayer.color || "#000000"} onChange={(e) => updateSelectedLayer({ color: e.target.value })} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
+                <span style={{ position: "absolute", bottom: "4px", width: "22px", height: "4px", borderRadius: "99px", background: activeTextColor || selectedLayer.color || "#000000" }} />
+                <input type="color" value={activeTextColor || normalizeColorToHex(selectedLayer.color) || "#000000"} onChange={(e) => applyColorToSelectedText(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
               </label>
 
               {[
@@ -3949,6 +4167,7 @@ const buyCredits = async (packageId: string) => {
                     text: hasBullets
                       ? currentText.split("\n").map((line) => line.replace(/^•\s?/, "")).join("\n")
                       : currentText.split("\n").map((line) => `• ${line.replace(/^•\s?/, "")}`).join("\n"),
+                    textHtml: undefined,
                   });
                 }}
                 style={{ height: "34px", minWidth: "34px", borderRadius: "10px", border: "none", background: (selectedLayer.text || "").trim().startsWith("•") ? "#E0F2FE" : "#FFFFFF", cursor: "pointer", fontSize: "18px" }}
@@ -4026,6 +4245,15 @@ const buyCredits = async (packageId: string) => {
               style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #CBD5E1", background: layers.length === 0 ? "#F1F5F9" : "#FFFFFF", color: layers.length === 0 ? "#94A3B8" : "#334155", cursor: layers.length === 0 ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: 800 }}
             >
               Select
+            </button>
+            <button
+              type="button"
+              title="Delete selected layer"
+              onClick={deleteLayer}
+              disabled={!selectedLayer || selectedLayer.isLocked}
+              style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #FCA5A5", background: !selectedLayer || selectedLayer.isLocked ? "#F8FAFC" : "#FEF2F2", color: !selectedLayer || selectedLayer.isLocked ? "#94A3B8" : "#DC2626", cursor: !selectedLayer || selectedLayer.isLocked ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: 850 }}
+            >
+              Delete
             </button>
           </div>
 
@@ -4141,6 +4369,22 @@ const buyCredits = async (packageId: string) => {
   }}
   onTouchStart={(e) => {
     const { clientX, clientY } = getCoords(e);
+    const now = Date.now();
+    const isTextDoubleTap =
+      layer.type === "text" &&
+      lastTextTouchRef.current.layerId === layer.id &&
+      now - lastTextTouchRef.current.time < 360;
+
+    lastTextTouchRef.current = { layerId: layer.id, time: now };
+
+    if (isTextDoubleTap) {
+      e.preventDefault();
+      e.stopPropagation();
+      lastTextTouchRef.current = { layerId: null, time: 0 };
+      beginTextEditing(layer.id, false);
+      return;
+    }
+
     if (
       layer.type === "text" &&
       editingTextLayerId === layer.id &&
@@ -4166,7 +4410,7 @@ const buyCredits = async (packageId: string) => {
   }}
   style={{
     position: "absolute",
-    touchAction: "none",
+    touchAction: layer.type === "text" && editingTextLayerId === layer.id ? "manipulation" : "none",
                     left: `${layer.x}%`,
                     top: `${layer.y}%`,
                     transform: `translate(-50%, -50%) rotate(${layer.angle || 0}deg) ${layer.isFlippedH ? "scaleX(-1)" : "scaleX(1)"} ${layer.isFlippedV ? "scaleY(-1)" : "scaleY(1)"}`,
@@ -4189,12 +4433,13 @@ const buyCredits = async (packageId: string) => {
     contentEditable={!isExporting && editingTextLayerId === layer.id}
     suppressContentEditableWarning
     onDoubleClick={(e) => {
+      e.preventDefault();
       e.stopPropagation();
-      const editableElement = e.currentTarget as HTMLElement;
-      setSelectedLayerId(layer.id);
-      setDraggingLayerId(null);
-      setEditingTextLayerId(layer.id);
-      requestAnimationFrame(() => editableElement.focus());
+      beginTextEditing(layer.id, false);
+    }}
+    onClick={(e) => {
+      e.stopPropagation();
+      if (editingTextLayerId !== layer.id) beginTextEditing(layer.id, false);
     }}
     onMouseDown={(e) => {
       if (editingTextLayerId === layer.id) {
@@ -4202,15 +4447,36 @@ const buyCredits = async (packageId: string) => {
       }
     }}
     onBlur={(e) => {
-      updateSelectedLayer({ text: e.currentTarget.innerText, textHtml: stripSelectionPreviewHtml(e.currentTarget.innerHTML) });
+      const draft = textEditDraftRef.current?.layerId === layer.id ? textEditDraftRef.current : null;
+      const text = draft?.text ?? e.currentTarget.innerText;
+      const textHtml = draft?.textHtml ?? stripSelectionPreviewHtml(e.currentTarget.innerHTML);
+      setLayers((currentLayers) => currentLayers.map((currentLayer) => (
+        currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
+      )));
+      if (textEditDraftRef.current?.layerId === layer.id) textEditDraftRef.current = null;
       setEditingTextLayerId(null);
       setTextSelectionPreview(null);
     }}
     onInput={(e) => {
-      updateSelectedLayer({ text: e.currentTarget.innerText, textHtml: stripSelectionPreviewHtml(e.currentTarget.innerHTML) });
+      const text = e.currentTarget.innerText;
+      const textHtml = stripSelectionPreviewHtml(e.currentTarget.innerHTML);
+      textEditDraftRef.current = {
+        layerId: layer.id,
+        text,
+        textHtml,
+      };
+      setLayers((currentLayers) => currentLayers.map((currentLayer) => (
+        currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
+      )));
     }}
     onMouseUp={(e) => {
       rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
+    }}
+    onTouchEnd={(e) => {
+      if (editingTextLayerId === layer.id) {
+        e.stopPropagation();
+        rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
+      }
     }}
     onKeyUp={(e) => {
       rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
@@ -4251,7 +4517,9 @@ const buyCredits = async (packageId: string) => {
       ...getEfectosEstilo(layer),
     }}
     data-layer-text-id={String(layer.id)}
-    dangerouslySetInnerHTML={{ __html: getTextLayerHtml(layer) }}
+    {...(editingTextLayerId === layer.id
+      ? {}
+      : { dangerouslySetInnerHTML: { __html: getTextLayerHtml(layer) } })}
   >
   </div>
 ) : layer.type === "shape" ? (
@@ -4718,7 +4986,7 @@ const buyCredits = async (packageId: string) => {
         </section>
 
         {/* RIGHT PROPERTY EDIT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "edit" ? "flex" : "none") : "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0, position: isMobileLayout ? "fixed" : "static", left: isMobileLayout ? 0 : undefined, right: isMobileLayout ? 0 : undefined, bottom: isMobileLayout ? "76px" : undefined, maxHeight: isMobileLayout ? "62dvh" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderTopLeftRadius: isMobileLayout ? "18px" : undefined, borderTopRightRadius: isMobileLayout ? "18px" : undefined, boxShadow: isMobileLayout ? "0 -18px 40px rgba(15, 23, 42, 0.22)" : undefined }}>
+        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "edit" ? "flex" : "none") : "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, top: isMobileLayout ? "62px" : undefined, maxHeight: isMobileLayout ? "58dvh" : undefined, zIndex: isMobileLayout ? 400 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 18px 45px rgba(15, 23, 42, 0.24)" : undefined }}>
           {isMobileLayout && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
               <strong style={{ fontSize: "14px", color: "#0F172A" }}>Edit</strong>
@@ -4916,7 +5184,7 @@ const buyCredits = async (packageId: string) => {
                 <label style={{ fontSize: "11px", fontWeight: 600 }}>Element Primary Color</label>
                 <input
                   type="color"
-                  value={selectedLayer.color || "#FFFFFF"}
+                  value={selectedLayer.type === "text" ? (activeTextColor || normalizeColorToHex(selectedLayer.color) || "#000000") : (normalizeColorToHex(selectedLayer.color) || "#FFFFFF")}
                   onMouseDown={() => {
                     if (selectedLayer.type === "text") {
                       const editableElement = getEditableTextElement(selectedLayer.id);
@@ -5042,13 +5310,6 @@ const buyCredits = async (packageId: string) => {
 )}
               </div>
               
-
-              {selectedLayer.type === "text" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <label style={{ fontSize: "11px", fontWeight: 600 }}>Edit Content String</label>
-                  <textarea value={selectedLayer.text} onChange={(e) => updateSelectedLayer({ text: e.target.value })} style={{ padding: "8px", border: "1px solid #CBD5E1", borderRadius: "8px", fontSize: "13px", minHeight: "70px", resize: "vertical" }} />
-                </div>
-              )}
 
               {selectedLayer.type === "text" && (
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -5258,7 +5519,7 @@ const buyCredits = async (packageId: string) => {
       )}
 
       {isMobileLayout && mobilePanel === "export" && (
-        <aside style={{ position: "fixed", left: 0, right: 0, bottom: "76px", maxHeight: "62dvh", overflowY: "auto", background: "#FFFFFF", borderTopLeftRadius: "18px", borderTopRightRadius: "18px", boxShadow: "0 -18px 40px rgba(15, 23, 42, 0.22)", padding: "16px", zIndex: 2147483646, display: "flex", flexDirection: "column", gap: "12px" }}>
+        <aside style={{ position: "absolute", left: "8px", right: "8px", top: "62px", maxHeight: "58dvh", overflowY: "auto", background: "#FFFFFF", borderRadius: "16px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.24)", padding: "16px", zIndex: 400, display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
             <strong style={{ fontSize: "14px", color: "#0F172A" }}>Export</strong>
             <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>

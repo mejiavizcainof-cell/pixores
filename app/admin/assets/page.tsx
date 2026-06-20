@@ -11,6 +11,37 @@ const metadataExamples: Record<string, string> = {
   default: "{}",
 };
 
+async function getAdminAccessToken(forceRefresh = false) {
+  if (forceRefresh) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session?.access_token) throw new Error("Your session expired. Please sign in again.");
+    return data.session.access_token;
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) throw new Error("Please sign in as admin first.");
+
+  const expiresSoon = (data.session.expires_at || 0) <= Math.floor(Date.now() / 1000) + 90;
+  if (expiresSoon) return getAdminAccessToken(true);
+
+  return data.session.access_token;
+}
+
+async function fetchAdminApi(input: string, init: RequestInit = {}) {
+  const send = async (token: string) => {
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  };
+
+  let response = await send(await getAdminAccessToken());
+  if (response.status === 401 || response.status === 403) {
+    response = await send(await getAdminAccessToken(true));
+  }
+
+  return response;
+}
+
 export default function AdminAssetsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [assets, setAssets] = useState<AdminAsset[]>([]);
@@ -32,20 +63,18 @@ export default function AdminAssetsPage() {
   );
 
   const loadAssets = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
+    try {
+      const response = await fetchAdminApi("/api/admin/assets?includeDrafts=true");
+      const data = await response.json();
+      if (!response.ok) {
+        setStatus(data.error || "Unable to load assets.");
+        return;
+      }
 
-    const response = await fetch("/api/admin/assets?includeDrafts=true", {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      setStatus(data.error || "Unable to load assets.");
-      return;
+      setAssets(data.assets || []);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to load assets.");
     }
-
-    setAssets(data.assets || []);
   };
 
   useEffect(() => {
@@ -71,14 +100,6 @@ export default function AdminAssetsPage() {
     try {
       JSON.parse(metadata || "{}");
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-
-      if (!token) {
-        setStatus("Please sign in as admin first.");
-        return;
-      }
-
       const formData = new FormData();
       formData.set("category", category);
       formData.set("name", name);
@@ -89,9 +110,8 @@ export default function AdminAssetsPage() {
       formData.set("metadata", metadata || "{}");
       if (file) formData.set("file", file);
 
-      const response = await fetch("/api/admin/assets", {
+      const response = await fetchAdminApi("/api/admin/assets", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -119,17 +139,8 @@ export default function AdminAssetsPage() {
     setStatus("Deleting asset...");
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-
-      if (!token) {
-        setStatus("Please sign in as admin first.");
-        return;
-      }
-
-      const response = await fetch(`/api/admin/assets?id=${asset.id}`, {
+      const response = await fetchAdminApi(`/api/admin/assets?id=${asset.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();

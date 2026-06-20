@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
 
     const webpBuffer = await sharp(Buffer.from(bytes))
+      .rotate()
       .webp()
       .toBuffer();
 
