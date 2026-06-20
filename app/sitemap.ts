@@ -6,6 +6,8 @@ const baseUrl = "https://www.pixores.com";
 const publicPages = [
   { path: "", changeFrequency: "weekly" as const, priority: 1 },
   { path: "/tools", changeFrequency: "weekly" as const, priority: 0.9 },
+  { path: "/remove-background", changeFrequency: "weekly" as const, priority: 0.95 },
+  { path: "/image-upscaler", changeFrequency: "weekly" as const, priority: 0.95 },
   { path: "/thumbnail-creator", changeFrequency: "weekly" as const, priority: 0.95 },
   { path: "/instagram-reel-downloader", changeFrequency: "monthly" as const, priority: 0.75 },
   { path: "/templates", changeFrequency: "weekly" as const, priority: 0.75 },

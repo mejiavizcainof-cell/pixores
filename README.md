@@ -16,6 +16,16 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## AI image tools
+
+The Background Remover and Image Upscaler use Clipdrop from server-side route handlers. Add the following private environment variable locally and in Vercel:
+
+```bash
+CLIPDROP_API_KEY=your_clipdrop_api_key
+```
+
+Do not expose this value through a `NEXT_PUBLIC_` variable.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

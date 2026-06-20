@@ -4,18 +4,19 @@ type DownloadOptions = {
   endpoint: string;
   formData: FormData;
   fallbackFileName: string;
+  headers?: HeadersInit;
 };
 
 const notify = (phase: string, detail: Record<string, string> = {}) => {
   window.dispatchEvent(new CustomEvent(CONVERSION_EVENT, { detail: { phase, ...detail } }));
 };
 
-export async function downloadConvertedFile({ endpoint, formData, fallbackFileName }: DownloadOptions) {
+export async function downloadConvertedFile({ endpoint, formData, fallbackFileName, headers }: DownloadOptions) {
   const sourceFile = formData.get("file");
   notify("start", { fileName: sourceFile instanceof File ? sourceFile.name : fallbackFileName });
 
   try {
-    const response = await fetch(endpoint, { method: "POST", body: formData });
+    const response = await fetch(endpoint, { method: "POST", body: formData, headers });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       throw new Error(payload.error || "The file could not be converted.");

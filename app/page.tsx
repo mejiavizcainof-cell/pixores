@@ -3,9 +3,9 @@ import Link from "next/link";
 import { blogPosts } from "@/lib/blogPosts";
 
 export const metadata: Metadata = {
-  title: "Pixores - Free Online Image & File Tools",
+  title: "Pixores Studio - Thumbnail Creator, Templates & Image Tools",
   description:
-    "Convert, compress and optimize images online. JPG, PNG, WebP, HEIC, PDF and thumbnail tools for free.",
+    "Create professional thumbnails with Pixores Studio, start from ready-made templates, and use fast online image tools.",
   alternates: {
     canonical: "https://www.pixores.com",
   },
@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 
 export default function Home() {
   const tools = [
+    { icon: "BG", title: "AI Background Remover", description: "Remove backgrounds and download a transparent PNG.", link: "/remove-background", color: "#DBEAFE" },
+    { icon: "2x", title: "AI Image Upscaler", description: "Increase image resolution with AI enhancement.", link: "/image-upscaler", color: "#EDE9FE" },
     { icon: "↻", title: "Rotate & Flip Image", description: "Correct photo orientation or mirror an image.", link: "/rotate-image", color: "#E0F2FE" },
     { icon: "🖼️", title: "JPG → PNG", description: "Convert JPG images to PNG format.", link: "/jpg-to-png", color: "#EFF6FF" },
     { icon: "📷", title: "PNG → JPG", description: "Convert PNG images to JPG format.", link: "/png-to-jpg", color: "#FEF3C7" },
@@ -29,56 +31,185 @@ export default function Home() {
     { icon: "IG", title: "Instagram Reel Saver Guide", description: "Safe ways to save your own reels or permitted content.", link: "/instagram-reel-downloader", color: "#FCE7F3" },
   ];
 
+  const benefits = [
+    { title: "Free core tools", description: "Convert, resize, compress, and optimize images without a subscription." },
+    { title: "No registration required", description: "Use standard image converters immediately. Sign in only for saved projects and AI tools." },
+    { title: "Fast processing", description: "Complete everyday image tasks quickly from desktop or mobile." },
+    { title: "Secure uploads", description: "Your files are used only to complete the image task you request." },
+    { title: "Professional creator tools", description: "Build thumbnails, prepare graphics, and enhance images in one place." },
+  ];
+
   return (
     <main style={{ background: "#F8FAFC" }}>
       <section
         style={{
-          textAlign: "center",
-          padding: "80px 20px 60px",
-          background:
-            "linear-gradient(180deg, #EEF2FF 0%, #F8FAFC 100%)",
+          minHeight: "590px",
+          padding: "72px 20px",
+          display: "flex",
+          alignItems: "center",
+          backgroundImage:
+            "linear-gradient(90deg, rgba(7, 15, 32, 0.94) 0%, rgba(7, 15, 32, 0.78) 42%, rgba(7, 15, 32, 0.18) 100%), url('/blog/create-youtube-thumbnail-free.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       >
-        <h1
-          style={{
-            fontSize: "clamp(42px, 7vw, 76px)",
-            fontWeight: 900,
-            color: "#0F172A",
-            lineHeight: 1.05,
-            marginBottom: "22px",
-          }}
-        >
-          Free Online Image Tools
-        </h1>
+        <div style={{ width: "100%", maxWidth: "1200px", margin: "0 auto" }}>
+          <p style={{ margin: "0 0 14px", color: "#93C5FD", fontSize: "14px", fontWeight: 850, textTransform: "uppercase" }}>
+            Create with confidence
+          </p>
+          <h1
+            style={{
+              maxWidth: "660px",
+              margin: "0 0 22px",
+              color: "#FFFFFF",
+              fontSize: "clamp(46px, 7vw, 78px)",
+              fontWeight: 900,
+              lineHeight: 1.02,
+            }}
+          >
+            Pixores Studio
+          </h1>
 
-        <p
-          style={{
-            fontSize: "clamp(18px, 3vw, 24px)",
-            color: "#475569",
-            maxWidth: "850px",
-            margin: "0 auto 32px",
-            lineHeight: 1.7,
-          }}
-        >
-          Convert, compress, resize, optimize and create professional
-          thumbnails directly in your browser.
-        </p>
+          <p
+            style={{
+              maxWidth: "620px",
+              margin: "0 0 32px",
+              color: "#E2E8F0",
+              fontSize: "clamp(18px, 2.4vw, 23px)",
+              lineHeight: 1.65,
+            }}
+          >
+            Create professional thumbnails with flexible text, layers, backgrounds, frames, and reusable assets. Start from scratch or customize a ready-made template.
+          </p>
 
-        <Link
-          href="/thumbnail-creator"
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+            <Link
+              href="/thumbnail-creator"
+              style={{
+                display: "inline-block",
+                background: "#2563EB",
+                color: "#FFFFFF",
+                padding: "15px 24px",
+                borderRadius: "8px",
+                textDecoration: "none",
+                fontWeight: 850,
+                boxShadow: "0 12px 24px rgba(37,99,235,0.28)",
+              }}
+            >
+              Open Pixores Studio
+            </Link>
+            <Link
+              href="/templates"
+              style={{
+                display: "inline-block",
+                background: "#FFFFFF",
+                color: "#0F172A",
+                padding: "15px 24px",
+                borderRadius: "8px",
+                textDecoration: "none",
+                fontWeight: 850,
+              }}
+            >
+              Browse Templates
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section
+        style={{
+          margin: "24px 0 54px",
+          padding: "72px 20px",
+          background: "#EEF6FF",
+          borderTop: "1px solid #DBEAFE",
+          borderBottom: "1px solid #DBEAFE",
+        }}
+      >
+        <div
           style={{
-            display: "inline-block",
-            background: "#2563EB",
-            color: "#fff",
-            padding: "16px 28px",
-            borderRadius: "14px",
-            textDecoration: "none",
-            fontWeight: 800,
-            boxShadow: "0 12px 24px rgba(37,99,235,0.25)",
+            maxWidth: "1120px",
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+            gap: "clamp(36px, 7vw, 90px)",
+            alignItems: "center",
           }}
         >
-          Try Thumbnail Creator →
-        </Link>
+          <div>
+            <p
+              style={{
+                margin: "0 0 12px",
+                color: "#2563EB",
+                fontSize: "13px",
+                fontWeight: 850,
+                textTransform: "uppercase",
+              }}
+            >
+              Made for everyday creators
+            </p>
+            <h2
+              style={{
+                margin: "0 0 20px",
+                color: "#0F172A",
+                fontSize: "clamp(34px, 5vw, 52px)",
+                lineHeight: 1.08,
+              }}
+            >
+              Why Pixores?
+            </h2>
+            <p
+              style={{
+                maxWidth: "480px",
+                margin: 0,
+                color: "#475569",
+                fontSize: "18px",
+                lineHeight: 1.75,
+              }}
+            >
+              Simple image tools should feel quick, dependable, and easy to use. Pixores brings essential editing and creator workflows together without unnecessary complexity.
+            </p>
+          </div>
+
+          <div>
+            {benefits.map((benefit) => (
+              <div
+                key={benefit.title}
+                style={{
+                  padding: "18px 0",
+                  display: "grid",
+                  gridTemplateColumns: "34px 1fr",
+                  gap: "14px",
+                  borderBottom: "1px solid #BFDBFE",
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: "50%",
+                    background: "#2563EB",
+                    color: "#FFFFFF",
+                    fontSize: "16px",
+                    fontWeight: 900,
+                  }}
+                >
+                  ✓
+                </span>
+                <div>
+                  <h3 style={{ margin: "0 0 5px", color: "#0F172A", fontSize: "18px" }}>
+                    {benefit.title}
+                  </h3>
+                  <p style={{ margin: 0, color: "#64748B", lineHeight: 1.55 }}>
+                    {benefit.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section
@@ -153,55 +284,6 @@ export default function Home() {
               </div>
             </a>
           ))}
-        </div>
-      </section>
-
-      <section
-        style={{
-          maxWidth: "1200px",
-          margin: "30px auto",
-          padding: "0 20px",
-        }}
-      >
-        <div
-          style={{
-            background: "linear-gradient(135deg,#2563EB,#7C3AED)",
-            color: "#fff",
-            padding: "48px",
-            borderRadius: "28px",
-            textAlign: "center",
-          }}
-        >
-          <h2 style={{ fontSize: "42px", marginTop: 0 }}>
-            🎨 Thumbnail Creator Pro
-          </h2>
-
-          <p
-            style={{
-              fontSize: "20px",
-              maxWidth: "780px",
-              margin: "0 auto 26px",
-              lineHeight: 1.7,
-            }}
-          >
-            Create professional YouTube thumbnails with layers, drag & drop,
-            custom fonts and fast editing tools.
-          </p>
-
-          <Link
-            href="/thumbnail-creator"
-            style={{
-              display: "inline-block",
-              background: "#fff",
-              color: "#111827",
-              padding: "14px 24px",
-              borderRadius: "12px",
-              textDecoration: "none",
-              fontWeight: 800,
-            }}
-          >
-            Open Thumbnail Creator →
-          </Link>
         </div>
       </section>
 

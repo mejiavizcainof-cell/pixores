@@ -43,6 +43,28 @@ export default function Footer() {
         </a>
 
         <a
+          href="/remove-background"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Remove Background
+        </a>
+
+        <a
+          href="/image-upscaler"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Image Upscaler
+        </a>
+
+        <a
           href="/faq"
           style={{
             color: COLORS.text,

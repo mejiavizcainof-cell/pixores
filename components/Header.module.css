@@ -9,7 +9,7 @@
 }
 
 .bar {
-  max-width: 1240px;
+  max-width: 1380px;
   min-height: 68px;
   margin: 0 auto;
   padding: 12px 22px;
@@ -54,7 +54,7 @@
 }
 
 .navLink {
-  padding: 9px 12px;
+  padding: 9px 10px;
   border-radius: 8px;
   color: #334155;
   font-size: 14px;

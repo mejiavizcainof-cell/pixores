@@ -4,10 +4,20 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "All Tools",
   description:
-    "Browse all free online image conversion, compression and optimization tools available on Pixores.",
+    "Browse AI image editing, conversion, compression and optimization tools available on Pixores.",
 };
 
 const tools = [
+  {
+    title: "AI Background Remover",
+    href: "/remove-background",
+    description: "Remove image backgrounds automatically and download a transparent PNG.",
+  },
+  {
+    title: "AI Image Upscaler",
+    href: "/image-upscaler",
+    description: "Increase image resolution by 2x or 4x while preserving important details.",
+  },
   {
     title: "Rotate and Flip Image",
     href: "/rotate-image",

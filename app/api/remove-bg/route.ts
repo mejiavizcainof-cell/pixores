@@ -1,119 +1,98 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { aiErrorResponse, consumeAiCredit, requireAiCredit } from "@/lib/aiCredits";
 
 export const runtime = "nodejs";
 
-const supabaseServer = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
-export async function POST(request: NextRequest) {
+function getClipdropKey() {
+  const key = process.env.CLIPDROP_API_KEY;
+  if (!key) throw new Error("CLIPDROP_API_KEY is not configured on the server.");
+  return key;
+}
+
+function decodeImage(imageBase64: string) {
+  const match = imageBase64.match(/^data:([^;,]+);base64,(.+)$/);
+  const mimeType = match?.[1] || "image/png";
+  const encoded = match?.[2] || imageBase64;
+  return { bytes: Buffer.from(encoded, "base64"), mimeType };
+}
+
+function toArrayBuffer(buffer: Buffer) {
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
+
+export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const creditSession = await requireAiCredit(request);
+    const contentType = request.headers.get("content-type") || "";
+    const wantsJson = contentType.includes("application/json");
+    let imageBytes: Buffer;
+    let mimeType: string;
+    let fileName: string;
 
-    if (!authHeader) {
-      return NextResponse.json({ success: false, error: "Login required" }, { status: 401 });
+    if (wantsJson) {
+      const body = (await request.json()) as { imageBase64?: string };
+      if (!body.imageBase64) {
+        return Response.json({ success: false, error: "No image was provided." }, { status: 400 });
+      }
+      const decoded = decodeImage(body.imageBase64);
+      imageBytes = decoded.bytes;
+      mimeType = decoded.mimeType;
+      fileName = "image.png";
+    } else {
+      const incoming = await request.formData();
+      const file = incoming.get("file");
+      if (!(file instanceof File)) {
+        return Response.json({ success: false, error: "Choose an image first." }, { status: 400 });
+      }
+      imageBytes = Buffer.from(await file.arrayBuffer());
+      mimeType = file.type || "image/png";
+      fileName = file.name || "image.png";
     }
 
-    const token = authHeader.replace("Bearer ", "");
-
-    const { data: userData, error: userError } = await supabaseServer.auth.getUser(token);
-
-    if (userError || !userData.user) {
-      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
+    if (!imageBytes.length || imageBytes.length > MAX_FILE_SIZE) {
+      return Response.json(
+        { success: false, error: "The image must be smaller than 20 MB." },
+        { status: 413 },
+      );
     }
 
-    const userId = userData.user.id;
+    const clipdropForm = new FormData();
+    clipdropForm.append("image_file", new Blob([toArrayBuffer(imageBytes)], { type: mimeType }), fileName);
 
-    const { data: creditRow } = await supabaseServer
-      .from("user_credits")
-      .select("credits")
-      .eq("user_id", userId)
-      .single();
+    const clipdropResponse = await fetch("https://clipdrop-api.co/remove-background/v1", {
+      method: "POST",
+      headers: { "x-api-key": getClipdropKey() },
+      body: clipdropForm,
+    });
 
-    if (!creditRow) {
-      await supabaseServer.from("user_credits").insert({
-        user_id: userId,
-        credits: 5,
+    if (!clipdropResponse.ok) {
+      const detail = await clipdropResponse.text();
+      return Response.json(
+        { success: false, error: detail || "Clipdrop could not remove the background." },
+        { status: clipdropResponse.status },
+      );
+    }
+
+    const result = Buffer.from(await clipdropResponse.arrayBuffer());
+    const creditsRemaining = await consumeAiCredit(creditSession);
+
+    if (wantsJson) {
+      return Response.json({
+        success: true,
+        image: `data:image/png;base64,${result.toString("base64")}`,
+        creditsRemaining,
       });
     }
 
-    const currentCredits = creditRow?.credits ?? 5;
-
-   if (currentCredits <= 0) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "NO_CREDITS",
-      creditsRemaining: 0,
-    },
-    { status: 403 }
-  );
-}
-
-    const body = await request.json();
-    const { imageBase64 } = body;
-
-    if (!imageBase64) {
-      return NextResponse.json(
-        { success: false, error: "No imageBase64 received" },
-        { status: 400 }
-      );
-    }
-
-    const cleanBase64 = imageBase64.includes(",")
-      ? imageBase64.split(",")[1]
-      : imageBase64;
-
-    const imageBuffer = Buffer.from(cleanBase64, "base64");
-
-    const formData = new FormData();
-    formData.append(
-      "image_file",
-      new Blob([imageBuffer], { type: "image/png" }),
-      "image.png"
-    );
-    formData.append("size", "auto");
-    formData.append("format", "png");
-
-    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-      method: "POST",
+    return new Response(result, {
       headers: {
-       "X-Api-Key": "Pho3SwP32RjE7aW6KEtsoPzY",
+        "Content-Type": "image/png",
+        "Content-Disposition": 'attachment; filename="background-removed.png"',
+        "X-Credits-Remaining": String(creditsRemaining),
       },
-      body: formData,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-
-      return NextResponse.json(
-        { success: false, status: response.status, error: errorText },
-        { status: response.status }
-      );
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const resultBase64 = Buffer.from(arrayBuffer).toString("base64");
-
-    await supabaseServer
-      .from("user_credits")
-      .update({
-        credits: currentCredits - 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId);
-
-    return NextResponse.json({
-      success: true,
-      image: `data:image/png;base64,${resultBase64}`,
-      creditsRemaining: currentCredits - 1,
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Server error removing background" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return aiErrorResponse(error);
   }
 }
