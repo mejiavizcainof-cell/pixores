@@ -350,6 +350,8 @@ const TEXT_PRESETS = [
   { label: "Body Caption", text: "Body Caption", fontSize: 26, fontFamily: "Georgia", isBold: false, color: "#334155" },
 ];
 
+const TEXT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 120, 144, 180, 240, 300];
+
 const escapeTextHtml = (value: string) =>
   value
     .replace(/&/g, "&amp;")
@@ -410,6 +412,7 @@ export default function ThumbnailEditorV2() {
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
   const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "emojis" | "brand">("people");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
+  const [mobileAssetSection, setMobileAssetSection] = useState<"elements" | "uploads">("elements");
   const [textSearch, setTextSearch] = useState<string>("");
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
   const [textSelectionPreview, setTextSelectionPreview] = useState<{ layerId: string | number; start: number; end: number; text: string } | null>(null);
@@ -434,6 +437,7 @@ export default function ThumbnailEditorV2() {
 
   const [selectedLayerId, setSelectedLayerId] = useState<string | number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const uploadsSectionRef = useRef<HTMLLabelElement>(null);
   const initialDragOffset = useRef({ x: 0, y: 0 });
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isApplyingHistoryRef = useRef(false);
@@ -3423,7 +3427,7 @@ const buyCredits = async (packageId: string) => {
         <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "elements" || mobilePanel === "tools" ? "flex" : "none") : "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, top: isMobileLayout ? "62px" : undefined, maxHeight: isMobileLayout ? "calc(100dvh - 154px)" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 18px 45px rgba(15, 23, 42, 0.24)" : undefined, touchAction: isMobileLayout ? "pan-y" : undefined, WebkitOverflowScrolling: isMobileLayout ? "touch" : undefined, overscrollBehavior: isMobileLayout ? "contain" : undefined }}>
           {isMobileLayout && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
-              <strong style={{ fontSize: "14px", color: "#0F172A" }}>{mobilePanel === "elements" ? "Elements" : "Tools"}</strong>
+              <strong style={{ fontSize: "14px", color: "#0F172A" }}>{mobilePanel === "elements" ? (mobileAssetSection === "uploads" ? "Uploads" : "Elements") : "Tools"}</strong>
               <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
             </div>
           )}
@@ -3674,8 +3678,8 @@ const buyCredits = async (packageId: string) => {
     ))}
   </div>
 
-  <label style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px dashed #8B5CF6", color: "#8B5CF6", fontWeight: 500, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px" }}>
-    📥 Import Graphics / PNGs
+  <label ref={uploadsSectionRef} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px dashed #8B5CF6", color: "#6D28D9", fontWeight: 750, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px", background: "#FAF5FF", scrollMarginTop: "12px" }}>
+    Import Graphics / PNGs
     <input type="file" accept="image/*" multiple onChange={handleImportImage} style={{ display: "none" }} />
   </label>
   <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#475569", fontWeight: 700 }}>
@@ -4101,7 +4105,7 @@ const buyCredits = async (packageId: string) => {
         <section style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
-            <div style={{ position: isMobileLayout ? "static" : "fixed", top: isMobileLayout ? undefined : "78px", left: isMobileLayout ? undefined : "50%", transform: isMobileLayout ? undefined : "translateX(-50%)", zIndex: isMobileLayout ? undefined : 200, display: "flex", alignItems: "center", gap: "6px", background: "#FFFFFF", padding: "6px", borderRadius: "18px", boxShadow: "0 10px 30px rgba(15,23,42,0.14)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: isMobileLayout ? "100%" : "calc(100vw - 56px)", overflowX: "auto" }}>
+            <div style={{ position: isMobileLayout ? "static" : "fixed", top: isMobileLayout ? undefined : "78px", left: isMobileLayout ? undefined : "50%", transform: isMobileLayout ? undefined : "translateX(-50%)", zIndex: isMobileLayout ? undefined : 200, display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: "8px 10px", minHeight: "52px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.14)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: isMobileLayout ? "100%" : "calc(100vw - 56px)", overflowX: "auto", overscrollBehaviorX: "contain", touchAction: "pan-x", scrollbarWidth: "thin" }}>
               <select
                 value={selectedLayer.fontFamily || "Inter"}
                 onChange={(e) => {
@@ -4120,11 +4124,15 @@ const buyCredits = async (packageId: string) => {
                 ))}
               </select>
 
-              <div style={{ display: "flex", alignItems: "center", border: "1px solid #CBD5E1", borderRadius: "10px", overflow: "hidden", background: "#FFFFFF" }}>
-                <button type="button" onClick={() => updateSelectedLayer({ fontSize: Math.max(8, (selectedLayer.fontSize || 40) - 2) })} style={{ width: "34px", height: "34px", border: "none", background: "#FFFFFF", cursor: "pointer", fontSize: "18px" }}>-</button>
-                <input type="number" min="8" max="300" value={selectedLayer.fontSize || 40} onChange={(e) => updateSelectedLayer({ fontSize: Math.max(8, Number(e.target.value)) })} style={{ width: "52px", border: "none", outline: "none", textAlign: "center", fontSize: "15px", fontWeight: 800 }} />
-                <button type="button" onClick={() => updateSelectedLayer({ fontSize: (selectedLayer.fontSize || 40) + 2 })} style={{ width: "34px", height: "34px", border: "none", background: "#FFFFFF", cursor: "pointer", fontSize: "18px" }}>+</button>
-              </div>
+              <select
+                value={selectedLayer.fontSize || 40}
+                onChange={(e) => updateSelectedLayer({ fontSize: Number(e.target.value) })}
+                title="Text size"
+                style={{ flex: "0 0 auto", width: "76px", height: "36px", padding: "0 8px", border: "1px solid #CBD5E1", borderRadius: "8px", background: "#FFFFFF", color: "#0F172A", fontSize: "14px", fontWeight: 800, cursor: "pointer" }}
+              >
+                {!TEXT_SIZE_OPTIONS.includes(selectedLayer.fontSize || 40) && <option value={selectedLayer.fontSize || 40}>{selectedLayer.fontSize}</option>}
+                {TEXT_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
 
               <label title="Text color" style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: "#FFFFFF", cursor: "pointer", display: "grid", placeItems: "center", fontWeight: 900, position: "relative" }}>
                 A
@@ -4251,7 +4259,7 @@ const buyCredits = async (packageId: string) => {
               title="Delete selected layer"
               onClick={deleteLayer}
               disabled={!selectedLayer || selectedLayer.isLocked}
-              style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #FCA5A5", background: !selectedLayer || selectedLayer.isLocked ? "#F8FAFC" : "#FEF2F2", color: !selectedLayer || selectedLayer.isLocked ? "#94A3B8" : "#DC2626", cursor: !selectedLayer || selectedLayer.isLocked ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: 850 }}
+              style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #CBD5E1", background: !selectedLayer || selectedLayer.isLocked ? "#F1F5F9" : "#FFFFFF", color: !selectedLayer || selectedLayer.isLocked ? "#94A3B8" : "#0F172A", cursor: !selectedLayer || selectedLayer.isLocked ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: 850 }}
             >
               Delete
             </button>
@@ -5022,7 +5030,7 @@ const buyCredits = async (packageId: string) => {
               
               <div style={{ display: "flex", gap: "6px" }}>
                 <button onClick={() => duplicateLayer()} style={{ flex: 1, padding: "6px", background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE", borderRadius: "6px", fontSize: "11px", fontWeight: 600 }}>📋 Duplicate</button>
-                <button onClick={() => deleteLayer()} style={{ padding: "6px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5", borderRadius: "6px", fontSize: "11px", cursor: "pointer" }}>🗑️ Delete</button>
+                <button onClick={() => deleteLayer()} style={{ padding: "6px 10px", background: "#FFFFFF", color: "#0F172A", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>Delete</button>
               </div>
 
               <button
@@ -5571,13 +5579,22 @@ const buyCredits = async (packageId: string) => {
                   setMobilePanel("edit");
                   return;
                 }
-                if (item.id === "uploads") {
+                if (item.id === "elements") {
+                  setMobileAssetSection("elements");
                   setMobilePanel("elements");
+                  return;
+                }
+                if (item.id === "uploads") {
+                  setMobileAssetSection("uploads");
+                  setMobilePanel("elements");
+                  requestAnimationFrame(() => requestAnimationFrame(() => {
+                    uploadsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }));
                   return;
                 }
                 setMobilePanel(item.id as "elements" | "edit" | "export");
               }}
-              style={{ border: "none", background: mobilePanel === item.id || (item.id === "uploads" && mobilePanel === "elements") ? "#EFF6FF" : "#FFFFFF", color: mobilePanel === item.id || (item.id === "uploads" && mobilePanel === "elements") ? "#2563EB" : "#475569", fontWeight: 700, fontSize: "11px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "5px", cursor: "pointer" }}
+              style={{ border: "none", background: (item.id === "elements" ? mobilePanel === "elements" && mobileAssetSection === "elements" : item.id === "uploads" ? mobilePanel === "elements" && mobileAssetSection === "uploads" : mobilePanel === item.id) ? "#EFF6FF" : "#FFFFFF", color: (item.id === "elements" ? mobilePanel === "elements" && mobileAssetSection === "elements" : item.id === "uploads" ? mobilePanel === "elements" && mobileAssetSection === "uploads" : mobilePanel === item.id) ? "#2563EB" : "#475569", fontWeight: 700, fontSize: "11px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "5px", cursor: "pointer" }}
             >
               <span style={{ fontSize: item.id === "text" ? "22px" : "20px", lineHeight: 1 }}>{item.icon}</span>
               <span>{item.label}</span>
