@@ -1,93 +1,39 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
+import { Camera, FolderOpen, Upload } from "lucide-react";
+import styles from "./ImageUploader.module.css";
 
 interface ImageUploaderProps {
-  onChange: (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => void;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   title: string;
   accept: string;
 }
 
-export default function ImageUploader({
-  onChange,
-  title,
-  accept,
-}: ImageUploaderProps) {
+export default function ImageUploader({ onChange, title, accept }: ImageUploaderProps) {
+  const inputId = useId();
+  const cameraInputId = `${inputId}-camera`;
+
   return (
-    <label
-      htmlFor="image-upload"
-      style={{
-        display: "block",
-        border: "2px dashed #2563EB",
-        borderRadius: "16px",
-        padding: "60px 30px",
-        textAlign: "center",
-        marginBottom: "30px",
-        backgroundColor: "#F8FAFC",
-        cursor: "pointer",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "60px",
-          marginBottom: "15px",
-        }}
-      >
-        📤
+    <div className={styles.uploader}>
+      <label htmlFor={inputId} className={styles.desktopPicker}>
+        <Upload className={styles.icon} size={46} strokeWidth={1.8} />
+        <h2 className={styles.title}>{title}</h2>
+        <p className={styles.description}>Choose an image from your device</p>
+        <p className={styles.formats}>JPG, PNG, WebP and HEIC</p>
+      </label>
+
+      <div className={styles.mobileActions}>
+        <label htmlFor={cameraInputId} className={`${styles.action} ${styles.cameraAction}`}>
+          <Camera size={20} /> Camera
+        </label>
+        <label htmlFor={inputId} className={styles.action}>
+          <FolderOpen size={20} /> Choose Files
+        </label>
       </div>
 
-      <h2
-        style={{
-          fontSize: "28px",
-          fontWeight: "bold",
-          marginBottom: "10px",
-          color: "#0F172A",
-        }}
-      >
-        {title}
-      </h2>
-
-      <p
-        style={{
-          fontSize: "18px",
-          color: "#475569",
-          marginBottom: "12px",
-        }}
-      >
-        Click here to upload your image
-      </p>
-
-      <p
-        style={{
-          color: "#64748B",
-          fontSize: "14px",
-        }}
-      >
-        JPG • PNG • WebP • HEIC
-      </p>
-
-      <p
-        style={{
-          color: "#94A3B8",
-          fontSize: "13px",
-          marginTop: "10px",
-        }}
-      >
-        You can also drag and drop your file here
-      </p>
-
-      <input
-        id="image-upload"
-        type="file"
-        accept={accept}
-        onChange={onChange}
-        style={{
-          display: "none",
-        }}
-      />
-    </label>
+      <input id={inputId} type="file" accept={accept} onChange={onChange} className={styles.hiddenInput} />
+      <input id={cameraInputId} type="file" accept="image/*" capture="environment" onChange={onChange} className={styles.hiddenInput} />
+    </div>
   );
 }

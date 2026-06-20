@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ImageUploader from "@/components/ImageUploader";
 import ToolSeo from "@/components/ToolSeo";
+import { downloadConvertedFile } from "@/lib/downloadConvertedFile";
 import {
   COLORS,
   FONT_SIZES,
@@ -95,22 +96,7 @@ export default function ResizeImagePage() {
     formData.append("width", width);
     formData.append("height", height);
 
-    const response = await fetch("/api/resize-image", {
-      method: "POST",
-      body: formData,
-    });
-
-    const blob = await response.blob();
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "resized.jpg";
-    link.click();
-
-    URL.revokeObjectURL(url);
+    await downloadConvertedFile({ endpoint: "/api/resize-image", formData, fallbackFileName: "resized.jpg" });
   };
 
   return (

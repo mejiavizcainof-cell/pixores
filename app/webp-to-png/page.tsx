@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ImageUploader from "@/components/ImageUploader";
 import ToolSeo from "@/components/ToolSeo";
+import { downloadConvertedFile } from "@/lib/downloadConvertedFile";
 
 export default function WebpToPngPage() {
   const [preview, setPreview] = useState<string | null>(null);
@@ -25,28 +26,7 @@ export default function WebpToPngPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/webp-to-png", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      alert("Error converting image");
-      return;
-    }
-
-    const blob = await response.blob();
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "converted.png";
-
-    link.click();
-
-    URL.revokeObjectURL(url);
+    await downloadConvertedFile({ endpoint: "/api/webp-to-png", formData, fallbackFileName: "converted.png" });
   };
 
   return (

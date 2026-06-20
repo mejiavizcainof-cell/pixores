@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ImageUploader from "@/components/ImageUploader";
 import ToolSeo from "@/components/ToolSeo";
+import { downloadConvertedFile } from "@/lib/downloadConvertedFile";
 
 export default function JpgToPdfPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -23,21 +24,7 @@ export default function JpgToPdfPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/jpg-to-pdf", {
-      method: "POST",
-      body: formData,
-    });
-
-    const blob = await response.blob();
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "converted.pdf";
-    link.click();
-
-    URL.revokeObjectURL(url);
+    await downloadConvertedFile({ endpoint: "/api/jpg-to-pdf", formData, fallbackFileName: "converted.pdf" });
   };
 
   return (

@@ -4,6 +4,7 @@ import { siteMetadata } from "./metadata";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import ConversionProgressHost from "@/components/ConversionProgressHost";
 import "./globals.css";
 
 
@@ -72,6 +73,7 @@ export default function RootLayout({
         }}
       >
         <GoogleAnalytics />
+        <ConversionProgressHost />
 
         <Header />
 

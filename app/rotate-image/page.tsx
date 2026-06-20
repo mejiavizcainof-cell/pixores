@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw } from "lucide-react";
 import ImageUploader from "@/components/ImageUploader";
 import ToolSeo from "@/components/ToolSeo";
+import { downloadConvertedFile } from "@/lib/downloadConvertedFile";
 
 export default function RotateImagePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -41,22 +42,7 @@ export default function RotateImagePage() {
       formData.set("angle", String(angle));
       formData.set("flipHorizontal", String(flipHorizontal));
       formData.set("flipVertical", String(flipVertical));
-      const response = await fetch("/api/rotate-image", { method: "POST", body: formData });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "The image could not be processed.");
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const disposition = response.headers.get("content-disposition") || "";
-      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || "oriented-image.jpg";
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      link.click();
-      URL.revokeObjectURL(url);
+      await downloadConvertedFile({ endpoint: "/api/rotate-image", formData, fallbackFileName: "oriented-image.jpg" });
     } catch (downloadError) {
       setError(downloadError instanceof Error ? downloadError.message : "The image could not be processed.");
     } finally {

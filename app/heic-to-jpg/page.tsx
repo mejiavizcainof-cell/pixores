@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ImageUploader from "@/components/ImageUploader";
 import ToolSeo from "@/components/ToolSeo";
+import { downloadConvertedFile } from "@/lib/downloadConvertedFile";
 
 export default function HeicToJpgPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -23,21 +24,7 @@ export default function HeicToJpgPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/heic-to-jpg", {
-      method: "POST",
-      body: formData,
-    });
-
-    const blob = await response.blob();
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "converted.jpg";
-    link.click();
-
-    URL.revokeObjectURL(url);
+    await downloadConvertedFile({ endpoint: "/api/heic-to-jpg", formData, fallbackFileName: "converted.jpg" });
   };
 
   return (

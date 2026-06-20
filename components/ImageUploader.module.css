@@ -1,0 +1,25 @@
+.uploader {
+  margin-bottom: 30px;
+  padding: 38px 24px;
+  border: 2px dashed #2563eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.desktopPicker { display: block; cursor: pointer; }
+.icon { margin: 0 auto 14px; color: #2563eb; }
+.title { margin: 0 0 8px; color: #0f172a; font-size: 26px; font-weight: 800; }
+.description { margin: 0; color: #475569; font-size: 16px; }
+.formats { margin: 10px 0 0; color: #64748b; font-size: 13px; }
+.mobileActions { display: none; }
+.hiddenInput { display: none; }
+
+@media (max-width: 700px) {
+  .uploader { padding: 26px 16px; }
+  .desktopPicker { cursor: default; }
+  .title { font-size: 22px; }
+  .mobileActions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .action { min-height: 50px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #bfdbfe; border-radius: 8px; background: #fff; color: #1d4ed8; font-weight: 800; cursor: pointer; }
+  .cameraAction { border-color: #2563eb; background: #2563eb; color: #fff; }
+}
