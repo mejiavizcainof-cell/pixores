@@ -19,7 +19,7 @@ const content = {
     intro: "Remove an image background automatically and download a clean transparent PNG in seconds.",
     uploadTitle: "Choose an image to remove its background",
     button: "Remove Background & Download",
-    endpoint: "/api/remove-bg",
+    endpoint: "/api/ai-background-remover",
     fileName: "background-removed.png",
     seoTitle: "Remove Image Background Online",
     seoDescription: "Upload a photo and let Pixores isolate the main subject. The finished image downloads as a transparent PNG that is ready for product photos, thumbnails, profiles, and designs.",
@@ -97,6 +97,11 @@ export default function AiImageTool({ mode }: AiImageToolProps) {
         formData,
         fallbackFileName: copy.fileName,
         headers: { Authorization: `Bearer ${token}` },
+        timeoutMs: mode === "upscale" ? 100000 : 90000,
+        processingMessage: mode === "upscale" ? "Enhancing your image with AI..." : "Removing the background...",
+        processingHint: mode === "upscale"
+          ? "Large images and 4x enhancement can take up to 90 seconds."
+          : "This usually finishes in under a minute.",
       });
 
       if (!completed) setStatus("The image could not be processed. Check the message shown above and try again.");

@@ -1177,7 +1177,7 @@ if (!accessToken) {
   return;
 }
 
-const res = await fetch("/api/remove-bg", {
+const res = await fetch("/api/ai-background-remover", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",

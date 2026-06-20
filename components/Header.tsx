@@ -10,7 +10,7 @@ import styles from "./Header.module.css";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
-  { href: "/remove-background", label: "Remove BG" },
+  { href: "/remove-background", label: "AI Background Remover" },
   { href: "/image-upscaler", label: "Upscaler" },
   { href: "/templates", label: "Templates" },
   { href: "/thumbnail-creator", label: "Studio" },

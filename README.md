@@ -18,9 +18,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## AI image tools
 
-The Background Remover and Image Upscaler use Clipdrop from server-side route handlers. Add the following private environment variable locally and in Vercel:
+The Background Remover uses remove.bg and the Image Upscaler uses Clipdrop from server-side route handlers. Add both private environment variables locally and in Vercel:
 
 ```bash
+REMOVE_BG_API_KEY=your_remove_bg_api_key
 CLIPDROP_API_KEY=your_clipdrop_api_key
 ```
 

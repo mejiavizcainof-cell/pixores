@@ -8,6 +8,7 @@ type ProgressState = {
   progress: number;
   status: string;
   fileName: string;
+  hint?: string;
   error?: string;
   complete?: boolean;
 };
@@ -26,12 +27,18 @@ export default function ConversionProgressHost() {
     };
 
     const handleProgress = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { phase: string; fileName?: string; error?: string };
+      const detail = (event as CustomEvent).detail as { phase: string; fileName?: string; error?: string; status?: string; hint?: string };
 
       if (detail.phase === "start") {
         stopTimer();
         if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-        setState({ visible: true, progress: 8, status: "Uploading and converting...", fileName: detail.fileName || "Your image" });
+        setState({
+          visible: true,
+          progress: 8,
+          status: detail.status || "Uploading and converting...",
+          fileName: detail.fileName || "Your image",
+          hint: detail.hint,
+        });
         timerRef.current = setInterval(() => {
           setState((current) => ({ ...current, progress: Math.min(82, current.progress + Math.max(1, Math.round((82 - current.progress) / 7))) }));
         }, 420);
@@ -79,13 +86,18 @@ export default function ConversionProgressHost() {
         {state.complete ? <CheckCircle2 size={52} color="#10B981" style={{ margin: "0 auto 16px" }} /> : <LoaderCircle size={52} color={state.error ? "#DC2626" : "#2563EB"} style={{ margin: "0 auto 16px", animation: state.error ? "none" : "pixores-progress-spin 1s linear infinite" }} />}
         <h2 style={{ margin: "0 0 8px", color: "#0F172A", fontSize: "26px" }}>{state.status}</h2>
         <p style={{ margin: "0 0 22px", color: "#64748B", overflowWrap: "anywhere" }}>{state.fileName}</p>
+        {state.hint && !state.error && !state.complete && (
+          <p style={{ margin: "-10px 0 20px", color: "#475569", fontSize: "14px" }}>{state.hint}</p>
+        )}
 
         {!state.error && (
           <>
             <div style={{ height: "12px", overflow: "hidden", borderRadius: "999px", background: "#E2E8F0" }}>
               <div style={{ width: `${state.progress}%`, height: "100%", borderRadius: "inherit", background: state.complete ? "#10B981" : "#2563EB", transition: "width 280ms ease" }} />
             </div>
-            <strong style={{ display: "block", marginTop: "12px", color: "#0F172A", fontSize: "22px" }}>{state.progress}%</strong>
+            <strong style={{ display: "block", marginTop: "12px", color: "#0F172A", fontSize: "22px" }}>
+              {state.progress >= 82 && !state.complete ? "AI processing..." : `${state.progress}%`}
+            </strong>
           </>
         )}
 

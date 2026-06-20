@@ -31,43 +31,12 @@ export async function POST(request: NextRequest) {
     // 1. DETERMINAR EL TIPO DE CONTENIDO DE LA PETICIÓN
     const contentType = request.headers.get("content-type") || "";
 
-    // ==========================================
-    // FLUJO A: PETICIÓN JSON (HERRAMIENTA MÁGICA DE IA / REMOVE.BG)
-    // ==========================================
+    // Background removal now has a dedicated authenticated remove.bg endpoint.
     if (contentType.includes("application/json")) {
-      const body = await request.json();
-      const { imageBase64 } = body;
-
-      if (!imageBase64) {
-        return NextResponse.json({ success: false, error: "No se proporcionó imagen base64" }, { status: 400 });
-      }
-
-      const cleanBase64 = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
-
-      // Llamada oficial al servidor externo de remove.bg
-      const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-        method: "POST",
-        headers: {
-          "X-Api-Key": "fzTiz1R2Vehz1981YNqSFfsJ",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image_file_b64: cleanBase64,
-          size: "auto",
-          type: "auto",
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("Fallo remove.bg:", errText);
-        return NextResponse.json({ success: false, error: "La IA externa falló al recortar" }, { status: 502 });
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const base64Resultado = `data:image/png;base64,${Buffer.from(arrayBuffer).toString("base64")}`;
-
-      return NextResponse.json({ success: true, image: base64Resultado });
+      return NextResponse.json(
+        { success: false, error: "Use /api/ai-background-remover for AI background removal." },
+        { status: 410 },
+      );
     }
 
     // ==========================================

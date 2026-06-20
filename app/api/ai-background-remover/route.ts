@@ -4,9 +4,9 @@ export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
-function getClipdropKey() {
-  const key = process.env.CLIPDROP_API_KEY;
-  if (!key) throw new Error("CLIPDROP_API_KEY is not configured on the server.");
+function getRemoveBgKey() {
+  const key = process.env.REMOVE_BG_API_KEY;
+  if (!key) throw new Error("REMOVE_BG_API_KEY is not configured on the server.");
   return key;
 }
 
@@ -57,24 +57,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const clipdropForm = new FormData();
-    clipdropForm.append("image_file", new Blob([toArrayBuffer(imageBytes)], { type: mimeType }), fileName);
+    const removeBgForm = new FormData();
+    removeBgForm.append("image_file", new Blob([toArrayBuffer(imageBytes)], { type: mimeType }), fileName);
+    removeBgForm.append("size", "auto");
+    removeBgForm.append("format", "png");
 
-    const clipdropResponse = await fetch("https://clipdrop-api.co/remove-background/v1", {
+    const removeBgResponse = await fetch("https://api.remove.bg/v1.0/removebg", {
       method: "POST",
-      headers: { "x-api-key": getClipdropKey() },
-      body: clipdropForm,
+      headers: { "X-Api-Key": getRemoveBgKey() },
+      body: removeBgForm,
     });
 
-    if (!clipdropResponse.ok) {
-      const detail = await clipdropResponse.text();
+    if (!removeBgResponse.ok) {
+      const detail = await removeBgResponse.text();
       return Response.json(
-        { success: false, error: detail || "Clipdrop could not remove the background." },
-        { status: clipdropResponse.status },
+        { success: false, error: detail || "remove.bg could not remove the background." },
+        { status: removeBgResponse.status },
       );
     }
 
-    const result = Buffer.from(await clipdropResponse.arrayBuffer());
+    const result = Buffer.from(await removeBgResponse.arrayBuffer());
     const creditsRemaining = await consumeAiCredit(creditSession);
 
     if (wantsJson) {

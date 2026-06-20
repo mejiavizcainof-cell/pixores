@@ -60,11 +60,23 @@ export async function POST(request: Request) {
     clipdropForm.append("target_width", String(targetWidth));
     clipdropForm.append("target_height", String(targetHeight));
 
-    const clipdropResponse = await fetch("https://clipdrop-api.co/image-upscaling/v1/upscale", {
-      method: "POST",
-      headers: { "x-api-key": getClipdropKey() },
-      body: clipdropForm,
-    });
+    let clipdropResponse: Response;
+    try {
+      clipdropResponse = await fetch("https://clipdrop-api.co/image-upscaling/v1/upscale", {
+        method: "POST",
+        headers: { "x-api-key": getClipdropKey() },
+        body: clipdropForm,
+        signal: AbortSignal.timeout(90000),
+      });
+    } catch (error) {
+      if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+        return Response.json(
+          { success: false, error: "Clipdrop took longer than 90 seconds. Try a smaller image or 2x enhancement." },
+          { status: 504 },
+        );
+      }
+      throw error;
+    }
 
     if (!clipdropResponse.ok) {
       const detail = await clipdropResponse.text();
