@@ -389,6 +389,7 @@ export default function ThumbnailEditorV2() {
   const [canvasStrokeWidth, setCanvasStrokeWidth] = useState<number>(0);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false);
+  const [mobileViewport, setMobileViewport] = useState({ width: 390, height: 800 });
   const [undoStack, setUndoStack] = useState<Layer[][]>([]);
   const [redoStack, setRedoStack] = useState<Layer[][]>([]);
   
@@ -446,6 +447,16 @@ export default function ThumbnailEditorV2() {
   const textEditDraftRef = useRef<{ layerId: string | number; text: string; textHtml: string } | null>(null);
   const lastTextTouchRef = useRef<{ layerId: string | number | null; time: number }>({ layerId: null, time: 0 });
   const hasLoadedBrandAssetsRef = useRef(false);
+  const previousLayerCountRef = useRef(layers.length);
+
+  useEffect(() => {
+    const previousCount = previousLayerCountRef.current;
+    previousLayerCountRef.current = layers.length;
+
+    if (isMobileLayout && mobilePanel && layers.length > previousCount) {
+      setMobilePanel(null);
+    }
+  }, [layers.length, isMobileLayout, mobilePanel]);
 
   useEffect(() => {
     const draft = textEditDraftRef.current;
@@ -478,6 +489,9 @@ export default function ThumbnailEditorV2() {
   });
   const searchParams = useSearchParams();
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
+  const mobileCanvasDisplayWidth = mobilePanel
+    ? Math.max(150, Math.min(mobileViewport.width - 24, Math.max(120, mobileViewport.height * 0.6 - 170) * (canvasWidth / canvasHeight)))
+    : null;
 
   useEffect(() => {
     if (!selectedLayer || selectedLayer.type !== "text") {
@@ -883,6 +897,7 @@ useEffect(() => {
 useEffect(() => {
     const updateLayout = () => {
       setIsMobileLayout(window.innerWidth < 900);
+      setMobileViewport({ width: window.innerWidth, height: window.innerHeight });
     };
 
     updateLayout();
@@ -1256,6 +1271,7 @@ try {
     const file = e.target.files?.[0];
     if (!file) return;
     setPreview(URL.createObjectURL(file));
+    if (isMobileLayout) setMobilePanel(null);
   };
 
   const blobToDataUrl = (blob: Blob) => {
@@ -1458,6 +1474,7 @@ try {
     setPreview(asset.src);
     setBackgroundOpacity(1);
     setBackgroundBlur(0);
+    if (isMobileLayout) setMobilePanel(null);
   };
 
   const handleImportImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1495,6 +1512,7 @@ try {
         addImageToCanvas(fileObj, { offset: index, allowFrame: false });
       });
       e.target.value = "";
+      if (isMobileLayout) setMobilePanel(null);
       return;
     }
 
@@ -1502,6 +1520,7 @@ try {
       addImageToCanvas(fileObj, { offset: index, allowFrame: index === 0 });
     });
     e.target.value = "";
+    if (isMobileLayout) setMobilePanel(null);
   };
 const isImageFrame = (layer?: Layer) => {
   return (
@@ -2444,15 +2463,52 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     });
   };
 
-  const htmlWithColorRange = (text: string, start: number, end: number, color: string) => {
-    const safeStart = Math.max(0, Math.min(start, text.length));
-    const safeEnd = Math.max(safeStart, Math.min(end, text.length));
+  const htmlWithColorRange = (html: string, start: number, end: number, color: string) => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    const totalLength = wrapper.textContent?.length || 0;
+    const safeStart = Math.max(0, Math.min(start, totalLength));
+    const safeEnd = Math.max(safeStart, Math.min(end, totalLength));
+    if (safeStart === safeEnd) return wrapper.innerHTML;
 
-    return [
-      escapeTextHtml(text.slice(0, safeStart)),
-      `<span style="color: ${color};">${escapeTextHtml(text.slice(safeStart, safeEnd))}</span>`,
-      escapeTextHtml(text.slice(safeEnd)),
-    ].join("");
+    const findTextPosition = (offset: number, preferNextNode = false) => {
+      const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT);
+      let traversed = 0;
+      let lastNode: Text | null = null;
+
+      while (walker.nextNode()) {
+        const textNode = walker.currentNode as Text;
+        lastNode = textNode;
+        const nextOffset = traversed + textNode.data.length;
+        if (offset < nextOffset || (offset === nextOffset && !preferNextNode)) {
+          return { node: textNode, offset: Math.max(0, offset - traversed) };
+        }
+        traversed = nextOffset;
+      }
+
+      return lastNode ? { node: lastNode, offset: lastNode.data.length } : null;
+    };
+
+    const startPosition = findTextPosition(safeStart, true);
+    const endPosition = findTextPosition(safeEnd);
+    if (!startPosition || !endPosition) return wrapper.innerHTML;
+
+    const range = document.createRange();
+    range.setStart(startPosition.node, startPosition.offset);
+    range.setEnd(endPosition.node, endPosition.offset);
+    const selectedContent = range.extractContents();
+
+    selectedContent.querySelectorAll<HTMLElement>("[style]").forEach((element) => {
+      element.style.removeProperty("color");
+      if (!element.getAttribute("style")?.trim()) element.removeAttribute("style");
+    });
+
+    const colorSpan = document.createElement("span");
+    colorSpan.style.color = color;
+    colorSpan.appendChild(selectedContent);
+    range.insertNode(colorSpan);
+    wrapper.normalize();
+    return wrapper.innerHTML;
   };
 
   const htmlWithSelectionPreview = (text: string, start: number, end: number) => {
@@ -2508,7 +2564,8 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
     if (editableElement && offsets && offsets.end > offsets.start) {
       const plainText = editableElement.innerText || selectedLayer.text || "";
-      const textHtml = htmlWithColorRange(plainText, offsets.start, offsets.end, color);
+      const sourceHtml = stripSelectionPreviewHtml(editableElement.innerHTML || selectedLayer.textHtml || escapeTextHtml(plainText));
+      const textHtml = htmlWithColorRange(sourceHtml, offsets.start, offsets.end, color);
       updateSelectedLayer({
         text: plainText,
         textHtml,
@@ -3424,9 +3481,9 @@ const buyCredits = async (packageId: string) => {
 >
         
         {/* LEFT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "elements" || mobilePanel === "tools" ? "flex" : "none") : "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, top: isMobileLayout ? "62px" : undefined, maxHeight: isMobileLayout ? "calc(100dvh - 154px)" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 18px 45px rgba(15, 23, 42, 0.24)" : undefined, touchAction: isMobileLayout ? "pan-y" : undefined, WebkitOverflowScrolling: isMobileLayout ? "touch" : undefined, overscrollBehavior: isMobileLayout ? "contain" : undefined }}>
+        <aside style={{ background: "#FFFFFF", borderRight: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "elements" || mobilePanel === "tools" ? "flex" : "none") : "flex", flexDirection: "column", gap: "18px", minWidth: 0, order: isMobileLayout ? 1 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, bottom: isMobileLayout ? "84px" : undefined, maxHeight: isMobileLayout ? "40dvh" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 -14px 40px rgba(15, 23, 42, 0.2)" : undefined, touchAction: isMobileLayout ? "pan-y" : undefined, WebkitOverflowScrolling: isMobileLayout ? "touch" : undefined, overscrollBehavior: isMobileLayout ? "contain" : undefined }}>
           {isMobileLayout && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
+            <div style={{ position: "sticky", top: "-16px", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", margin: "-10px 0 0", padding: "10px 0", background: "#FFFFFF" }}>
               <strong style={{ fontSize: "14px", color: "#0F172A" }}>{mobilePanel === "elements" ? (mobileAssetSection === "uploads" ? "Uploads" : "Elements") : "Tools"}</strong>
               <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
             </div>
@@ -4102,7 +4159,7 @@ const buyCredits = async (packageId: string) => {
         </aside>
 
         {/* CENTER WORKSPACE */}
-        <section style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
+        <section style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
             <div style={{ position: isMobileLayout ? "static" : "fixed", top: isMobileLayout ? undefined : "78px", left: isMobileLayout ? undefined : "50%", transform: isMobileLayout ? undefined : "translateX(-50%)", zIndex: isMobileLayout ? undefined : 200, display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: "8px 10px", minHeight: "52px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.14)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: isMobileLayout ? "100%" : "calc(100vw - 56px)", overflowX: "auto", overscrollBehaviorX: "contain", touchAction: "pan-x", scrollbarWidth: "thin" }}>
@@ -4137,7 +4194,20 @@ const buyCredits = async (packageId: string) => {
               <label title="Text color" style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: "#FFFFFF", cursor: "pointer", display: "grid", placeItems: "center", fontWeight: 900, position: "relative" }}>
                 A
                 <span style={{ position: "absolute", bottom: "4px", width: "22px", height: "4px", borderRadius: "99px", background: activeTextColor || selectedLayer.color || "#000000" }} />
-                <input type="color" value={activeTextColor || normalizeColorToHex(selectedLayer.color) || "#000000"} onChange={(e) => applyColorToSelectedText(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
+                <input
+                  type="color"
+                  value={activeTextColor || normalizeColorToHex(selectedLayer.color) || "#000000"}
+                  onMouseDown={() => {
+                    const editableElement = getEditableTextElement(selectedLayer.id);
+                    if (editableElement) rememberTextSelection(selectedLayer.id, editableElement);
+                  }}
+                  onTouchStart={() => {
+                    const editableElement = getEditableTextElement(selectedLayer.id);
+                    if (editableElement) rememberTextSelection(selectedLayer.id, editableElement);
+                  }}
+                  onChange={(e) => applyColorToSelectedText(e.target.value)}
+                  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}
+                />
               </label>
 
               {[
@@ -4278,7 +4348,7 @@ const buyCredits = async (packageId: string) => {
   }}
   style={{
     position: "relative",
-    width: "100%",
+    width: isMobileLayout && mobileCanvasDisplayWidth ? `${mobileCanvasDisplayWidth}px` : "100%",
     maxWidth: isMobileLayout ? "100%" : "820px",
     aspectRatio: `${canvasWidth} / ${canvasHeight}`,
     backgroundColor: canvasBgColor,
@@ -4287,6 +4357,7 @@ const buyCredits = async (packageId: string) => {
     boxSizing: "border-box",
     boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
     overflow: "hidden",
+    transition: "width 180ms ease",
   }}
 >
             {preview && (
@@ -4994,9 +5065,9 @@ const buyCredits = async (packageId: string) => {
         </section>
 
         {/* RIGHT PROPERTY EDIT PANEL */}
-        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "edit" ? "flex" : "none") : "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, top: isMobileLayout ? "62px" : undefined, maxHeight: isMobileLayout ? "calc(100dvh - 154px)" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 18px 45px rgba(15, 23, 42, 0.24)" : undefined, touchAction: isMobileLayout ? "pan-y" : undefined, WebkitOverflowScrolling: isMobileLayout ? "touch" : undefined, overscrollBehavior: isMobileLayout ? "contain" : undefined }}>
+        <aside style={{ background: "#FFFFFF", borderLeft: isMobileLayout ? "none" : "1px solid #E2E8F0", borderTop: isMobileLayout ? "1px solid #E2E8F0" : "none", padding: isMobileLayout ? "16px" : "20px", overflowY: "auto", display: isMobileLayout ? (mobilePanel === "edit" ? "flex" : "none") : "flex", flexDirection: "column", gap: "14px", minWidth: 0, order: isMobileLayout ? 3 : 0, position: isMobileLayout ? "absolute" : "static", left: isMobileLayout ? 8 : undefined, right: isMobileLayout ? 8 : undefined, bottom: isMobileLayout ? "84px" : undefined, maxHeight: isMobileLayout ? "40dvh" : undefined, zIndex: isMobileLayout ? 2147483646 : undefined, borderRadius: isMobileLayout ? "16px" : undefined, boxShadow: isMobileLayout ? "0 -14px 40px rgba(15, 23, 42, 0.2)" : undefined, touchAction: isMobileLayout ? "pan-y" : undefined, WebkitOverflowScrolling: isMobileLayout ? "touch" : undefined, overscrollBehavior: isMobileLayout ? "contain" : undefined }}>
           {isMobileLayout && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "-2px" }}>
+            <div style={{ position: "sticky", top: "-16px", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", margin: "-10px 0 0", padding: "10px 0", background: "#FFFFFF" }}>
               <strong style={{ fontSize: "14px", color: "#0F172A" }}>Edit</strong>
               <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
             </div>
@@ -5517,18 +5588,9 @@ const buyCredits = async (packageId: string) => {
           )}
         </aside>
       </div>
-      {isMobileLayout && mobilePanel && (
-        <button
-          type="button"
-          aria-label="Close mobile panel"
-          onClick={() => setMobilePanel(null)}
-          style={{ position: "fixed", inset: "56px 0 76px", background: "rgba(15, 23, 42, 0.28)", border: "none", padding: 0, zIndex: 2147483645 }}
-        />
-      )}
-
       {isMobileLayout && mobilePanel === "export" && (
-        <aside style={{ position: "absolute", left: "8px", right: "8px", top: "62px", maxHeight: "calc(100dvh - 154px)", overflowY: "auto", background: "#FFFFFF", borderRadius: "16px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.24)", padding: "16px", zIndex: 2147483646, display: "flex", flexDirection: "column", gap: "12px", touchAction: "pan-y", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <aside style={{ position: "absolute", left: "8px", right: "8px", bottom: "84px", maxHeight: "40dvh", overflowY: "auto", background: "#FFFFFF", borderRadius: "16px", boxShadow: "0 -14px 40px rgba(15, 23, 42, 0.2)", padding: "16px", zIndex: 2147483646, display: "flex", flexDirection: "column", gap: "12px", touchAction: "pan-y", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
+          <div style={{ position: "sticky", top: "-16px", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", margin: "-10px 0 0", padding: "10px 0", background: "#FFFFFF" }}>
             <strong style={{ fontSize: "14px", color: "#0F172A" }}>Export</strong>
             <button type="button" onClick={() => setMobilePanel(null)} style={{ width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>x</button>
           </div>
