@@ -12,6 +12,8 @@ const navItems = [
   { href: "/tools", label: "Tools" },
   { href: "/remove-background", label: "AI Background Remover" },
   { href: "/image-upscaler", label: "Upscaler" },
+  { href: "/crop-image", label: "Crop Image" },
+  { href: "/watermark-image", label: "Watermark" },
   { href: "/templates", label: "Templates" },
   { href: "/thumbnail-creator", label: "Studio" },
   { href: "/blog", label: "Blog" },

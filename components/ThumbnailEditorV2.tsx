@@ -1,6 +1,6 @@
 "use client";
 import { supabase } from "@/lib/supabaseClient";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { getFontEmbedCSS, toPng } from "html-to-image";
 import html2canvas from "html2canvas";
@@ -283,6 +283,17 @@ const PRESET_SIZES = {
   custom: { name: "Custom Size", width: 1080, height: 990 }
 };
 
+const getPresetForDimensions = (width: number, height: number): keyof typeof PRESET_SIZES => {
+  const match = (Object.entries(PRESET_SIZES) as Array<[keyof typeof PRESET_SIZES, { width: number; height: number }]>)
+    .find(([key, size]) => key !== "custom" && size.width === width && size.height === height);
+  return match?.[0] || "custom";
+};
+
+const getAdminTemplateSourceId = (asset?: AdminAsset | null) => {
+  const sourceTemplateId = asset?.metadata?.sourceTemplateId;
+  return typeof sourceTemplateId === "string" ? sourceTemplateId : null;
+};
+
 const FONT_GROUPS = [
   {
     label: "Popular",
@@ -400,6 +411,9 @@ export default function ThumbnailEditorV2() {
   const [visibleBackgroundCount, setVisibleBackgroundCount] = useState<number>(BACKGROUND_VISIBLE_STEP);
   const [isLoadingBackgrounds, setIsLoadingBackgrounds] = useState<boolean>(false);
   const [adminAssets, setAdminAssets] = useState<AdminAsset[]>([]);
+  const [adminAssetsLoaded, setAdminAssetsLoaded] = useState(false);
+  const [currentTemplateAssetId, setCurrentTemplateAssetId] = useState<string | null>(null);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
   const [currentPreset, setCurrentPreset] = useState<keyof typeof PRESET_SIZES>("youtube");
   const [canvasWidth, setCanvasWidth] = useState<number>(1280);
@@ -437,7 +451,10 @@ export default function ThumbnailEditorV2() {
   }, [layers]);
 
   const [selectedLayerId, setSelectedLayerId] = useState<string | number | null>(null);
+  const [workspaceScale, setWorkspaceScale] = useState(1);
+  const [centerWorkspaceSize, setCenterWorkspaceSize] = useState({ width: 0, height: 0 });
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const centerWorkspaceRef = useRef<HTMLElement>(null);
   const uploadsSectionRef = useRef<HTMLLabelElement>(null);
   const initialDragOffset = useRef({ x: 0, y: 0 });
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -445,8 +462,10 @@ export default function ThumbnailEditorV2() {
   const lastHistorySnapshotRef = useRef<string>("[]");
   const savedTextSelectionRef = useRef<{ layerId: string | number; start: number; end: number } | null>(null);
   const textEditDraftRef = useRef<{ layerId: string | number; text: string; textHtml: string } | null>(null);
+  const pendingTextEditRef = useRef<{ layerId: string | number; text: string; html: string; selectAll: boolean } | null>(null);
   const lastTextTouchRef = useRef<{ layerId: string | number | null; time: number }>({ layerId: null, time: 0 });
   const hasLoadedBrandAssetsRef = useRef(false);
+  const loadedTemplateIdRef = useRef<string | null>(null);
   const previousLayerCountRef = useRef(layers.length);
 
   useEffect(() => {
@@ -492,6 +511,62 @@ export default function ThumbnailEditorV2() {
   const mobileCanvasDisplayWidth = mobilePanel
     ? Math.max(150, Math.min(mobileViewport.width - 24, Math.max(120, mobileViewport.height * 0.6 - 170) * (canvasWidth / canvasHeight)))
     : null;
+  const canvasAspectRatio = canvasWidth / canvasHeight;
+  const fittedCanvasDisplayWidth = centerWorkspaceSize.width && centerWorkspaceSize.height
+    ? Math.max(
+        120,
+        Math.min(
+          isMobileLayout ? centerWorkspaceSize.width - 24 : 820,
+          centerWorkspaceSize.width - (isMobileLayout ? 24 : 60),
+          Math.max(120, centerWorkspaceSize.height - (isMobileLayout ? 150 : 155)) * canvasAspectRatio,
+          mobileCanvasDisplayWidth || Number.POSITIVE_INFINITY,
+        ),
+      )
+    : mobileCanvasDisplayWidth;
+
+  useEffect(() => {
+    const centerWorkspace = centerWorkspaceRef.current;
+    if (!centerWorkspace || !isClientMounted) return;
+
+    const updateCenterWorkspaceSize = () => {
+      setCenterWorkspaceSize({
+        width: centerWorkspace.clientWidth,
+        height: centerWorkspace.clientHeight,
+      });
+    };
+
+    updateCenterWorkspaceSize();
+    const observer = new ResizeObserver(updateCenterWorkspaceSize);
+    observer.observe(centerWorkspace);
+    window.addEventListener("resize", updateCenterWorkspaceSize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateCenterWorkspaceSize);
+    };
+  }, [isClientMounted, isMobileLayout]);
+
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    const updateWorkspaceScale = () => {
+      const width = workspace.clientWidth;
+      const height = workspace.clientHeight;
+      if (!width || !height) return;
+      setWorkspaceScale(Math.max(0.05, Math.min(width / canvasWidth, height / canvasHeight)));
+    };
+
+    updateWorkspaceScale();
+    const observer = new ResizeObserver(updateWorkspaceScale);
+    observer.observe(workspace);
+    window.addEventListener("resize", updateWorkspaceScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateWorkspaceScale);
+    };
+  }, [isClientMounted, canvasWidth, canvasHeight, isMobileLayout, mobileCanvasDisplayWidth]);
 
   useEffect(() => {
     if (!selectedLayer || selectedLayer.type !== "text") {
@@ -670,6 +745,8 @@ export default function ThumbnailEditorV2() {
         }
       } catch (error) {
         console.error("Unable to load admin assets:", error);
+      } finally {
+        if (!cancelled) setAdminAssetsLoaded(true);
       }
     };
 
@@ -724,15 +801,24 @@ export default function ThumbnailEditorV2() {
     const templateId = searchParams.get("template");
 
     if (!templateId) return;
+    if (!adminAssetsLoaded) return;
+    if (loadedTemplateIdRef.current === templateId) return;
 
     const publicTemplate = adminAssets.find(
       (asset) => asset.category === "templates" && asset.id === templateId
+    ) || adminAssets.find(
+      (asset) => asset.category === "templates" && getAdminTemplateSourceId(asset) === templateId
     );
     const templateData = publicTemplate?.metadata?.templateData as EditableTemplateData | undefined;
 
     if (templateData?.layers?.length) {
-      setCanvasWidth(templateData.canvasWidth || 1280);
-      setCanvasHeight(templateData.canvasHeight || 720);
+      const templateWidth = templateData.canvasWidth || 1280;
+      const templateHeight = templateData.canvasHeight || 720;
+      loadedTemplateIdRef.current = templateId;
+      setCurrentTemplateAssetId(publicTemplate?.id || null);
+      setCurrentPreset(getPresetForDimensions(templateWidth, templateHeight));
+      setCanvasWidth(templateWidth);
+      setCanvasHeight(templateHeight);
       setCanvasBgColor(templateData.canvasBgColor || "#FFFFFF");
       setCanvasStrokeColor(templateData.canvasStrokeColor || "#0F172A");
       setCanvasStrokeWidth(templateData.canvasStrokeWidth || 0);
@@ -746,11 +832,20 @@ export default function ThumbnailEditorV2() {
 
     if (!template) return;
 
+    loadedTemplateIdRef.current = templateId;
+    setCurrentTemplateAssetId(null);
+    setCurrentPreset(getPresetForDimensions(template.width, template.height));
     setCanvasWidth(template.width);
     setCanvasHeight(template.height);
     setCanvasBgColor(template.canvas.background || "#FFFFFF");
 
-    const loadedLayers: Layer[] = template.canvas.elements.map((element: any, index: number) => {
+    const templateBackground = template.canvas.elements.find(
+      (element: any) => element.type === "image" && element.isLocked && /background/i.test(element.name || ""),
+    ) as any;
+    setPreview(templateBackground?.src || null);
+
+    const editableTemplateElements = template.canvas.elements.filter((element: any) => element !== templateBackground);
+    const loadedLayers: Layer[] = editableTemplateElements.map((element: any, index: number) => {
       const baseLayer = {
         id: `template-${index}`,
         type: element.type,
@@ -759,6 +854,7 @@ export default function ThumbnailEditorV2() {
         y: element.y,
         opacity: element.opacity ?? 1,
         angle: element.angle ?? 0,
+        isLocked: element.isLocked ?? false,
       };
 
       if (element.type === "text") {
@@ -767,6 +863,7 @@ export default function ThumbnailEditorV2() {
           type: "text",
           text: element.text,
           fontSize: element.fontSize || 80,
+          width: element.width,
           color: element.color || "#ffffff",
           fontFamily: element.fontFamily || "Impact",
           strokeColor: element.strokeColor || "#000000",
@@ -820,6 +917,7 @@ export default function ThumbnailEditorV2() {
         width: element.width || 200,
         height: element.height || 200,
         color: element.color || "#3B82F6",
+        borderRadius: element.borderRadius ?? 8,
         shadowColor: "#000000",
         shadowBlur: element.shadowBlur ?? 0,
         shadowOffsetX: 0,
@@ -828,8 +926,13 @@ export default function ThumbnailEditorV2() {
     });
 
     setLayers(loadedLayers);
-    setSelectedLayerId(loadedLayers[0]?.id || null);
-  }, [searchParams, adminAssets]);
+    setSelectedLayerId(
+      loadedLayers.find((layer) => layer.type === "text" && !layer.isLocked)?.id
+        || loadedLayers.find((layer) => !layer.isLocked)?.id
+        || loadedLayers[0]?.id
+        || null,
+    );
+  }, [searchParams, adminAssets, adminAssetsLoaded]);
 
 useEffect(() => {
   const handlePaste = (event: ClipboardEvent) => {
@@ -1028,6 +1131,8 @@ useEffect(() => {
     if ("touches" in e && e.cancelable) e.preventDefault();
     const deltaX = clientX - resizeState.mouseX;
     const deltaY = clientY - resizeState.mouseY;
+    const designDeltaX = deltaX / Math.max(workspaceScale, 0.05);
+    const designDeltaY = deltaY / Math.max(workspaceScale, 0.05);
 
     setLayers((prevLayers) =>
       prevLayers.map((layer) => {
@@ -1046,22 +1151,22 @@ useEffect(() => {
          if (isCropMode && layer.type === "image") {
   const newCropTop = Math.max(
     0,
-    resizeState.initialCropTop + (resizeState.corner?.includes("top") ? deltaY : 0)
+    resizeState.initialCropTop + (resizeState.corner?.includes("top") ? designDeltaY : 0)
   );
 
   const newCropBottom = Math.max(
     0,
-    resizeState.initialCropBottom + (resizeState.corner?.includes("bottom") ? -deltaY : 0)
+    resizeState.initialCropBottom + (resizeState.corner?.includes("bottom") ? -designDeltaY : 0)
   );
 
   const newCropLeft = Math.max(
     0,
-    resizeState.initialCropLeft + (resizeState.corner?.includes("Left") ? deltaX : 0)
+    resizeState.initialCropLeft + (resizeState.corner?.includes("Left") ? designDeltaX : 0)
   );
 
   const newCropRight = Math.max(
     0,
-    resizeState.initialCropRight + (resizeState.corner?.includes("Right") ? -deltaX : 0)
+    resizeState.initialCropRight + (resizeState.corner?.includes("Right") ? -designDeltaX : 0)
   );
 
   return {
@@ -1087,21 +1192,21 @@ useEffect(() => {
           const affectsBottom = resizeState.corner === "bottomLeft" || resizeState.corner === "bottomRight";
 
           if (layer.type === "text") {
-            const horizontalDelta = affectsLeft ? -deltaX : affectsRight ? deltaX : 0;
-            const verticalDelta = affectsTop ? -deltaY : affectsBottom ? deltaY : 0;
+            const horizontalDelta = affectsLeft ? -designDeltaX : affectsRight ? designDeltaX : 0;
+            const verticalDelta = affectsTop ? -designDeltaY : affectsBottom ? designDeltaY : 0;
             const hasTextBox = Boolean(layer.width);
             newWidth = Math.max(40, Math.round((hasTextBox ? resizeState.initialWidth : Math.max(resizeState.initialWidth, 220)) + horizontalDelta));
             newFontSize = Math.max(8, Math.round(resizeState.initialFontSize + verticalDelta / 2));
             const widthChange = newWidth - (hasTextBox ? resizeState.initialWidth : Math.max(resizeState.initialWidth, 220));
             const xShiftPx = affectsLeft ? -widthChange / 2 : affectsRight ? widthChange / 2 : 0;
-            newX = Math.max(0, Math.min(100, resizeState.initialX + (xShiftPx / rect.width) * 100));
+            newX = Math.max(0, Math.min(100, resizeState.initialX + (xShiftPx / canvasWidth) * 100));
             return { ...layer, width: newWidth, fontSize: newFontSize, x: newX };
           }
 
-          if (affectsLeft) newWidth = resizeState.initialWidth - deltaX;
-          if (affectsRight) newWidth = resizeState.initialWidth + deltaX;
-          if (affectsTop) newHeight = resizeState.initialHeight - deltaY;
-          if (affectsBottom) newHeight = resizeState.initialHeight + deltaY;
+          if (affectsLeft) newWidth = resizeState.initialWidth - designDeltaX;
+          if (affectsRight) newWidth = resizeState.initialWidth + designDeltaX;
+          if (affectsTop) newHeight = resizeState.initialHeight - designDeltaY;
+          if (affectsBottom) newHeight = resizeState.initialHeight + designDeltaY;
 
           newWidth = Math.max(20, Math.round(newWidth));
           newHeight = Math.max(20, Math.round(newHeight));
@@ -1111,8 +1216,8 @@ useEffect(() => {
           const xShiftPx = affectsLeft ? -widthChange / 2 : affectsRight ? widthChange / 2 : 0;
           const yShiftPx = affectsTop ? -heightChange / 2 : affectsBottom ? heightChange / 2 : 0;
 
-          newX = Math.max(0, Math.min(100, resizeState.initialX + (xShiftPx / rect.width) * 100));
-          newY = Math.max(0, Math.min(100, resizeState.initialY + (yShiftPx / rect.height) * 100));
+          newX = Math.max(0, Math.min(100, resizeState.initialX + (xShiftPx / canvasWidth) * 100));
+          newY = Math.max(0, Math.min(100, resizeState.initialY + (yShiftPx / canvasHeight) * 100));
           
           return { ...layer, width: newWidth, height: newHeight, fontSize: newFontSize, x: newX, y: newY };
         }
@@ -1148,7 +1253,7 @@ useEffect(() => {
     window.removeEventListener("mouseup", handleGlobalRelease);
     window.removeEventListener("touchend", handleGlobalRelease);
   };
-}, [draggingLayerId, resizeState, selectedLayerId, isCropMode]);
+}, [draggingLayerId, resizeState, selectedLayerId, isCropMode, workspaceScale, canvasWidth, canvasHeight]);
 
 const handleRemoveBackgroundAI = async (layer: Layer) => {
   if (layer.type !== "image" || !layer.src) return;
@@ -2411,8 +2516,18 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
   const beginTextEditing = (layerId: string | number, selectAll = false) => {
     const currentElement = getEditableTextElement(layerId);
-    const preservedText = currentElement?.innerText || "";
-    const preservedHtml = currentElement ? stripSelectionPreviewHtml(currentElement.innerHTML) : "";
+    const currentLayer = layers.find((layer) => layer.id === layerId);
+    const preservedText = currentElement?.innerText || currentLayer?.text || "";
+    const preservedHtml = currentElement?.innerHTML
+      ? stripSelectionPreviewHtml(currentElement.innerHTML)
+      : currentLayer?.textHtml || (currentLayer ? getTextLayerHtml(currentLayer) : "");
+
+    pendingTextEditRef.current = {
+      layerId,
+      text: preservedText,
+      html: preservedHtml,
+      selectAll,
+    };
 
     setSelectedLayerId(layerId);
     setDraggingLayerId(null);
@@ -2438,30 +2553,47 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       };
     }
 
-    requestAnimationFrame(() => {
-      const editableElement = getEditableTextElement(layerId);
-      if (!editableElement) return;
-
-      if (!editableElement.innerHTML && preservedHtml) {
-        editableElement.innerHTML = preservedHtml;
-      }
-      editableElement.focus();
-
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(editableElement);
-      if (!selectAll) range.collapse(false);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      const selectionColor = getTextColorAtSelection(editableElement);
-      if (selectionColor) setActiveTextColor(selectionColor);
-
-      if (selectAll) {
-        const text = editableElement.innerText || "";
-        savedTextSelectionRef.current = { layerId, start: 0, end: text.length };
-      }
-    });
   };
+
+  useLayoutEffect(() => {
+    const pending = pendingTextEditRef.current;
+    if (!pending || editingTextLayerId !== pending.layerId) return;
+
+    const editableElement = getEditableTextElement(pending.layerId);
+    if (!editableElement) return;
+
+    if (editableElement.innerHTML !== pending.html) {
+      editableElement.innerHTML = pending.html;
+    }
+    if (!editableElement.innerHTML && pending.text) {
+      editableElement.textContent = pending.text;
+    }
+
+    editableElement.setAttribute("contenteditable", "true");
+    editableElement.focus();
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editableElement);
+    if (!pending.selectAll) range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const selectionColor = getTextColorAtSelection(editableElement);
+    if (selectionColor) setActiveTextColor(selectionColor);
+
+    if (pending.selectAll) {
+      const text = editableElement.innerText || "";
+      savedTextSelectionRef.current = { layerId: pending.layerId, start: 0, end: text.length };
+    }
+
+    textEditDraftRef.current = {
+      layerId: pending.layerId,
+      text: editableElement.innerText || pending.text,
+      textHtml: stripSelectionPreviewHtml(editableElement.innerHTML),
+    };
+    pendingTextEditRef.current = null;
+  }, [editingTextLayerId]);
 
   const htmlWithColorRange = (html: string, start: number, end: number, color: string) => {
     const wrapper = document.createElement("div");
@@ -2756,6 +2888,97 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
     setAdminAssets((prev) => [data.asset, ...prev]);
     alert("Public template saved successfully.");
+  };
+
+  const updatePublicTemplate = async () => {
+    if (!isAdmin) {
+      alert("Admin access is required to update templates.");
+      return;
+    }
+
+    const openedTemplateId = searchParams.get("template");
+    if (!openedTemplateId) {
+      alert("Open a template before updating it.");
+      return;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      alert("Please login first.");
+      return;
+    }
+
+    const staticTemplate = templates.find((template) => template.id === openedTemplateId);
+    const existingAsset = adminAssets.find((asset) => asset.id === currentTemplateAssetId)
+      || adminAssets.find((asset) => asset.id === openedTemplateId)
+      || adminAssets.find((asset) => getAdminTemplateSourceId(asset) === openedTemplateId);
+    const existingMetadata = existingAsset?.metadata || {};
+    const existingCategory = existingMetadata.templateCategory;
+    const templateName = existingAsset?.name || staticTemplate?.name || "Pixores Template";
+    const templateCategory = typeof existingCategory === "string"
+      ? existingCategory
+      : staticTemplate?.category || "Pixores";
+
+    setIsSavingTemplate(true);
+
+    try {
+      const thumbnail = await createProjectThumbnail();
+      if (!thumbnail) throw new Error("Template preview could not be generated.");
+
+      const templateData: EditableTemplateData = {
+        canvasWidth,
+        canvasHeight,
+        canvasBgColor,
+        canvasStrokeColor,
+        canvasStrokeWidth,
+        preview,
+        layers,
+      };
+      const sourceTemplateId = getAdminTemplateSourceId(existingAsset)
+        || staticTemplate?.id
+        || null;
+      const metadata = {
+        ...existingMetadata,
+        assetType: "template",
+        templateCategory,
+        templateData,
+        ...(sourceTemplateId ? { sourceTemplateId } : {}),
+      };
+      const formData = new FormData();
+      formData.set("category", "templates");
+      formData.set("name", templateName);
+      formData.set("alt_text", existingAsset?.alt_text || `${templateName} editable Pixores template`);
+      formData.set("tags", existingAsset?.tags?.join(",") || templateCategory);
+      formData.set("is_published", String(existingAsset?.is_published ?? true));
+      formData.set("sort_order", String(existingAsset?.sort_order ?? 0));
+      formData.set("metadata", JSON.stringify(metadata));
+      formData.set("file", await dataUrlToFile(
+        thumbnail,
+        `${templateName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-preview.png`,
+      ));
+
+      const response = await fetch(
+        existingAsset ? `/api/admin/assets?id=${existingAsset.id}` : "/api/admin/assets",
+        {
+          method: existingAsset ? "PATCH" : "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Template could not be updated.");
+
+      setAdminAssets((currentAssets) => existingAsset
+        ? currentAssets.map((asset) => asset.id === data.asset.id ? data.asset : asset)
+        : [data.asset, ...currentAssets]);
+      setCurrentTemplateAssetId(data.asset.id);
+      alert(existingAsset ? "Public template updated successfully." : "Template is now editable and saved publicly.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Template could not be updated.");
+    } finally {
+      setIsSavingTemplate(false);
+    }
   };
 
   const updateProject = async () => {
@@ -3113,7 +3336,16 @@ const buyCredits = async (packageId: string) => {
             <button onClick={saveProject} style={{ padding: "8px 11px", background: "#2563EB", color: "#FFFFFF", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Save</button>
             <button onClick={updateProject} disabled={!currentProjectId} style={{ padding: "8px 11px", background: currentProjectId ? "#FFFFFF" : "#F1F5F9", color: currentProjectId ? "#334155" : "#94A3B8", border: "none", borderRadius: "9px", fontWeight: 800, cursor: currentProjectId ? "pointer" : "not-allowed", fontSize: "13px" }}>Update</button>
             <button onClick={loadMyProjects} style={{ padding: "8px 11px", background: "#FFFFFF", color: "#334155", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Projects</button>
-            {isAdmin && <button onClick={saveAsPublicTemplate} style={{ padding: "8px 11px", background: "#F5F3FF", color: "#6D28D9", border: "none", borderRadius: "9px", fontWeight: 850, cursor: "pointer", fontSize: "13px" }}>Template</button>}
+            {isAdmin && searchParams.get("template") && (
+              <button
+                onClick={updatePublicTemplate}
+                disabled={isSavingTemplate}
+                style={{ padding: "8px 11px", background: "#EDE9FE", color: "#6D28D9", border: "none", borderRadius: "9px", fontWeight: 850, cursor: isSavingTemplate ? "wait" : "pointer", fontSize: "13px" }}
+              >
+                {isSavingTemplate ? "Saving..." : currentTemplateAssetId ? "Update Template" : "Save Template Changes"}
+              </button>
+            )}
+            {isAdmin && <button onClick={saveAsPublicTemplate} style={{ padding: "8px 11px", background: "#F8FAFC", color: "#475569", border: "none", borderRadius: "9px", fontWeight: 850, cursor: "pointer", fontSize: "13px" }}>New Template</button>}
           </div>
 
           <div style={{ position: "relative" }}>
@@ -4159,7 +4391,7 @@ const buyCredits = async (packageId: string) => {
         </aside>
 
         {/* CENTER WORKSPACE */}
-        <section style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
+        <section ref={centerWorkspaceRef} style={{ display: "flex", flexDirection: "column", justifyContent: isMobileLayout ? "flex-start" : "center", alignItems: "center", overflow: "auto", padding: isMobileLayout ? "14px 12px 92px" : "30px", background: "#F8FAFC", minWidth: 0, minHeight: 0, order: isMobileLayout ? 0 : 0 }}>
           {/* FLOATING ACTION BAR */}
           {selectedLayer && selectedLayer.type === "text" ? (
             <div style={{ position: isMobileLayout ? "static" : "fixed", top: isMobileLayout ? undefined : "78px", left: isMobileLayout ? undefined : "50%", transform: isMobileLayout ? undefined : "translateX(-50%)", zIndex: isMobileLayout ? undefined : 200, display: "flex", alignItems: "center", gap: "10px", background: "#FFFFFF", padding: "8px 10px", minHeight: "52px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.14)", border: "1px solid #E2E8F0", marginBottom: "12px", maxWidth: isMobileLayout ? "100%" : "calc(100vw - 56px)", overflowX: "auto", overscrollBehaviorX: "contain", touchAction: "pan-x", scrollbarWidth: "thin" }}>
@@ -4348,8 +4580,9 @@ const buyCredits = async (packageId: string) => {
   }}
   style={{
     position: "relative",
-    width: isMobileLayout && mobileCanvasDisplayWidth ? `${mobileCanvasDisplayWidth}px` : "100%",
+    width: fittedCanvasDisplayWidth ? `${fittedCanvasDisplayWidth}px` : (isMobileLayout && mobileCanvasDisplayWidth ? `${mobileCanvasDisplayWidth}px` : "100%"),
     maxWidth: isMobileLayout ? "100%" : "820px",
+    flexShrink: 0,
     aspectRatio: `${canvasWidth} / ${canvasHeight}`,
     backgroundColor: canvasBgColor,
     border: canvasStrokeWidth > 0 ? `${canvasStrokeWidth}px solid ${canvasStrokeColor}` : "none",
@@ -4379,6 +4612,18 @@ const buyCredits = async (packageId: string) => {
               />
             )}
 
+            <div
+              data-canvas-design-surface="true"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: `${canvasWidth}px`,
+                height: `${canvasHeight}px`,
+                transform: `scale(${workspaceScale})`,
+                transformOrigin: "top left",
+              }}
+            >
             {layers.map((layer, index) => {
               const isSelected = selectedLayerId === layer.id;
               
@@ -4496,7 +4741,11 @@ const buyCredits = async (packageId: string) => {
                     userSelect: "none",
                     cursor: layer.isLocked ? "not-allowed" : isCropMode ? "default" : (draggingLayerId === layer.id ? "grabbing" : "move"),
                     padding: "4px",
-                    outline: !isExporting && isSelected ? (isCropMode ? "2px dashed #000" : "2px solid #3B82F6") : "none",
+                    outline: !isExporting && isSelected
+                      ? (isCropMode
+                        ? `${2 / workspaceScale}px dashed #000`
+                        : `${2 / workspaceScale}px solid #3B82F6`)
+                      : "none",
                     zIndex: !isExporting && isSelected ? 100 : index + 10, 
                     display: "flex",
                     whiteSpace: layer.type === "text" ? "pre-wrap" : "nowrap",
@@ -4518,7 +4767,7 @@ const buyCredits = async (packageId: string) => {
     }}
     onClick={(e) => {
       e.stopPropagation();
-      if (editingTextLayerId !== layer.id) beginTextEditing(layer.id, false);
+      setSelectedLayerId(layer.id);
     }}
     onMouseDown={(e) => {
       if (editingTextLayerId === layer.id) {
@@ -4533,7 +4782,7 @@ const buyCredits = async (packageId: string) => {
         currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
       )));
       if (textEditDraftRef.current?.layerId === layer.id) textEditDraftRef.current = null;
-      setEditingTextLayerId(null);
+      setEditingTextLayerId((currentId) => currentId === layer.id ? null : currentId);
       setTextSelectionPreview(null);
     }}
     onInput={(e) => {
@@ -4994,10 +5243,12 @@ const buyCredits = async (packageId: string) => {
           cursor: item.cursor,
           zIndex: 15,
           touchAction: "none", // ¡CRUCIAL PARA TÁCTIL!
-          ...(item.corner === "topLeft" ? { top: "-5px", left: "-5px" } : {}),
-          ...(item.corner === "topRight" ? { top: "-5px", right: "-5px" } : {}),
-          ...(item.corner === "bottomLeft" ? { bottom: "-5px", left: "-5px" } : {}),
-          ...(item.corner === "bottomRight" ? { bottom: "-5px", right: "-5px" } : {})
+          transform: `scale(${1 / workspaceScale})`,
+          transformOrigin: "center",
+          ...(item.corner === "topLeft" ? { top: `${-5 / workspaceScale}px`, left: `${-5 / workspaceScale}px` } : {}),
+          ...(item.corner === "topRight" ? { top: `${-5 / workspaceScale}px`, right: `${-5 / workspaceScale}px` } : {}),
+          ...(item.corner === "bottomLeft" ? { bottom: `${-5 / workspaceScale}px`, left: `${-5 / workspaceScale}px` } : {}),
+          ...(item.corner === "bottomRight" ? { bottom: `${-5 / workspaceScale}px`, right: `${-5 / workspaceScale}px` } : {})
         }}
       />
     ))}
@@ -5013,9 +5264,10 @@ const buyCredits = async (packageId: string) => {
         }}
         style={{
           position: "absolute",
-          bottom: "-30px",
+          bottom: `${-30 / workspaceScale}px`,
           left: "50%",
-          transform: "translateX(-50%)",
+          transform: `translateX(-50%) scale(${1 / workspaceScale})`,
+          transformOrigin: "top center",
           width: "24px",
           height: "24px",
           background: "#FFFFFF",
@@ -5039,8 +5291,8 @@ const buyCredits = async (packageId: string) => {
   <div
     style={{
       position: "absolute",
-      top: "-12px",
-      right: "-12px",
+      top: `${-12 / workspaceScale}px`,
+      right: `${-12 / workspaceScale}px`,
       width: "24px",
       height: "24px",
       borderRadius: "999px",
@@ -5053,6 +5305,8 @@ const buyCredits = async (packageId: string) => {
       boxShadow: "0 4px 10px rgba(15,23,42,0.24)",
       pointerEvents: "none",
       zIndex: 25,
+      transform: `scale(${1 / workspaceScale})`,
+      transformOrigin: "center",
     }}
   >
     🔒
@@ -5061,6 +5315,7 @@ const buyCredits = async (packageId: string) => {
                 </div>
               );
             })}
+            </div>
           </div>
         </section>
 
@@ -5608,9 +5863,16 @@ const buyCredits = async (packageId: string) => {
           </div>
 
           {isAdmin && (
-            <button onClick={saveAsPublicTemplate} style={{ padding: "12px 10px", background: "#7C3AED", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>
-              Save as Public Template
-            </button>
+            <>
+              {searchParams.get("template") && (
+                <button disabled={isSavingTemplate} onClick={updatePublicTemplate} style={{ padding: "12px 10px", background: "#7C3AED", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isSavingTemplate ? "wait" : "pointer" }}>
+                  {isSavingTemplate ? "Saving..." : currentTemplateAssetId ? "Update Public Template" : "Save Template Changes"}
+                </button>
+              )}
+              <button onClick={saveAsPublicTemplate} style={{ padding: "12px 10px", background: "#475569", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>
+                Save as New Public Template
+              </button>
+            </>
           )}
 
           <button disabled={isExporting} onClick={() => downloadJPG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#F59E0B", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>

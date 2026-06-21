@@ -65,6 +65,28 @@ export default function Footer() {
         </a>
 
         <a
+          href="/crop-image"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Crop Image
+        </a>
+
+        <a
+          href="/watermark-image"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Add Watermark
+        </a>
+
+        <a
           href="/faq"
           style={{
             color: COLORS.text,

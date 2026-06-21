@@ -15,6 +15,8 @@ export default function Home() {
   const tools = [
     { icon: "BG", title: "AI Background Remover", description: "Remove backgrounds and download a transparent PNG.", link: "/remove-background", color: "#DBEAFE" },
     { icon: "2x", title: "AI Image Upscaler", description: "Increase image resolution with AI enhancement.", link: "/image-upscaler", color: "#EDE9FE" },
+    { icon: "CR", title: "Crop Image", description: "Crop photos with exact pixel controls and full-quality downloads.", link: "/crop-image", color: "#DBEAFE" },
+    { icon: "WM", title: "Add Watermark", description: "Protect images with text or logo watermarks.", link: "/watermark-image", color: "#E0F2FE" },
     { icon: "↻", title: "Rotate & Flip Image", description: "Correct photo orientation or mirror an image.", link: "/rotate-image", color: "#E0F2FE" },
     { icon: "🖼️", title: "JPG → PNG", description: "Convert JPG images to PNG format.", link: "/jpg-to-png", color: "#EFF6FF" },
     { icon: "📷", title: "PNG → JPG", description: "Convert PNG images to JPG format.", link: "/png-to-jpg", color: "#FEF3C7" },

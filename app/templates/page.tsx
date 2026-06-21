@@ -19,7 +19,10 @@ type PublicTemplateCard = {
   width: number;
   height: number;
   isRemote?: boolean;
+  sourceTemplateId?: string;
 };
+
+export const dynamic = "force-dynamic";
 
 async function getAdminTemplates(): Promise<PublicTemplateCard[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,32 +45,38 @@ async function getAdminTemplates(): Promise<PublicTemplateCard[]> {
   return data
     .filter((asset) => asset.preview_url || asset.thumbnail_url)
     .map((asset) => {
-      const metadata = asset.metadata as { templateCategory?: string; templateData?: { canvasWidth?: number; canvasHeight?: number } } | null;
+      const metadata = asset.metadata as { sourceTemplateId?: string; templateCategory?: string; templateData?: { canvasWidth?: number; canvasHeight?: number } } | null;
 
       return {
-        id: asset.id,
+        id: metadata?.sourceTemplateId || asset.id,
         name: asset.name,
         category: metadata?.templateCategory || "Pixores",
         preview: asset.preview_url || asset.thumbnail_url || "",
         width: metadata?.templateData?.canvasWidth || asset.width || 1280,
         height: metadata?.templateData?.canvasHeight || asset.height || 720,
         isRemote: true,
+        sourceTemplateId: metadata?.sourceTemplateId,
       };
     });
 }
 
 export default async function TemplatesPage() {
   const adminTemplates = await getAdminTemplates();
+  const managedTemplates = new Map(
+    adminTemplates
+      .filter((template) => template.sourceTemplateId)
+      .map((template) => [template.sourceTemplateId as string, template]),
+  );
   const templateCards: PublicTemplateCard[] = [
-    ...adminTemplates,
-    ...templates.map((template) => ({
-      id: template.id,
-      name: template.name,
-      category: template.category,
-      preview: template.preview,
-      width: template.width,
-      height: template.height,
-    })),
+    ...adminTemplates.filter((template) => !template.sourceTemplateId),
+    ...templates.map((template) => managedTemplates.get(template.id) || ({
+        id: template.id,
+        name: template.name,
+        category: template.category,
+        preview: template.preview,
+        width: template.width,
+        height: template.height,
+      })),
   ];
 
   return (

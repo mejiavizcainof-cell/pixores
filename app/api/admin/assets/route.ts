@@ -205,6 +205,149 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const admin = await getAuthorizedAdmin(request);
+    if (!admin) {
+      return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+    }
+
+    const assetId = request.nextUrl.searchParams.get("id");
+    if (!assetId) {
+      return NextResponse.json({ error: "Asset id is required." }, { status: 400 });
+    }
+
+    const { data: existingAsset, error: findError } = await supabaseAdmin
+      .from("admin_assets")
+      .select("*")
+      .eq("id", assetId)
+      .single();
+
+    if (findError || !existingAsset) {
+      return NextResponse.json({ error: findError?.message || "Asset not found." }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const category = String(formData.get("category") || existingAsset.category);
+    const name = String(formData.get("name") || existingAsset.name).trim();
+    const altText = String(formData.get("alt_text") ?? existingAsset.alt_text ?? "").trim();
+    const isPublished = formData.has("is_published")
+      ? String(formData.get("is_published")) === "true"
+      : existingAsset.is_published;
+    const sortOrderValue = formData.has("sort_order")
+      ? Number(formData.get("sort_order"))
+      : existingAsset.sort_order;
+    const tags = formData.has("tags") ? parseTags(formData.get("tags")) : existingAsset.tags;
+    const metadata = formData.has("metadata") ? parseMetadata(formData.get("metadata")) : existingAsset.metadata;
+    const file = formData.get("file");
+
+    if (!ADMIN_ASSET_CATEGORIES.includes(category as AdminAssetCategory)) {
+      return NextResponse.json({ error: "Invalid asset category." }, { status: 400 });
+    }
+    if (!name) {
+      return NextResponse.json({ error: "Asset name is required." }, { status: 400 });
+    }
+
+    let originalUrl = existingAsset.original_url;
+    let previewUrl = existingAsset.preview_url;
+    let thumbnailUrl = existingAsset.thumbnail_url;
+    let mimeType = existingAsset.mime_type;
+    let width = existingAsset.width;
+    let height = existingAsset.height;
+    let sizeBytes = existingAsset.size_bytes;
+    const newStoragePaths: string[] = [];
+
+    if (file instanceof File && file.size > 0) {
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const image = sharp(bytes, { animated: false }).rotate();
+      const imageMetadata = await image.metadata();
+      width = imageMetadata.width || null;
+      height = imageMetadata.height || null;
+      sizeBytes = file.size;
+      mimeType = file.type || "application/octet-stream";
+
+      const basePath = `${category}/${Date.now()}-${cleanFileName(name)}`;
+      const originalExt = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const originalPath = `${basePath}/original.${originalExt}`;
+      const previewPath = `${basePath}/preview.webp`;
+      const thumbnailPath = `${basePath}/thumbnail.webp`;
+      newStoragePaths.push(originalPath, previewPath, thumbnailPath);
+
+      await uploadBuffer(originalPath, bytes, mimeType);
+      await uploadBuffer(
+        previewPath,
+        await sharp(bytes, { animated: false })
+          .rotate()
+          .resize({ width: 1800, height: 1800, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 84, effort: 4 })
+          .toBuffer(),
+        "image/webp",
+      );
+      await uploadBuffer(
+        thumbnailPath,
+        await sharp(bytes, { animated: false })
+          .rotate()
+          .resize({ width: 420, height: 420, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 78, effort: 4 })
+          .toBuffer(),
+        "image/webp",
+      );
+
+      originalUrl = publicUrl(originalPath);
+      previewUrl = publicUrl(previewPath);
+      thumbnailUrl = publicUrl(thumbnailPath);
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("admin_assets")
+      .update({
+        category,
+        name,
+        alt_text: altText || null,
+        tags,
+        original_url: originalUrl,
+        preview_url: previewUrl,
+        thumbnail_url: thumbnailUrl,
+        mime_type: mimeType,
+        width,
+        height,
+        size_bytes: sizeBytes,
+        metadata,
+        is_published: isPublished,
+        sort_order: Number.isFinite(sortOrderValue) ? sortOrderValue : 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", assetId)
+      .select("*")
+      .single();
+
+    if (error) {
+      if (newStoragePaths.length > 0) {
+        await supabaseAdmin.storage.from(ADMIN_ASSET_BUCKET).remove(newStoragePaths);
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (newStoragePaths.length > 0) {
+      const oldStoragePaths = [
+        storagePathFromPublicUrl(existingAsset.original_url),
+        storagePathFromPublicUrl(existingAsset.preview_url),
+        storagePathFromPublicUrl(existingAsset.thumbnail_url),
+      ].filter((path): path is string => Boolean(path));
+
+      if (oldStoragePaths.length > 0) {
+        await supabaseAdmin.storage.from(ADMIN_ASSET_BUCKET).remove(oldStoragePaths);
+      }
+    }
+
+    return NextResponse.json({ asset: data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update asset.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const supabaseAdmin = getSupabaseAdmin();

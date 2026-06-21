@@ -1,4 +1,4 @@
-export const templates = [
+const originalTemplates = [
   {
     id: "youtube-breaking-news-pro",
     name: "Breaking News Pro",
@@ -89,3 +89,137 @@ export const templates = [
     },
   },
 ];
+
+const platformSpecs = [
+  { slug: "youtube", category: "YouTube", width: 1280, height: 720, square: false, titleSize: 112, subtitleSize: 82 },
+  { slug: "instagram", category: "Instagram", width: 1080, height: 1080, square: true, titleSize: 104, subtitleSize: 74 },
+  { slug: "facebook", category: "Facebook", width: 1200, height: 630, square: false, titleSize: 98, subtitleSize: 70 },
+] as const;
+
+const themeSpecs = {
+  business: {
+    name: "Business Growth",
+    background: "#e2e8f0",
+    titleColor: "#0f2747",
+    accentColor: "#2563eb",
+    strokeColor: "#ffffff",
+    copy: {
+      youtube: ["GROW YOUR", "BUSINESS"],
+      instagram: ["LEVEL UP", "YOUR BRAND"],
+      facebook: ["SMART BUSINESS", "BIG RESULTS"],
+    },
+  },
+  valentine: {
+    name: "Valentine Special",
+    background: "#7f1d1d",
+    titleColor: "#ffffff",
+    accentColor: "#fecdd3",
+    strokeColor: "#881337",
+    copy: {
+      youtube: ["PERFECT", "VALENTINE"],
+      instagram: ["LOVE IS", "IN THE AIR"],
+      facebook: ["VALENTINE SALE", "SAVE 30%"],
+    },
+  },
+  gaming: {
+    name: "Gaming Stream",
+    background: "#020617",
+    titleColor: "#ffffff",
+    accentColor: "#22d3ee",
+    strokeColor: "#020617",
+    copy: {
+      youtube: ["EPIC", "GAMING"],
+      instagram: ["GAME NIGHT", "LIVE NOW"],
+      facebook: ["JOIN THE", "BATTLE"],
+    },
+  },
+  sports: {
+    name: "Sports Action",
+    background: "#071426",
+    titleColor: "#ffffff",
+    accentColor: "#a3e635",
+    strokeColor: "#071426",
+    copy: {
+      youtube: ["MATCH DAY", "TOP HIGHLIGHTS"],
+      instagram: ["GAME ON", "NEVER QUIT"],
+      facebook: ["FINAL", "SHOWDOWN"],
+    },
+  },
+} as const;
+
+const themedTemplates = Object.entries(themeSpecs).flatMap(([themeId, theme]) =>
+  platformSpecs.map((platform) => {
+    const copy = theme.copy[platform.slug];
+    const textWidth = platform.square ? 680 : Math.round(platform.width * 0.48);
+    const previewThemeId = themeId === "gaming" ? "gaming-stream" : themeId;
+
+    return {
+      id: `${platform.slug}-${themeId}-collection`,
+      name: `${theme.name} - ${platform.category}`,
+      category: platform.category,
+      preview: `/templates/${platform.slug}-${previewThemeId}.webp`,
+      width: platform.width,
+      height: platform.height,
+      canvas: {
+        background: theme.background,
+        elements: [
+          {
+            type: "image",
+            name: `${theme.name} Background`,
+            src: `/template-assets/backgrounds/${themeId}-${platform.square ? "square" : "landscape"}.webp`,
+            x: 50,
+            y: 50,
+            width: platform.width,
+            height: platform.height,
+            isLocked: true,
+          },
+          {
+            type: "shape",
+            name: "Accent Bar",
+            shapeType: "rectangle",
+            x: platform.square ? 4 : 3.5,
+            y: platform.square ? 35 : 47,
+            width: platform.square ? 18 : 16,
+            height: platform.square ? 235 : 190,
+            color: theme.accentColor,
+            borderRadius: 4,
+          },
+          {
+            type: "text",
+            name: "Headline",
+            text: copy[0],
+            x: platform.square ? 36 : 28,
+            y: platform.square ? 27 : 38,
+            width: textWidth,
+            fontSize: platform.titleSize,
+            color: theme.titleColor,
+            fontFamily: "Anton",
+            fontWeight: "bold",
+            textAlign: "left",
+            strokeColor: theme.strokeColor,
+            strokeWidth: themeId === "business" ? 0 : 2,
+            shadowBlur: themeId === "business" ? 0 : 8,
+          },
+          {
+            type: "text",
+            name: "Subheadline",
+            text: copy[1],
+            x: platform.square ? 36 : 28,
+            y: platform.square ? 43 : 58,
+            width: textWidth,
+            fontSize: platform.subtitleSize,
+            color: theme.accentColor,
+            fontFamily: "Anton",
+            fontWeight: "bold",
+            textAlign: "left",
+            strokeColor: theme.strokeColor,
+            strokeWidth: themeId === "business" ? 0 : 2,
+            shadowBlur: themeId === "business" ? 0 : 8,
+          },
+        ],
+      },
+    };
+  }),
+);
+
+export const templates = [...originalTemplates, ...themedTemplates];

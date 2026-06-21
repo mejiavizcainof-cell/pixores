@@ -19,6 +19,16 @@ const tools = [
     description: "Increase image resolution by 2x or 4x while preserving important details.",
   },
   {
+    title: "Crop Image",
+    href: "/crop-image",
+    description: "Crop photos visually or use exact pixel dimensions and positions.",
+  },
+  {
+    title: "Add Watermark",
+    href: "/watermark-image",
+    description: "Add custom text or logo watermarks to one image or an entire batch.",
+  },
+  {
     title: "Rotate and Flip Image",
     href: "/rotate-image",
     description: "Correct photo orientation, rotate images, and flip them horizontally or vertically.",
