@@ -1,0 +1,48 @@
+.page { background: #f8fafc; color: #0f172a; }
+.hero { min-height: 590px; padding: 72px 20px; box-sizing: border-box; display: flex; align-items: center; background-image: linear-gradient(90deg,rgba(7,15,32,.94) 0%,rgba(7,15,32,.78) 42%,rgba(7,15,32,.18) 100%),url('/blog/create-youtube-thumbnail-free.png'); background-size: cover; background-position: center; }
+.heroInner { width: 100%; max-width: 1200px; margin: 0 auto; }
+.eyebrow { margin: 0 0 14px; color: #93c5fd; font-size: 14px; font-weight: 850; text-transform: uppercase; }
+.hero h1 { max-width: 660px; margin: 0 0 22px; color: #ffffff; font-size: 72px; font-weight: 900; line-height: 1.02; }
+.heroText { max-width: 620px; margin: 0 0 32px; color: #e2e8f0; font-size: 21px; line-height: 1.65; }
+.heroActions { display: flex; flex-wrap: wrap; gap: 12px; }
+.primaryButton,.secondaryButton { min-height: 50px; padding: 0 22px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 850; text-decoration: none; }
+.primaryButton { background: #2563eb; color: #ffffff; box-shadow: 0 12px 24px rgba(37,99,235,.28); }
+.secondaryButton { background: #ffffff; color: #0f172a; }
+
+.whySection { padding: 70px 20px; border-block: 1px solid #dbeafe; background: #eef6ff; }
+.whyGrid { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+.whyIntro > p { margin: 0 0 12px; color: #2563eb; font-size: 13px; font-weight: 850; text-transform: uppercase; }
+.whyIntro h2 { margin: 0 0 18px; font-size: 48px; line-height: 1.08; }
+.whyIntro span { display: block; max-width: 490px; color: #475569; font-size: 17px; line-height: 1.75; }
+.benefits article { padding: 17px 0; border-bottom: 1px solid #bfdbfe; display: grid; grid-template-columns: 32px 1fr; gap: 13px; }
+.benefits article:last-child { border-bottom: 0; }
+.checkIcon { width: 28px; height: 28px; border-radius: 50%; background: #2563eb; color: #ffffff; display: grid; place-items: center; }
+.benefits h3 { margin: 1px 0 5px; font-size: 17px; }
+.benefits p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.55; }
+
+.guidesSection { max-width: 1160px; margin: 0 auto; padding: 68px 24px; }
+.sectionHeading { max-width: 760px; margin: 0 auto 30px; text-align: center; }
+.sectionHeading > span { color: #2563eb; font-size: 12px; font-weight: 850; text-transform: uppercase; }
+.sectionHeading h2 { margin: 9px 0 10px; font-size: 38px; }
+.sectionHeading p { margin: 0; color: #64748b; font-size: 17px; line-height: 1.65; }
+.guideGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.guideCard { min-height: 220px; padding: 22px; border: 1px solid #dbe3ee; border-radius: 8px; background: #ffffff; color: inherit; display: flex; flex-direction: column; text-decoration: none; }
+.guideCard > span { width: fit-content; padding: 5px 8px; border-radius: 6px; background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 850; }
+.guideCard h3 { margin: 16px 0 8px; font-size: 20px; line-height: 1.35; }
+.guideCard p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.65; }
+.guideCard b { margin-top: auto; padding-top: 16px; color: #2563eb; display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.guidesAction { margin-top: 28px; text-align: center; }
+.guidesAction a { min-height: 44px; padding: 0 15px; border-radius: 8px; background: #2563eb; color: #ffffff; display: inline-flex; align-items: center; gap: 7px; font-weight: 800; text-decoration: none; }
+
+@media (max-width: 850px) { .whyGrid { grid-template-columns: 1fr; gap: 34px; } .guideGrid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) {
+  .hero { min-height: 530px; padding: 54px 16px; background-position: 62% center; }
+  .hero h1 { font-size: 48px; }
+  .heroText { font-size: 17px; }
+  .heroActions a { width: 100%; box-sizing: border-box; }
+  .whySection { padding: 50px 16px; }
+  .whyIntro h2 { font-size: 38px; }
+  .guideGrid { grid-template-columns: 1fr; }
+  .guidesSection { padding: 54px 16px; }
+  .sectionHeading h2 { font-size: 31px; }
+}

@@ -60,6 +60,14 @@
 .toolCard p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.55; }
 .toolArrow { margin-top: auto; padding-top: 13px; color: #2563eb; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; }
 .emptyTools { padding: 40px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #ffffff; color: #64748b; text-align: center; }
+.homeToolsSection { padding: 64px 0 34px; border-block: 1px solid #dbe3ee; background: #ffffff; }
+.homeToolsHeader { max-width: 1160px; margin: 0 auto; padding: 0 24px 24px; display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.homeToolsHeader span { color: #2563eb; font-size: 12px; font-weight: 850; text-transform: uppercase; }
+.homeToolsHeader h2 { margin: 8px 0 8px; font-size: 34px; }
+.homeToolsHeader p { max-width: 670px; margin: 0; color: #64748b; line-height: 1.65; }
+.viewAllLink { flex: 0 0 auto; min-height: 42px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; text-decoration: none; }
+.homeToolsSection .toolsControls { padding-top: 0; }
+.homeToolsSection .toolResults { padding-bottom: 18px; }
 
 @media (max-width: 900px) {
   .valueGrid, .pillarGrid, .toolGrid { grid-template-columns: repeat(2, 1fr); }
@@ -75,4 +83,7 @@
   .valueGrid, .pillarGrid, .toolGrid { grid-template-columns: 1fr; }
   .cta { margin: 34px 16px 10px; align-items: flex-start; flex-direction: column; }
   .cta a { width: 100%; box-sizing: border-box; }
+  .homeToolsSection { padding-top: 46px; }
+  .homeToolsHeader { padding-inline: 16px; align-items: flex-start; flex-direction: column; }
+  .homeToolsHeader h2 { font-size: 29px; }
 }
