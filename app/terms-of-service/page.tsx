@@ -1,139 +1,26 @@
 import type { Metadata } from "next";
+import PolicyPage, { type PolicySection } from "@/components/PolicyPage";
 
 export const metadata: Metadata = {
   title: "Terms of Service | Pixores",
-  description:
-    "Terms and conditions governing the use of Pixores online tools and services.",
+  description: "Read the terms governing the use of Pixores online image tools, Studio, templates, accounts, and AI services.",
+  alternates: { canonical: "https://www.pixores.com/terms-of-service" },
 };
 
+const sections: PolicySection[] = [
+  { id: "agreement", title: "Agreement to These Terms", content: <><p>By accessing or using Pixores, you agree to these Terms of Service. If you do not agree, do not use the services.</p><p>You must be legally able to enter into this agreement or have permission from a parent, guardian, or authorized organization.</p></> },
+  { id: "services", title: "Use of the Services", content: <><p>Pixores provides browser-based and server-assisted tools for image conversion, compression, resizing, editing, background removal, upscaling, templates, and related creator workflows.</p><p>Features may change, become temporarily unavailable, or have reasonable limits based on browser, server, provider, or account requirements.</p></> },
+  { id: "accounts", title: "Accounts and Credits", content: <><p>You are responsible for activity under your account and for keeping access credentials secure. Provide accurate information and notify us if you believe your account has been compromised.</p><p>Some AI or premium operations may use credits. Pricing, credit usage, and applicable limitations are shown before purchase or use. Except where required by law, consumed credits are not refundable.</p></> },
+  { id: "content", title: "Your Files and Content", content: <><p>You retain ownership of files and designs you upload or create. You grant Pixores a limited permission to process that content only as needed to provide, secure, and improve the requested service.</p><p>You must have the necessary rights and permissions for all content you upload, edit, save, publish, or download.</p></> },
+  { id: "prohibited", title: "Prohibited Uses", content: <><p>You may not use Pixores to:</p><ul><li>Upload, create, or distribute illegal, harmful, or abusive content.</li><li>Infringe copyrights, trademarks, privacy rights, or other rights.</li><li>Distribute malware or attempt unauthorized access.</li><li>Interfere with service operation or bypass technical limits.</li><li>Use automated activity that creates unreasonable load.</li><li>Engage in fraud, impersonation, or deceptive conduct.</li></ul></> },
+  { id: "property", title: "Pixores Intellectual Property", content: <><p>Pixores branding, interface design, software, and original site content are protected by applicable intellectual property laws. These terms do not transfer ownership of Pixores technology or branding to users.</p></> },
+  { id: "third-party", title: "Third-Party Services", content: <><p>Pixores may rely on external providers for hosting, authentication, payments, analytics, advertising, and AI processing. Their services may be governed by separate terms and policies.</p></> },
+  { id: "disclaimers", title: "Disclaimers", content: <><p>Pixores is provided on an &quot;as is&quot; and &quot;as available&quot; basis. To the extent permitted by law, we disclaim warranties regarding uninterrupted availability, fitness for a particular purpose, and error-free results.</p><p>You are responsible for reviewing outputs and keeping backups of important files.</p></> },
+  { id: "liability", title: "Limitation of Liability", content: <><p>To the fullest extent permitted by law, Pixores will not be liable for indirect, incidental, special, consequential, or punitive damages arising from use of the services, loss of files, or reliance on an output.</p></> },
+  { id: "termination", title: "Changes and Termination", content: <><p>We may update these terms, modify services, or restrict access when necessary for security, legal compliance, abuse prevention, or service operation. Updated terms become effective when posted unless otherwise stated.</p></> },
+  { id: "contact", title: "Contact", content: <><p>Questions about these terms can be sent to <a href="mailto:support@pixores.com">support@pixores.com</a>.</p></> },
+];
+
 export default function TermsOfServicePage() {
-  return (
-    <main
-      style={{
-        maxWidth: "900px",
-        margin: "0 auto",
-        padding: "40px",
-        lineHeight: "1.8",
-      }}
-    >
-      <h1>Terms of Service</h1>
-
-      <p>
-        Welcome to Pixores. By accessing or using our
-        website and online tools, you agree to comply
-        with these Terms of Service.
-      </p>
-
-      <h2>Use of the Services</h2>
-
-      <p>
-        Pixores provides free online tools for image
-        conversion, compression, resizing and related
-        file processing services.
-      </p>
-
-      <p>
-        You agree to use our services only for lawful
-        purposes and in compliance with all applicable
-        laws and regulations.
-      </p>
-
-      <h2>User Content</h2>
-
-      <p>
-        You retain ownership of any files you upload.
-        By using our services, you grant Pixores
-        permission to process your files solely for
-        the purpose of providing the requested service.
-      </p>
-
-      <p>
-        Uploaded files are not permanently stored and
-        may be automatically deleted after processing.
-      </p>
-
-      <h2>Prohibited Uses</h2>
-
-      <p>You may not use Pixores to:</p>
-
-      <ul>
-        <li>Upload illegal or harmful content.</li>
-        <li>Distribute malware or malicious files.</li>
-        <li>Attempt to disrupt or damage our services.</li>
-        <li>Violate intellectual property rights.</li>
-        <li>Engage in fraudulent or abusive activities.</li>
-      </ul>
-
-      <h2>Intellectual Property</h2>
-
-      <p>
-        The Pixores website, branding, design and
-        software are protected by applicable
-        intellectual property laws.
-      </p>
-
-      <p>
-        You may not copy, reproduce or redistribute
-        our content without prior written permission.
-      </p>
-
-      <h2>Disclaimer of Warranties</h2>
-
-      <p>
-        Pixores is provided on an "as is" and
-        "as available" basis. We make no warranties
-        regarding availability, accuracy or reliability
-        of the services.
-      </p>
-
-      <h2>Limitation of Liability</h2>
-
-      <p>
-        To the fullest extent permitted by law,
-        Pixores shall not be liable for any indirect,
-        incidental, special or consequential damages
-        resulting from the use of our services.
-      </p>
-
-      <h2>Third-Party Services</h2>
-
-      <p>
-        Our website may integrate third-party services
-        such as analytics, advertising and hosting
-        providers. These services operate under their
-        own terms and privacy policies.
-      </p>
-
-      <h2>Changes to These Terms</h2>
-
-      <p>
-        We reserve the right to update these Terms of
-        Service at any time. Changes will become
-        effective upon publication on this page.
-      </p>
-
-      <h2>Termination</h2>
-
-      <p>
-        We reserve the right to restrict or terminate
-        access to our services if these terms are
-        violated.
-      </p>
-
-      <h2>Contact Us</h2>
-
-      <p>
-        If you have questions regarding these Terms of
-        Service, please contact us at:
-      </p>
-
-      <p>
-        support@pixores.com
-      </p>
-
-      <p>
-        Last updated: June 2026
-      </p>
-    </main>
-  );
+  return <PolicyPage title="Terms of Service" description="The rules that apply when you use Pixores tools, accounts, credits, templates, and creator services." lastUpdated="June 21, 2026" notice="Use Pixores lawfully, upload only content you have permission to process, and keep backups of files that matter to you." sections={sections} />;
 }
