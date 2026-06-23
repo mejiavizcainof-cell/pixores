@@ -151,8 +151,20 @@ export default function AuthButton() {
 
   if (userEmail) {
     return (
-      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "#334155" }}>{userEmail}</span>
+      <div style={{ display: "flex", gap: "7px", alignItems: "center", minWidth: 0 }}>
+        <span
+          title={userEmail}
+          style={{
+            maxWidth: "128px",
+            overflow: "hidden",
+            color: "#334155",
+            fontSize: "12px",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {userEmail}
+        </span>
         <button onClick={signOut} style={buttonStyle}>
           Logout
         </button>
@@ -277,6 +289,7 @@ const buttonStyle: React.CSSProperties = {
   fontSize: "13px",
   fontWeight: 600,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 };
 
 const overlayStyle: React.CSSProperties = {

@@ -9,19 +9,19 @@
 }
 
 .bar {
-  max-width: 1380px;
-  min-height: 68px;
+  max-width: 1640px;
+  min-height: 72px;
   margin: 0 auto;
-  padding: 12px 22px;
+  padding: 10px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
 }
 
 .brand {
   display: flex;
-  min-width: 0;
+  flex: 0 0 auto;
   align-items: center;
   gap: 12px;
   text-decoration: none;
@@ -50,16 +50,18 @@
   flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .navLink {
-  padding: 9px 10px;
+  padding: 9px 8px;
   border-radius: 8px;
   color: #334155;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 750;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .navLink:hover {
@@ -75,13 +77,14 @@
 }
 
 .adminButton {
-  padding: 9px 13px;
+  padding: 9px 12px;
   border-radius: 8px;
   background: #0f172a;
   color: #fff;
   font-size: 14px;
   font-weight: 850;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .menuButton {
@@ -102,7 +105,7 @@
   display: none;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1370px) {
   .desktopNav,
   .adminButton {
     display: none;
