@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import { blogPosts } from "@/lib/blogPosts";
 import styles from "./blog.module.css";
 
 export const metadata: Metadata = {
@@ -25,6 +26,23 @@ export default async function BlogPage() {
     .eq("published", true)
     .order("created_at", { ascending: false });
 
+  const databasePosts = posts || [];
+  const databaseSlugs = new Set(databasePosts.map((post) => post.slug));
+  const localPosts = blogPosts
+    .filter((post) => !databaseSlugs.has(post.slug))
+    .map((post) => ({
+      id: `local-${post.slug}`,
+      title: post.title,
+      slug: post.slug,
+      description: post.description,
+      cover_image: post.image,
+      published: true,
+      created_at: post.date,
+    }));
+  const allPosts = [...localPosts, ...databasePosts].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
   return (
     <main className={styles.page}>
       <section className={styles.intro}>
@@ -39,7 +57,7 @@ export default async function BlogPage() {
       </section>
 
       <div className={styles.grid}>
-        {posts?.map((post) => (
+        {allPosts.map((post) => (
           <Link
             key={post.id}
             href={"/blog/" + post.slug}

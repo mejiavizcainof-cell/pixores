@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import HomeToolsShowcase from "@/components/HomeToolsShowcase";
+import SiteIdentitySchema from "@/components/SiteIdentitySchema";
 import { blogPosts } from "@/lib/blogPosts";
 import styles from "./HomePage.module.css";
 
@@ -28,6 +29,7 @@ const benefits = [
 export default function Home() {
   return (
     <div className={styles.page}>
+      <SiteIdentitySchema />
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <p className={styles.eyebrow}>Create with confidence</p>

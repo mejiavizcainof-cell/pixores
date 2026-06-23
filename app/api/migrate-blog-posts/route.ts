@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { blogPosts } from "@/lib/blogPosts";
+import { formatBlogContent } from "@/lib/formatBlogContent";
 
 export const runtime = "nodejs";
 
@@ -16,18 +17,7 @@ export async function GET() {
       title: post.title,
       description: post.description,
       cover_image: post.image,
-      content: post.content
-        .replace(/\[IMAGE:\s*(.*?)\]/g, (_match, fileName) => {
-          return `<img src="/blog/${fileName}" style="width:100%;max-width:800px;display:block;margin:24px auto;border-radius:12px;" />`;
-        })
-        .split("\n")
-        .map((line) => {
-          const trimmed = line.trim();
-          if (!trimmed) return "";
-          if (trimmed.startsWith("<img")) return trimmed;
-          return `<p>${trimmed}</p>`;
-        })
-        .join(""),
+      content: formatBlogContent(post.content, post.title),
       published: true,
     }));
 
@@ -48,9 +38,12 @@ export async function GET() {
       migrated: data?.length || 0,
       posts: data,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || "Migration failed" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Migration failed",
+      },
       { status: 500 }
     );
   }

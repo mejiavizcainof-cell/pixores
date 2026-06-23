@@ -1,4 +1,9 @@
+import { trafficGrowthPostsPart1 } from "@/lib/trafficGrowthPostsPart1";
+import { trafficGrowthPostsPart2 } from "@/lib/trafficGrowthPostsPart2";
+
 export const blogPosts = [
+...trafficGrowthPostsPart1,
+...trafficGrowthPostsPart2,
 {
 slug: "best-youtube-thumbnail-size",
 title: "Best YouTube Thumbnail Size in 2026",

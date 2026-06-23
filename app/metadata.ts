@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 export const siteMetadata: Metadata = {
   metadataBase: new URL("https://www.pixores.com"),
+  applicationName: "Pixores",
 
   title: {
     default: "Pixores - Free Online Image & File Tools",

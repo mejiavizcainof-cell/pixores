@@ -1,4 +1,5 @@
 import { COLORS } from "@/lib/theme";
+import Link from "next/link";
 
 export default function Footer() {
   return (
@@ -85,6 +86,39 @@ export default function Footer() {
         >
           Add Watermark
         </a>
+
+        <a
+          href="/thumbnail-creator"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Pixores Studio
+        </a>
+
+        <a
+          href="/templates"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Templates
+        </a>
+
+        <Link
+          href="/blog"
+          style={{
+            color: COLORS.text,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Blog
+        </Link>
 
         <a
           href="/faq"
