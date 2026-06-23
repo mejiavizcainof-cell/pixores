@@ -7,6 +7,7 @@ import html2canvas from "html2canvas";
 import { templates } from "@/lib/templates";
 import type { AdminAsset } from "@/lib/adminAssets";
 import type { EditorBrandAsset } from "@/lib/brandAssets";
+import { EDITOR_VECTOR_ASSETS, vectorSvgDataUrl, type EditorVectorAsset } from "@/lib/editorVectorAssets";
 
 
 
@@ -17,6 +18,8 @@ type Layer = {
   text?: string;
   textHtml?: string;
   src?: string;
+  vectorSvg?: string;
+  vectorColor?: string;
   frameImageSrc?: string;
   frameImageSrc2?: string;
   frameImageFit?: "cover" | "contain";
@@ -178,6 +181,8 @@ type EditorImageAsset = {
   src: string;
 };
 
+type AssetTab = "people" | "objects" | "elements" | "plants" | "animals" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand";
+
 type EditorShapeAsset = {
   name: string;
   shapeType: Layer["shapeType"];
@@ -233,6 +238,42 @@ const PREMADE_ASSETS = [
    { category: "objects", name: "Lineas", src: "/template-assets/objects/solid-line.png" },
   { category: "objects", name: "YouTube Logo", src: "/template-assets/objects/youtube-logo.png" },
   { category: "objects", name: "Microphone", src: "/template-assets/objects/microphone.png" },
+  { category: "objects", name: "Realistic Black Torn Paper", src: "/template-assets/objects/torn-paper-black-realistic.png" },
+  { category: "objects", name: "Realistic White Crumpled Paper", src: "/template-assets/objects/crumpled-paper-white-realistic.png" },
+  { category: "objects", name: "Blue Torn Paper", src: "/template-assets/objects/torn-paper-blue.png" },
+  { category: "objects", name: "White Torn Paper", src: "/template-assets/objects/torn-paper-white.png" },
+  { category: "objects", name: "Gold Paper Fold", src: "/template-assets/objects/paper-fold-gold.png" },
+  { category: "objects", name: "Black Brush Stroke", src: "/template-assets/objects/brush-stroke-black-2.png" },
+  { category: "objects", name: "Orange Brush Stroke", src: "/template-assets/objects/brush-stroke-orange.png" },
+  { category: "objects", name: "Black Halftone Circle", src: "/template-assets/objects/halftone-circle-black.png" },
+  { category: "objects", name: "Black Halftone Corner", src: "/template-assets/objects/halftone-corner-black.png" },
+  { category: "objects", name: "Black Halftone Fade", src: "/template-assets/objects/halftone-fade-black.png" },
+  { category: "objects", name: "Black Halftone Wave", src: "/template-assets/objects/halftone-wave-black.png" },
+  { category: "objects", name: "Red Halftone Circle", src: "/template-assets/objects/halftone-circle-red.png" },
+  { category: "objects", name: "Orange Halftone Corner", src: "/template-assets/objects/halftone-corner-orange.png" },
+  { category: "objects", name: "Blue Halftone Fade", src: "/template-assets/objects/halftone-fade-blue.png" },
+  { category: "objects", name: "Teal Halftone Wave", src: "/template-assets/objects/halftone-wave-teal.png" },
+  { category: "objects", name: "Soft Oval Shadow", src: "/template-assets/objects/shadow-soft-oval.png" },
+  { category: "objects", name: "Soft Circle Shadow", src: "/template-assets/objects/shadow-soft-circle.png" },
+  { category: "objects", name: "Bottom Edge Shadow", src: "/template-assets/objects/shadow-edge-bottom.png" },
+  { category: "objects", name: "Diagonal Shadow", src: "/template-assets/objects/shadow-diagonal.png" },
+  { category: "objects", name: "Outline Microphone", src: "/template-assets/objects/icon-microphone-outline.png" },
+  { category: "objects", name: "Retro Microphone", src: "/template-assets/objects/icon-retro-microphone.png" },
+  { category: "objects", name: "Megaphone", src: "/template-assets/objects/icon-megaphone.png" },
+  { category: "objects", name: "Ear and Sound", src: "/template-assets/objects/icon-ear-sound.png" },
+  { category: "objects", name: "Radio Tower", src: "/template-assets/objects/icon-radio-tower.png" },
+  { category: "objects", name: "Speaking Voice", src: "/template-assets/objects/icon-voice-speaking.png" },
+  { category: "objects", name: "Rainbow Sound Wave", src: "/template-assets/objects/sound-wave-rainbow.png" },
+  { category: "objects", name: "Teal Plus Pattern", src: "/template-assets/objects/pattern-plus-teal.png" },
+  { category: "objects", name: "Dotted Triangle", src: "/template-assets/objects/pattern-dots-triangle.png" },
+  { category: "objects", name: "Ellipse Highlight", src: "/template-assets/objects/ellipse-highlight.png" },
+  { category: "objects", name: "Line Graph", src: "/template-assets/objects/line-graph.png" },
+  { category: "objects", name: "Cracked Glass", src: "/template-assets/objects/cracked-glass.png" },
+  { category: "objects", name: "Live Badge", src: "/template-assets/objects/badge-live.png" },
+  { category: "objects", name: "Live Play Badge", src: "/template-assets/objects/badge-live-play.png" },
+  { category: "objects", name: "Subscribe Badge", src: "/template-assets/objects/badge-subscribe.png" },
+  { category: "objects", name: "Stream Now Badge", src: "/template-assets/objects/badge-stream-now.png" },
+  { category: "objects", name: "Watch Now Badge", src: "/template-assets/objects/badge-watch-now.png" },
 ];
 
 const PREMADE_SHAPES = [
@@ -559,7 +600,8 @@ export default function ThumbnailEditorV2() {
   const [brandStorageWarning, setBrandStorageWarning] = useState<string | null>(null);
   const [saveImportsToBrand, setSaveImportsToBrand] = useState<boolean>(false);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
-  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand">("people");
+  const [assetTab, setAssetTab] = useState<AssetTab>("people");
+  const [vectorAssetColor, setVectorAssetColor] = useState("#111827");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
   const [mobileAssetSection, setMobileAssetSection] = useState<"elements" | "uploads">("elements");
   const [textSearch, setTextSearch] = useState<string>("");
@@ -2018,6 +2060,56 @@ const handleRedo = () => {
   setLayers((prev) => [...prev, newLayer]);
   setSelectedLayerId(newLayer.id);
   setIsCropMode(false);
+};
+
+const addVectorAssetToCanvas = (asset: EditorVectorAsset) => {
+  const src = vectorSvgDataUrl(asset.svg, vectorAssetColor);
+  const isWideArrow = asset.name.includes("Arrow") || asset.name.includes("Infinity") || asset.name.includes("Plus Minus");
+  const uniqueId = `vector-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const newLayer: Layer = {
+    id: uniqueId,
+    type: "image",
+    name: asset.name,
+    src,
+    vectorSvg: asset.svg,
+    vectorColor: vectorAssetColor,
+    x: 50,
+    y: 50,
+    width: isWideArrow ? 300 : 220,
+    height: isWideArrow ? 170 : 220,
+    opacity: 1,
+    blur: 0,
+    angle: 0,
+    blendMode: "normal",
+    isFlippedH: false,
+    isFlippedV: false,
+    hasImageStroke: false,
+    imageStrokeColor: "#3B82F6",
+    imageStrokeWidth: 4,
+    shadowColor: "#000000",
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    cropTop: 0,
+    constrainBottom: 0,
+    cropLeft: 0,
+    cropRight: 0,
+  };
+
+  setLayers((prev) => [...prev, newLayer]);
+  setSelectedLayerId(newLayer.id);
+  setIsCropMode(false);
+};
+
+const updateVectorAssetColor = (color: string) => {
+  setVectorAssetColor(color);
+  if (!selectedLayer?.vectorSvg) return;
+
+  setLayers((prev) => prev.map((layer) =>
+    layer.id === selectedLayer.id && layer.vectorSvg
+      ? { ...layer, vectorColor: color, src: vectorSvgDataUrl(layer.vectorSvg, color) }
+      : layer
+  ));
 };
 
 const handlePasteFromClipboard = async () => {
@@ -4209,7 +4301,7 @@ const buyCredits = async (packageId: string) => {
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand")}
+          onClick={() => setAssetTab(tab.id as AssetTab)}
           style={{
             padding: "9px 7px",
             borderRadius: "8px",
@@ -4227,6 +4319,9 @@ const buyCredits = async (packageId: string) => {
     </div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "6px", marginBottom: "10px" }}>
       {[
+        { id: "elements", label: "Elements" },
+        { id: "plants", label: "Plants" },
+        { id: "animals", label: "Animals" },
         { id: "objects", label: "Objects" },
         { id: "shapes", label: "Shapes" },
         { id: "frames", label: "Frames" },
@@ -4237,7 +4332,7 @@ const buyCredits = async (packageId: string) => {
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand")}
+          onClick={() => setAssetTab(tab.id as AssetTab)}
           style={{
             padding: "7px 5px",
             borderRadius: "8px",
@@ -4255,7 +4350,38 @@ const buyCredits = async (packageId: string) => {
       ))}
     </div>
 
-    {assetTab === "people" || assetTab === "objects" ? (
+    {assetTab === "elements" || assetTab === "plants" || assetTab === "animals" ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "9px 10px", border: "1px solid #CBD5E1", borderRadius: "10px", background: "#FFFFFF", color: "#334155", fontSize: "11px", fontWeight: 800 }}>
+          <span>{selectedLayer?.vectorSvg ? "Selected element color" : "New element color"}</span>
+          <input
+            type="color"
+            value={selectedLayer?.vectorColor || vectorAssetColor}
+            onChange={(event) => updateVectorAssetColor(event.target.value)}
+            aria-label="Element color"
+            style={{ width: "42px", height: "30px", border: "none", background: "transparent", cursor: "pointer" }}
+          />
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+          {EDITOR_VECTOR_ASSETS.filter((asset) => asset.category === assetTab).map((asset) => (
+            <button
+              key={`${asset.category}-${asset.name}`}
+              type="button"
+              onClick={() => addVectorAssetToCanvas(asset)}
+              title={`Add ${asset.name}`}
+              aria-label={`Add ${asset.name}`}
+              style={{ aspectRatio: "1", border: "1px solid #E2E8F0", borderRadius: "8px", overflow: "hidden", cursor: "pointer", background: "#F8FAFC", padding: "10px" }}
+            >
+              <img
+                src={vectorSvgDataUrl(asset.svg, vectorAssetColor)}
+                alt={asset.name}
+                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : assetTab === "people" || assetTab === "objects" ? (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
         {editorImageAssets.filter((asset) => asset.category === assetTab).map((asset) => (
           <div
