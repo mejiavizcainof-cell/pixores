@@ -30,6 +30,9 @@ type Layer = {
   frameImageFlipV?: boolean;
   frameImage2FlipH?: boolean;
   frameImage2FlipV?: boolean;
+  gridImages?: GridImage[];
+  activeGridCell?: number;
+  gridGap?: number;
   shapeType?:
   | "rectangle"
   | "circle"
@@ -55,15 +58,25 @@ type Layer = {
   | "laptopFrame"
   | "vsDividerFrame"
   | "splitScreenFrame"
-  | "diagonalSplitFrame";
+  | "diagonalSplitFrame"
+  | "gridSingle"
+  | "gridTwoColumns"
+  | "gridTwoRows"
+  | "gridThreeColumns"
+  | "gridThreeRows"
+  | "gridFour"
+  | "gridHeroLeft"
+  | "gridHeroTop";
   x: number; 
   y: number; 
   fontSize?: number;
   color?: string;
   useGradient?: boolean;
-gradientColor1?: string;
-gradientColor2?: string;
-gradientDirection?:
+  gradientColor1?: string;
+  gradientColor2?: string;
+  gradientType?: "linear" | "radial";
+  gradientPosition?: "center" | "top" | "bottom" | "left" | "right";
+  gradientDirection?:
   | "top-bottom"
   | "bottom-top"
   | "left-right"
@@ -107,6 +120,23 @@ gradientDirection?:
   cropRight?: number;
   angle?: number; 
   isLocked?: boolean;
+};
+
+type GridImage = {
+  src?: string;
+  fit?: "cover" | "contain";
+  x?: number;
+  y?: number;
+  scale?: number;
+  flipH?: boolean;
+  flipV?: boolean;
+};
+
+type GridCell = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 type ResizeState = {
@@ -154,6 +184,12 @@ type EditorShapeAsset = {
   color: string;
 };
 
+type SocialMediaAsset = {
+  name: string;
+  src: string;
+  color: string;
+};
+
 type EditableTemplateData = {
   canvasWidth: number;
   canvasHeight: number;
@@ -170,6 +206,22 @@ const PREMADE_ASSETS = [
   { category: "people", name: "Business Man", src: "/template-assets/people/business-man.png" },
   { category: "people", name: "Podcast Host", src: "/template-assets/people/podcast-host.png" },
   { category: "people", name: "Gamer", src: "/template-assets/people/gamer.png" },
+  { category: "people", name: "Young Woman", src: "/template-assets/people/young-woman.png" },
+  { category: "people", name: "Young Man", src: "/template-assets/people/young-man.png" },
+  { category: "people", name: "Professional Woman", src: "/template-assets/people/professional-woman.png" },
+  { category: "people", name: "Professional Man", src: "/template-assets/people/professional-man.png" },
+  { category: "people", name: "Teen Girl", src: "/template-assets/people/teen-girl.png" },
+  { category: "people", name: "Teen Boy", src: "/template-assets/people/teen-boy.png" },
+  { category: "people", name: "Girl", src: "/template-assets/people/girl-child.png" },
+  { category: "people", name: "Boy", src: "/template-assets/people/boy-child.png" },
+  { category: "people", name: "Baseball Player", src: "/template-assets/people/baseball-player.png" },
+  { category: "people", name: "Basketball Player", src: "/template-assets/people/basketball-player.png" },
+  { category: "people", name: "Soccer Player", src: "/template-assets/people/soccer-player.png" },
+  { category: "people", name: "American Football Player", src: "/template-assets/people/american-football-player.png" },
+  { category: "people", name: "Tennis Player", src: "/template-assets/people/tennis-player.png" },
+  { category: "people", name: "Swimmer", src: "/template-assets/people/swimmer.png" },
+  { category: "people", name: "Female Runner", src: "/template-assets/people/female-runner.png" },
+  { category: "people", name: "Male Runner", src: "/template-assets/people/male-runner.png" },
 
   { category: "objects", name: "Red Arrow", src: "/template-assets/objects/red-arrow.png" },
   { category: "objects", name: "Yellow Arrow", src: "/template-assets/objects/yellow-arrow.png" },
@@ -199,6 +251,55 @@ const PREMADE_SHAPES = [
 { name: "Dashed Line", shapeType: "dashedLine" as const, color: "#0F172A" },
 ];
 
+const SOCIAL_MEDIA_ASSETS: SocialMediaAsset[] = [
+  { name: "YouTube", src: "/template-assets/social/youtube.svg", color: "#FF0000" },
+  { name: "Instagram", src: "/template-assets/social/instagram.svg", color: "#E4405F" },
+  { name: "Facebook", src: "/template-assets/social/facebook.svg", color: "#0866FF" },
+  { name: "TikTok", src: "/template-assets/social/tiktok.svg", color: "#000000" },
+  { name: "X", src: "/template-assets/social/x.svg", color: "#000000" },
+  { name: "LinkedIn", src: "/template-assets/social/linkedin.svg", color: "#0A66C2" },
+  { name: "Pinterest", src: "/template-assets/social/pinterest.svg", color: "#BD081C" },
+  { name: "Snapchat", src: "/template-assets/social/snapchat.svg", color: "#FFFC00" },
+  { name: "WhatsApp", src: "/template-assets/social/whatsapp.svg", color: "#25D366" },
+  { name: "Telegram", src: "/template-assets/social/telegram.svg", color: "#26A5E4" },
+  { name: "Twitch", src: "/template-assets/social/twitch.svg", color: "#9146FF" },
+  { name: "Discord", src: "/template-assets/social/discord.svg", color: "#5865F2" },
+  { name: "Reddit", src: "/template-assets/social/reddit.svg", color: "#FF4500" },
+  { name: "Threads", src: "/template-assets/social/threads.svg", color: "#000000" },
+  { name: "Spotify", src: "/template-assets/social/spotify.svg", color: "#1ED760" },
+  { name: "Vimeo", src: "/template-assets/social/vimeo.svg", color: "#1AB7EA" },
+  { name: "Bluesky", src: "/template-assets/social/bluesky.svg", color: "#0285FF" },
+  { name: "Mastodon", src: "/template-assets/social/mastodon.svg", color: "#6364FF" },
+];
+
+const PREMADE_GRADIENTS = [
+  { name: "Blue Fade", type: "linear" as const, color1: "#FFFFFF", color2: "#1261D6", direction: "top-bottom" as const },
+  { name: "Dark Fade", type: "linear" as const, color1: "#0F172A", color2: "#FFFFFF", direction: "top-bottom" as const },
+  { name: "Navy Fade", type: "linear" as const, color1: "#FFFFFF", color2: "#172A72", direction: "top-bottom" as const },
+  { name: "Purple Side Fade", type: "linear" as const, color1: "#7C3AED", color2: "#FFFFFF", direction: "left-right" as const },
+  { name: "Orange Fade", type: "linear" as const, color1: "#FFFFFF", color2: "#F97316", direction: "top-bottom" as const },
+  { name: "Red Band", type: "linear" as const, color1: "#FFFFFF", color2: "#EF4444", direction: "top-bottom" as const },
+  { name: "Pink Glow", type: "radial" as const, color1: "#EC4899", color2: "#FFFFFF", position: "center" as const },
+  { name: "Blue Glow", type: "radial" as const, color1: "#0284C7", color2: "#FFFFFF", position: "center" as const },
+  { name: "Lime Glow", type: "radial" as const, color1: "#A3E635", color2: "#FFFFFF", position: "center" as const },
+  { name: "Black Glow", type: "radial" as const, color1: "#000000", color2: "#FFFFFF", position: "center" as const },
+  { name: "Bottom Shadow", type: "radial" as const, color1: "#111827", color2: "#FFFFFF", position: "bottom" as const },
+  { name: "Top Spotlight", type: "radial" as const, color1: "#FFFFFF", color2: "#0F172A", position: "top" as const },
+];
+
+const getGradientFill = (gradient: Pick<Layer, "gradientType" | "gradientPosition" | "gradientDirection" | "gradientColor1" | "gradientColor2" | "color">) => {
+  const color1 = gradient.gradientColor1 || gradient.color || "#3B82F6";
+  const color2 = gradient.gradientColor2 || "#8B5CF6";
+
+  if (gradient.gradientType === "radial") {
+    const positionMap = { center: "center", top: "center top", bottom: "center bottom", left: "left center", right: "right center" };
+    return `radial-gradient(circle at ${positionMap[gradient.gradientPosition || "center"]}, ${color1} 0%, ${color2} 72%)`;
+  }
+
+  const directionMap = { "top-bottom": "180deg", "bottom-top": "0deg", "left-right": "90deg", "right-left": "270deg", diagonal: "135deg" };
+  return `linear-gradient(${directionMap[gradient.gradientDirection || "diagonal"]}, ${color1}, ${color2})`;
+};
+
 const PREMADE_FRAMES = [
   { name: "Frame", shapeType: "frame" as const, color: "#EF4444" },
   { name: "Rounded Frame", shapeType: "roundedFrame" as const, color: "#3B82F6" },
@@ -216,6 +317,17 @@ const PREMADE_FRAMES = [
   { name: "VS Divider", shapeType: "vsDividerFrame" as const, color: "#FACC15" },
   { name: "Split Screen", shapeType: "splitScreenFrame" as const, color: "#2563EB" },
   { name: "Diagonal Split", shapeType: "diagonalSplitFrame" as const, color: "#EF4444" },
+];
+
+const PREMADE_GRIDS = [
+  { name: "Single Photo", shapeType: "gridSingle" as const, color: "#FFFFFF" },
+  { name: "Two Columns", shapeType: "gridTwoColumns" as const, color: "#FFFFFF" },
+  { name: "Two Rows", shapeType: "gridTwoRows" as const, color: "#FFFFFF" },
+  { name: "Three Columns", shapeType: "gridThreeColumns" as const, color: "#FFFFFF" },
+  { name: "Three Rows", shapeType: "gridThreeRows" as const, color: "#FFFFFF" },
+  { name: "Four Photos", shapeType: "gridFour" as const, color: "#FFFFFF" },
+  { name: "Feature Left", shapeType: "gridHeroLeft" as const, color: "#FFFFFF" },
+  { name: "Feature Top", shapeType: "gridHeroTop" as const, color: "#FFFFFF" },
 ];
 
 const PREMADE_EMOJIS = [
@@ -268,7 +380,29 @@ const PREMADE_EMOJIS = [
 const PAPER_FRAME_SHAPE_TYPES = ["paperFrame", "paperPortraitFrame", "paperSquareFrame", "paperStripFrame", "paperLeftFrame", "paperRightFrame"];
 const DEVICE_FRAME_SHAPE_TYPES = ["phoneFrame", "tabletFrame", "laptopFrame"];
 const COMPOSITION_FRAME_SHAPE_TYPES = ["vsDividerFrame", "splitScreenFrame", "diagonalSplitFrame"];
-const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", "triangleFrame", ...PAPER_FRAME_SHAPE_TYPES, ...DEVICE_FRAME_SHAPE_TYPES, ...COMPOSITION_FRAME_SHAPE_TYPES];
+const GRID_SHAPE_TYPES = ["gridSingle", "gridTwoColumns", "gridTwoRows", "gridThreeColumns", "gridThreeRows", "gridFour", "gridHeroLeft", "gridHeroTop"];
+const FRAME_SHAPE_TYPES = ["frame", "roundedFrame", "circleFrame", "triangleFrame", ...PAPER_FRAME_SHAPE_TYPES, ...DEVICE_FRAME_SHAPE_TYPES, ...COMPOSITION_FRAME_SHAPE_TYPES, ...GRID_SHAPE_TYPES];
+
+const getGridCells = (shapeType?: Layer["shapeType"]): GridCell[] => {
+  switch (shapeType) {
+    case "gridTwoColumns":
+      return [{ x: 0, y: 0, width: 50, height: 100 }, { x: 50, y: 0, width: 50, height: 100 }];
+    case "gridTwoRows":
+      return [{ x: 0, y: 0, width: 100, height: 50 }, { x: 0, y: 50, width: 100, height: 50 }];
+    case "gridThreeColumns":
+      return [{ x: 0, y: 0, width: 33.333, height: 100 }, { x: 33.333, y: 0, width: 33.334, height: 100 }, { x: 66.667, y: 0, width: 33.333, height: 100 }];
+    case "gridThreeRows":
+      return [{ x: 0, y: 0, width: 100, height: 33.333 }, { x: 0, y: 33.333, width: 100, height: 33.334 }, { x: 0, y: 66.667, width: 100, height: 33.333 }];
+    case "gridFour":
+      return [{ x: 0, y: 0, width: 50, height: 50 }, { x: 50, y: 0, width: 50, height: 50 }, { x: 0, y: 50, width: 50, height: 50 }, { x: 50, y: 50, width: 50, height: 50 }];
+    case "gridHeroLeft":
+      return [{ x: 0, y: 0, width: 62, height: 100 }, { x: 62, y: 0, width: 38, height: 50 }, { x: 62, y: 50, width: 38, height: 50 }];
+    case "gridHeroTop":
+      return [{ x: 0, y: 0, width: 100, height: 62 }, { x: 0, y: 62, width: 50, height: 38 }, { x: 50, y: 62, width: 50, height: 38 }];
+    default:
+      return [{ x: 0, y: 0, width: 100, height: 100 }];
+  }
+};
 
 const BACKGROUND_VISIBLE_STEP = 12;
 const BRAND_ASSETS_STORAGE_KEY = "pixores-brand-assets-v1";
@@ -425,7 +559,7 @@ export default function ThumbnailEditorV2() {
   const [brandStorageWarning, setBrandStorageWarning] = useState<string | null>(null);
   const [saveImportsToBrand, setSaveImportsToBrand] = useState<boolean>(false);
   const [isCropMode, setIsCropMode] = useState<boolean>(false);
-  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "emojis" | "brand">("people");
+  const [assetTab, setAssetTab] = useState<"people" | "objects" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand">("people");
   const [mobilePanel, setMobilePanel] = useState<"elements" | "tools" | "edit" | "export" | null>(null);
   const [mobileAssetSection, setMobileAssetSection] = useState<"elements" | "uploads">("elements");
   const [textSearch, setTextSearch] = useState<string>("");
@@ -1595,15 +1729,30 @@ try {
       await saveFilesToBrandAssets(fileList);
     }
 
-    if (selectedLayer && isImageFrame(selectedLayer) && isCompositionFrame(selectedLayer.shapeType)) {
+    if (selectedLayer && isImageFrame(selectedLayer) && (isCompositionFrame(selectedLayer.shapeType) || isGridFrame(selectedLayer.shapeType))) {
       const remainingFiles = [...newFiles];
       const frameUpdate: Partial<Layer> = {};
 
-      if (!selectedLayer.frameImageSrc && remainingFiles[0]) {
+      if (isGridFrame(selectedLayer.shapeType)) {
+        const capacity = getGridCells(selectedLayer.shapeType).length;
+        const nextGridImages = [...(selectedLayer.gridImages || [])];
+        while (nextGridImages.length < capacity) nextGridImages.push({});
+
+        for (let index = 0; index < capacity && remainingFiles.length > 0; index += 1) {
+          if (!nextGridImages[index]?.src) {
+            nextGridImages[index] = { src: remainingFiles.shift()?.url, fit: "cover", x: 50, y: 50, scale: 1 };
+          }
+        }
+
+        frameUpdate.gridImages = nextGridImages;
+        frameUpdate.name = `${selectedLayer.name} + Images`;
+      }
+
+      if (isCompositionFrame(selectedLayer.shapeType) && !selectedLayer.frameImageSrc && remainingFiles[0]) {
         frameUpdate.frameImageSrc = remainingFiles.shift()?.url;
       }
 
-      if (!selectedLayer.frameImageSrc2 && remainingFiles[0]) {
+      if (isCompositionFrame(selectedLayer.shapeType) && !selectedLayer.frameImageSrc2 && remainingFiles[0]) {
         frameUpdate.frameImageSrc2 = remainingFiles.shift()?.url;
       }
 
@@ -1636,6 +1785,21 @@ const isImageFrame = (layer?: Layer) => {
 
 const addImageToSelectedFrame = (fileObj: ImportedFile) => {
   if (!selectedLayer || !isImageFrame(selectedLayer)) return false;
+
+  if (isGridFrame(selectedLayer.shapeType)) {
+    const capacity = getGridCells(selectedLayer.shapeType).length;
+    const nextGridImages = [...(selectedLayer.gridImages || [])];
+    while (nextGridImages.length < capacity) nextGridImages.push({});
+    const emptyIndex = nextGridImages.findIndex((image) => !image?.src);
+    const targetIndex = emptyIndex >= 0 ? emptyIndex : Math.min(selectedLayer.activeGridCell ?? 0, capacity - 1);
+    nextGridImages[targetIndex] = { src: fileObj.url, fit: "cover", x: 50, y: 50, scale: 1 };
+    updateSelectedLayer({
+      gridImages: nextGridImages,
+      activeGridCell: targetIndex,
+      name: `${selectedLayer.name} + Image`,
+    });
+    return true;
+  }
 
   if (isCompositionFrame(selectedLayer.shapeType)) {
     if (!selectedLayer.frameImageSrc) {
@@ -1678,6 +1842,10 @@ const isCompositionFrame = (shapeType?: Layer["shapeType"]) => {
   return COMPOSITION_FRAME_SHAPE_TYPES.includes(shapeType || "");
 };
 
+const isGridFrame = (shapeType?: Layer["shapeType"]) => {
+  return GRID_SHAPE_TYPES.includes(shapeType || "");
+};
+
 const getFrameDefaultSize = (shapeType?: Layer["shapeType"]) => {
   switch (shapeType) {
     case "paperPortraitFrame":
@@ -1703,6 +1871,15 @@ const getFrameDefaultSize = (shapeType?: Layer["shapeType"]) => {
       return { width: 290, height: 170 };
     case "diagonalSplitFrame":
       return { width: 290, height: 170 };
+    case "gridSingle":
+    case "gridTwoColumns":
+    case "gridTwoRows":
+    case "gridThreeColumns":
+    case "gridThreeRows":
+    case "gridFour":
+    case "gridHeroLeft":
+    case "gridHeroTop":
+      return { width: 300, height: 190 };
     default:
       return { width: 180, height: 120 };
   }
@@ -1800,7 +1977,7 @@ const handleRedo = () => {
 
  const addImageToCanvas = (
   fileObj: ImportedFile,
-  options: { offset?: number; allowFrame?: boolean } = {}
+  options: { offset?: number; allowFrame?: boolean; width?: number; height?: number } = {}
 ) => {
   const offset = options.offset || 0;
   const allowFrame = options.allowFrame ?? true;
@@ -1817,8 +1994,8 @@ const handleRedo = () => {
     src: fileObj.url,
     x: Math.min(88, 50 + offset * 3),
     y: Math.min(88, 50 + offset * 3),
-    width: 240,
-    height: 180,
+    width: options.width || 240,
+    height: options.height || 180,
     shadowColor: "#000000",
     shadowBlur: 0,
     shadowOffsetX: 0,
@@ -1966,6 +2143,7 @@ const handleSelectTopLayer = () => {
     const isPaper = isPaperFrame(shapeType);
     const isDevice = isDeviceFrame(shapeType);
     const isComposition = isCompositionFrame(shapeType);
+    const isGrid = isGridFrame(shapeType);
     const defaultSize = getFrameDefaultSize(shapeType);
     const newLayer: Layer = {
       id: uniqueId,
@@ -1974,15 +2152,18 @@ const handleSelectTopLayer = () => {
       name: `Shape: ${shapeType}`,
       x: 50,
       y: 50,
-      width: isPaper || isDevice || isComposition ? defaultSize.width : 150,
-      height: isPaper || isDevice || isComposition ? defaultSize.height : 150,
-      color: isPaper ? "#F8F1E8" : isDevice ? "#111827" : isComposition ? "#FACC15" : "#3B82F6",
+      width: isPaper || isDevice || isComposition || isGrid ? defaultSize.width : 150,
+      height: isPaper || isDevice || isComposition || isGrid ? defaultSize.height : 150,
+      color: isPaper ? "#F8F1E8" : isDevice ? "#111827" : isComposition ? "#FACC15" : isGrid ? "#FFFFFF" : "#3B82F6",
+      gridImages: isGrid ? getGridCells(shapeType).map(() => ({})) : undefined,
+      activeGridCell: isGrid ? 0 : undefined,
+      gridGap: isGrid ? 4 : undefined,
       useGradient: false,
 gradientColor1: "#3B82F6",
 gradientColor2: "#8B5CF6",
       gradientDirection: "diagonal",
-      strokeColor: isPaper ? "#F8F1E8" : isDevice ? "#111827" : isComposition ? "transparent" : isFrame ? "#3B82F6" : undefined,
-      strokeWidth: isPaper ? 14 : isDevice ? 10 : isComposition ? 0 : isFrame ? 8 : undefined,
+      strokeColor: isPaper ? "#F8F1E8" : isDevice ? "#111827" : isComposition || isGrid ? "transparent" : isFrame ? "#3B82F6" : undefined,
+      strokeWidth: isPaper ? 14 : isDevice ? 10 : isComposition || isGrid ? 0 : isFrame ? 8 : undefined,
       shadowColor: "#000000",
       shadowBlur: 0,
       shadowOffsetX: 0,
@@ -2000,6 +2181,7 @@ gradientColor2: "#8B5CF6",
   const isPaper = isPaperFrame(shape.shapeType);
   const isDevice = isDeviceFrame(shape.shapeType);
   const isComposition = isCompositionFrame(shape.shapeType);
+  const isGrid = isGridFrame(shape.shapeType);
   const defaultSize = getFrameDefaultSize(shape.shapeType);
 
   const newLayer: Layer = {
@@ -2012,8 +2194,11 @@ gradientColor2: "#8B5CF6",
     width: defaultSize.width,
     height: defaultSize.height,
     color: shape.color,
+    gridImages: isGrid ? getGridCells(shape.shapeType).map(() => ({})) : undefined,
+    activeGridCell: isGrid ? 0 : undefined,
+    gridGap: isGrid ? 4 : undefined,
     strokeColor: isFrame || isComposition ? shape.color : undefined,
-    strokeWidth: isPaper ? 14 : isDevice ? 10 : isComposition ? 0 : isFrame ? 8 : undefined,
+    strokeWidth: isPaper ? 14 : isDevice ? 10 : isComposition || isGrid ? 0 : isFrame ? 8 : undefined,
     useGradient: false,
 gradientColor1: shape.color,
 gradientColor2: "#8B5CF6",
@@ -2029,6 +2214,38 @@ gradientDirection: "diagonal",
   setLayers((prev) => [...prev, newLayer]);
   setSelectedLayerId(newLayer.id);
 };
+
+  const addPremadeGradient = (preset: (typeof PREMADE_GRADIENTS)[number]) => {
+    const uniqueId = `gradient-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const newLayer: Layer = {
+      id: uniqueId,
+      type: "shape",
+      shapeType: "rectangle",
+      name: `Gradient: ${preset.name}`,
+      x: 50,
+      y: 50,
+      width: 280,
+      height: 180,
+      color: preset.color1,
+      useGradient: true,
+      gradientType: preset.type,
+      gradientColor1: preset.color1,
+      gradientColor2: preset.color2,
+      gradientDirection: "direction" in preset ? preset.direction : "diagonal",
+      gradientPosition: "position" in preset ? preset.position : "center",
+      borderRadius: 14,
+      shadowColor: "#000000",
+      shadowBlur: 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      opacity: 1,
+      angle: 0,
+    };
+
+    setLayers((prev) => [...prev, newLayer]);
+    setSelectedLayerId(newLayer.id);
+    setIsCropMode(false);
+  };
 
   const moveLayerOrder = (index: number, direction: "up" | "down") => {
     const nextIndex = direction === "up" ? index + 1 : index - 1;
@@ -2455,6 +2672,18 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
   const updateSelectedLayer = (fields: Partial<Layer>) => {
     if (!selectedLayerId) return;
     setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
+  };
+
+  const updateSelectedGridCell = (index: number, fields: Partial<GridImage>) => {
+    if (!selectedLayerId) return;
+    setLayers((currentLayers) => currentLayers.map((layer) => {
+      if (layer.id !== selectedLayerId || !isGridFrame(layer.shapeType)) return layer;
+      const capacity = getGridCells(layer.shapeType).length;
+      const nextGridImages = [...(layer.gridImages || [])];
+      while (nextGridImages.length < capacity) nextGridImages.push({});
+      nextGridImages[index] = { ...nextGridImages[index], ...fields };
+      return { ...layer, gridImages: nextGridImages, activeGridCell: index };
+    }));
   };
 
   const getTextSelectionOffsets = (element: HTMLElement) => {
@@ -3099,19 +3328,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     return layer.color || "#3B82F6";
   }
 
-  const directionMap = {
-    "top-bottom": "180deg",
-    "bottom-top": "0deg",
-    "left-right": "90deg",
-    "right-left": "270deg",
-    "diagonal": "135deg",
-  };
-
-  return `linear-gradient(
-    ${directionMap[layer.gradientDirection || "diagonal"]},
-    ${layer.gradientColor1 || layer.color || "#3B82F6"},
-    ${layer.gradientColor2 || "#8B5CF6"}
-  )`;
+  return getGradientFill(layer);
 };
 
   const applyCropToSelectedImage = async () => {
@@ -3992,7 +4209,7 @@ const buyCredits = async (packageId: string) => {
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis" | "brand")}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand")}
           style={{
             padding: "9px 7px",
             borderRadius: "8px",
@@ -4008,16 +4225,19 @@ const buyCredits = async (packageId: string) => {
         </button>
       ))}
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "6px", marginBottom: "10px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "6px", marginBottom: "10px" }}>
       {[
         { id: "objects", label: "Objects" },
         { id: "shapes", label: "Shapes" },
         { id: "frames", label: "Frames" },
+        { id: "grids", label: "Grids" },
+        { id: "gradients", label: "Gradients" },
+        { id: "social", label: "Social Media" },
         { id: "emojis", label: "Emojis" },
       ].map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "emojis" | "brand")}
+          onClick={() => setAssetTab(tab.id as "people" | "objects" | "shapes" | "frames" | "grids" | "gradients" | "social" | "emojis" | "brand")}
           style={{
             padding: "7px 5px",
             borderRadius: "8px",
@@ -4114,6 +4334,86 @@ const buyCredits = async (packageId: string) => {
             ))}
           </div>
         )}
+      </div>
+    ) : assetTab === "social" ? (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+        {SOCIAL_MEDIA_ASSETS.map((asset) => (
+          <div key={asset.name} style={{ border: "1px solid #E2E8F0", borderRadius: "10px", overflow: "hidden", background: "#FFFFFF", boxShadow: "0 4px 12px rgba(15,23,42,0.05)" }}>
+            <button
+              type="button"
+              onClick={() => addImageToCanvas({ url: asset.src, name: `${asset.name} Icon` }, { width: 180, height: 180 })}
+              title={`Add ${asset.name} icon`}
+              aria-label={`Add ${asset.name} icon`}
+              style={{ width: "100%", aspectRatio: "1", padding: "16px", border: "none", background: "#F8FAFC", cursor: "pointer" }}
+            >
+              <img src={asset.src} alt={asset.name} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+            </button>
+            <button
+              type="button"
+              onClick={() => addTextLayer({ text: asset.name, fontFamily: "Montserrat", fontSize: 48, color: asset.color, isBold: true, textAlign: "center" })}
+              title={`Add ${asset.name} text`}
+              style={{ width: "100%", minHeight: "34px", padding: "6px 4px", border: "none", borderTop: "1px solid #E2E8F0", background: "#FFFFFF", color: asset.color, fontSize: "10px", fontWeight: 800, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {asset.name}
+            </button>
+          </div>
+        ))}
+      </div>
+    ) : assetTab === "gradients" ? (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+        {PREMADE_GRADIENTS.map((gradient) => (
+          <button
+            key={gradient.name}
+            type="button"
+            onClick={() => addPremadeGradient(gradient)}
+            title={gradient.name}
+            aria-label={gradient.name}
+            style={{
+              aspectRatio: "1",
+              border: "1px solid #E2E8F0",
+              borderRadius: "10px",
+              background: getGradientFill({
+                gradientType: gradient.type,
+                gradientColor1: gradient.color1,
+                gradientColor2: gradient.color2,
+                gradientDirection: "direction" in gradient ? gradient.direction : undefined,
+                gradientPosition: "position" in gradient ? gradient.position : undefined,
+              }),
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(15,23,42,0.06)",
+            }}
+          />
+        ))}
+      </div>
+    ) : assetTab === "grids" ? (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+        {PREMADE_GRIDS.map((grid) => (
+          <button
+            key={grid.name}
+            type="button"
+            onClick={() => addPremadeShape(grid)}
+            title={grid.name}
+            style={{ aspectRatio: "1", padding: "10px", border: "1px solid #E2E8F0", borderRadius: "8px", background: "#F8FAFC", cursor: "pointer" }}
+          >
+            <span style={{ position: "relative", display: "block", width: "100%", height: "100%", overflow: "hidden", borderRadius: "4px", background: "#FFFFFF" }}>
+              {getGridCells(grid.shapeType).map((cell, index) => (
+                <span
+                  key={index}
+                  style={{
+                    position: "absolute",
+                    left: `${cell.x}%`,
+                    top: `${cell.y}%`,
+                    width: `${cell.width}%`,
+                    height: `${cell.height}%`,
+                    boxSizing: "border-box",
+                    border: "2px solid #FFFFFF",
+                    background: index % 2 === 0 ? "linear-gradient(180deg, #BAE6FD 0%, #E0F2FE 62%, #A3E635 63%, #65A30D 100%)" : "linear-gradient(180deg, #DBEAFE 0%, #EFF6FF 62%, #BEF264 63%, #84CC16 100%)",
+                  }}
+                />
+              ))}
+            </span>
+          </button>
+        ))}
       </div>
     ) : assetTab === "emojis" ? (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
@@ -5141,6 +5441,58 @@ const buyCredits = async (packageId: string) => {
       )}
     </div>
   </div>
+  ) : isGridFrame(layer.shapeType) ? (
+  <div
+    style={{
+      width: `${layer.width}px`,
+      height: `${layer.height}px`,
+      position: "relative",
+      overflow: "hidden",
+      borderRadius: `${layer.borderRadius || 0}px`,
+      background: "#FFFFFF",
+      boxSizing: "border-box",
+    }}
+  >
+    {getGridCells(layer.shapeType).map((cell, index) => {
+      const image = layer.gridImages?.[index];
+      const gap = layer.gridGap ?? 4;
+      return (
+        <div
+          key={index}
+          onClick={() => {
+            setLayers((currentLayers) => currentLayers.map((currentLayer) => currentLayer.id === layer.id ? { ...currentLayer, activeGridCell: index } : currentLayer));
+          }}
+          style={{
+            position: "absolute",
+            left: `calc(${cell.x}% + ${gap / 2}px)`,
+            top: `calc(${cell.y}% + ${gap / 2}px)`,
+            width: `calc(${cell.width}% - ${gap}px)`,
+            height: `calc(${cell.height}% - ${gap}px)`,
+            overflow: "hidden",
+            background: image?.src ? "transparent" : index % 2 === 0 ? "linear-gradient(180deg, #BAE6FD 0%, #E0F2FE 62%, #A3E635 63%, #65A30D 100%)" : "linear-gradient(180deg, #DBEAFE 0%, #EFF6FF 62%, #BEF264 63%, #84CC16 100%)",
+            boxShadow: selectedLayerId === layer.id && (layer.activeGridCell ?? 0) === index ? "inset 0 0 0 3px #2563EB" : "none",
+            boxSizing: "border-box",
+          }}
+        >
+          {image?.src && (
+            <img
+              src={image.src}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: image.fit || "cover",
+                objectPosition: `${image.x ?? 50}% ${image.y ?? 50}%`,
+                transform: `scale(${image.flipH ? -(image.scale ?? 1) : image.scale ?? 1}, ${image.flipV ? -(image.scale ?? 1) : image.scale ?? 1})`,
+                transformOrigin: "center",
+                display: "block",
+              }}
+            />
+          )}
+        </div>
+      );
+    })}
+  </div>
   ) : isCompositionFrame(layer.shapeType) ? (
   <div
     style={{
@@ -5618,25 +5970,39 @@ const buyCredits = async (packageId: string) => {
     </div>
 
     <select
-      value={selectedLayer.gradientDirection || "diagonal"}
-      onChange={(e) =>
-        updateSelectedLayer({
-          gradientDirection: e.target.value as any,
-        })
-      }
-      style={{
-        width: "100%",
-        padding: "6px",
-        borderRadius: "6px",
-        border: "1px solid #CBD5E1",
-      }}
+      value={selectedLayer.gradientType || "linear"}
+      onChange={(e) => updateSelectedLayer({ gradientType: e.target.value as "linear" | "radial" })}
+      style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF" }}
     >
-      <option value="top-bottom">Top → Bottom</option>
-      <option value="bottom-top">Bottom → Top</option>
-      <option value="left-right">Left → Right</option>
-      <option value="right-left">Right → Left</option>
-      <option value="diagonal">Diagonal</option>
+      <option value="linear">Linear Gradient</option>
+      <option value="radial">Radial Glow</option>
     </select>
+
+    {(selectedLayer.gradientType || "linear") === "linear" ? (
+      <select
+        value={selectedLayer.gradientDirection || "diagonal"}
+        onChange={(e) => updateSelectedLayer({ gradientDirection: e.target.value as Layer["gradientDirection"] })}
+        style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF" }}
+      >
+        <option value="top-bottom">Top to Bottom</option>
+        <option value="bottom-top">Bottom to Top</option>
+        <option value="left-right">Left to Right</option>
+        <option value="right-left">Right to Left</option>
+        <option value="diagonal">Diagonal</option>
+      </select>
+    ) : (
+      <select
+        value={selectedLayer.gradientPosition || "center"}
+        onChange={(e) => updateSelectedLayer({ gradientPosition: e.target.value as Layer["gradientPosition"] })}
+        style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF" }}
+      >
+        <option value="center">Center</option>
+        <option value="top">Top</option>
+        <option value="bottom">Bottom</option>
+        <option value="left">Left</option>
+        <option value="right">Right</option>
+      </select>
+    )}
   </div>
 )}
   </div>
@@ -5733,10 +6099,10 @@ const buyCredits = async (packageId: string) => {
 
               {isImageFrame(selectedLayer) && (
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "8px" }}>Frame Image</label>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "8px" }}>{isGridFrame(selectedLayer.shapeType) ? "Grid Photos" : "Frame Image"}</label>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {!isCompositionFrame(selectedLayer.shapeType) && (
+                    {!isCompositionFrame(selectedLayer.shapeType) && !isGridFrame(selectedLayer.shapeType) && (
                       <>
                         <input
                           type="color"
@@ -5756,6 +6122,60 @@ const buyCredits = async (packageId: string) => {
                         />
                       </>
                     )}
+
+                    {isGridFrame(selectedLayer.shapeType) && (() => {
+                      const cells = getGridCells(selectedLayer.shapeType);
+                      const activeCell = Math.min(selectedLayer.activeGridCell ?? 0, cells.length - 1);
+                      const activeImage = selectedLayer.gridImages?.[activeCell];
+                      return (
+                        <>
+                          <label style={{ fontSize: "10px", color: "#64748B" }}>Spacing ({selectedLayer.gridGap ?? 4}px)</label>
+                          <input type="range" min="0" max="24" value={selectedLayer.gridGap ?? 4} onChange={(e) => updateSelectedLayer({ gridGap: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(4, cells.length)}, 1fr)`, gap: "6px" }}>
+                            {cells.map((_, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => updateSelectedLayer({ activeGridCell: index })}
+                                style={{ padding: "7px 4px", borderRadius: "6px", border: "1px solid #CBD5E1", background: activeCell === index ? "#2563EB" : "#FFFFFF", color: activeCell === index ? "#FFFFFF" : "#334155", fontSize: "11px", fontWeight: 800, cursor: "pointer" }}
+                              >
+                                {index + 1}
+                              </button>
+                            ))}
+                          </div>
+
+                          {activeImage?.src ? (
+                            <>
+                              <select value={activeImage.fit || "cover"} onChange={(e) => updateSelectedGridCell(activeCell, { fit: e.target.value as "cover" | "contain" })} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFF" }}>
+                                <option value="cover">Image Fill: Cover</option>
+                                <option value="contain">Image Fit: Contain</option>
+                              </select>
+
+                              <label style={{ fontSize: "10px", color: "#64748B" }}>Horizontal ({activeImage.x ?? 50}%)</label>
+                              <input type="range" min="0" max="100" value={activeImage.x ?? 50} onChange={(e) => updateSelectedGridCell(activeCell, { x: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                              <label style={{ fontSize: "10px", color: "#64748B" }}>Vertical ({activeImage.y ?? 50}%)</label>
+                              <input type="range" min="0" max="100" value={activeImage.y ?? 50} onChange={(e) => updateSelectedGridCell(activeCell, { y: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                              <label style={{ fontSize: "10px", color: "#64748B" }}>Zoom ({((activeImage.scale ?? 1) * 100).toFixed(0)}%)</label>
+                              <input type="range" min="0.5" max="3" step="0.05" value={activeImage.scale ?? 1} onChange={(e) => updateSelectedGridCell(activeCell, { scale: Number(e.target.value) })} style={{ width: "100%" }} />
+
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                <button type="button" onClick={() => updateSelectedGridCell(activeCell, { flipH: !activeImage.flipH })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: activeImage.flipH ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Flip H</button>
+                                <button type="button" onClick={() => updateSelectedGridCell(activeCell, { flipV: !activeImage.flipV })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: activeImage.flipV ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Flip V</button>
+                              </div>
+
+                              <button type="button" onClick={() => updateSelectedGridCell(activeCell, { src: undefined, x: 50, y: 50, scale: 1, flipH: false, flipV: false })} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Remove Photo {activeCell + 1}</button>
+                            </>
+                          ) : (
+                            <div style={{ padding: "9px", borderRadius: "6px", background: "#EFF6FF", color: "#1D4ED8", fontSize: "11px", fontWeight: 700, textAlign: "center" }}>
+                              Select an uploaded image to fill photo {activeCell + 1}.
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {selectedLayer.frameImageSrc && (
                       <>
