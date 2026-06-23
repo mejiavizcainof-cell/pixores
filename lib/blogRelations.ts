@@ -1,4 +1,64 @@
 export const blogRelations: Record<string, string[]> = {
+  "history-of-png": [
+    "history-of-gif",
+    "history-of-jpeg",
+    "make-transparent-background-png",
+    "jpg-vs-png",
+  ],
+  "history-of-jpeg": [
+    "history-of-digital-photography-and-compression",
+    "history-of-png",
+    "history-of-webp",
+    "webp-vs-avif-vs-jpeg",
+  ],
+  "history-of-gif": [
+    "history-of-png",
+    "history-of-webp",
+    "first-image-editors-history",
+    "best-image-format-for-social-media",
+  ],
+  "history-of-webp": [
+    "history-of-jpeg",
+    "history-of-png",
+    "webp-vs-avif-vs-jpeg",
+    "compress-images-for-website-seo",
+  ],
+  "first-image-editors-history": [
+    "history-of-photoshop-image-editing",
+    "evolution-of-image-editing-to-ai",
+    "history-of-digital-photography-and-compression",
+    "history-of-ai-image-generation",
+  ],
+  "history-of-photoshop-image-editing": [
+    "first-image-editors-history",
+    "evolution-of-image-editing-to-ai",
+    "history-of-digital-photography-and-compression",
+    "how-to-watermark-images",
+  ],
+  "evolution-of-image-editing-to-ai": [
+    "first-image-editors-history",
+    "history-of-photoshop-image-editing",
+    "history-of-ai-image-generation",
+    "increase-image-resolution-ai",
+  ],
+  "history-of-digital-photography-and-compression": [
+    "history-of-jpeg",
+    "history-of-photoshop-image-editing",
+    "evolution-of-image-editing-to-ai",
+    "compress-images-for-website-seo",
+  ],
+  "internet-and-ai-evolution-pros-cons": [
+    "history-of-ai-image-generation",
+    "evolution-of-image-editing-to-ai",
+    "increase-image-resolution-ai",
+    "compress-images-for-website-seo",
+  ],
+  "history-of-ai-image-generation": [
+    "internet-and-ai-evolution-pros-cons",
+    "evolution-of-image-editing-to-ai",
+    "first-image-editors-history",
+    "increase-image-resolution-ai",
+  ],
   "social-media-image-sizes-2026": [
     "best-image-format-for-social-media",
     "resize-image-without-stretching",
