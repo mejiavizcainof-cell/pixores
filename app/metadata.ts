@@ -37,7 +37,7 @@ export const siteMetadata: Metadata = {
   authors: [
     {
       name: "Pixores",
-      url: "https://pixores.com",
+      url: "https://www.pixores.com",
     },
   ],
 

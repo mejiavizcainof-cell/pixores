@@ -8,7 +8,13 @@ import styles from "./HomePage.module.css";
 export const metadata: Metadata = {
   title: "Pixores Studio - Thumbnail Creator, Templates & Image Tools",
   description: "Create professional thumbnails with Pixores Studio, start from ready-made templates, and use fast online image tools.",
-  alternates: { canonical: "https://www.pixores.com" },
+  alternates: {
+    canonical: "https://www.pixores.com",
+    languages: {
+      en: "https://www.pixores.com",
+      es: "https://www.pixores.com/es",
+    },
+  },
 };
 
 const benefits = [

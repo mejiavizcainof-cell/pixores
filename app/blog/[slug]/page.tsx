@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { SITE_URL } from "@/lib/seo";
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
@@ -46,12 +47,12 @@ export async function generateMetadata({
 
   if (!post) {
     return {
-      title: "Blog Post Not Found | Pixores",
+      title: "Blog Post Not Found",
     };
   }
 
-  const url = `https://pixores.com/blog/${post.slug}`;
-  const image = post.cover_image || "https://pixores.com/og-image.png";
+  const url = `${SITE_URL}/blog/${post.slug}`;
+  const image = new URL(post.cover_image || "/og-image.png", SITE_URL).toString();
 
   return {
     title: post.title,

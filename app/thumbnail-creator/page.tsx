@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   description:
     "Create professional YouTube thumbnails online with Pixore Studio V2. Drag and drop editor, layers, custom fonts and PNG export.",
 
+  alternates: { canonical: "https://www.pixores.com/thumbnail-creator" },
+
   keywords: [
     "youtube thumbnail maker",
     "thumbnail creator",

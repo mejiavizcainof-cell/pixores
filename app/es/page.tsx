@@ -22,6 +22,13 @@ keywords: [
 "herramientas para imágenes",
 "convertidor online",
 ],
+alternates: {
+canonical: "https://www.pixores.com/es",
+languages: {
+en: "https://www.pixores.com",
+es: "https://www.pixores.com/es",
+},
+},
 };
 
 export default function Home() {

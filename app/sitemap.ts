@@ -36,18 +36,15 @@ const publicPages = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-
   const pages = publicPages.map((page) => ({
     url: `${baseUrl}${page.path}`,
-    lastModified: now,
     changeFrequency: page.changeFrequency,
     priority: page.priority,
   }));
 
   const posts = blogPosts.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: post.date ? new Date(post.date) : now,
+    lastModified: post.date ? new Date(post.date) : undefined,
     changeFrequency: "monthly" as const,
     priority: 0.7,
     images: post.image ? [`${baseUrl}${post.image}`] : undefined,

@@ -3,7 +3,7 @@ import Link from "next/link";
 import PolicyPage, { type PolicySection } from "@/components/PolicyPage";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Pixores",
+  title: "Privacy Policy",
   description: "Learn how Pixores collects, uses, processes, and protects information when you use our image tools and services.",
   alternates: { canonical: "https://www.pixores.com/privacy-policy" },
 };

@@ -3,7 +3,7 @@ import Link from "next/link";
 import PolicyPage, { type PolicySection } from "@/components/PolicyPage";
 
 export const metadata: Metadata = {
-  title: "Cookie Policy | Pixores",
+  title: "Cookie Policy",
   description: "Learn how Pixores uses essential, preference, analytics, and advertising cookies and how to manage them.",
   alternates: { canonical: "https://www.pixores.com/cookie-policy" },
 };

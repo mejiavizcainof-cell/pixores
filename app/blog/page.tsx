@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Pixores Blog",
   description:
     "Guides and tips for image conversion, YouTube thumbnails, compression, resizing, and online image tools.",
+  alternates: { canonical: "https://www.pixores.com/blog" },
 };
 
 const supabase = createClient(

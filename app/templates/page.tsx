@@ -6,9 +6,10 @@ import { createClient } from "@supabase/supabase-js";
 import { templates } from "@/lib/templates";
 
 export const metadata: Metadata = {
-  title: "Free Design Templates | Pixores",
+  title: "Free Design Templates",
   description:
     "Choose free templates for YouTube thumbnails, TikTok posts, Instagram posts, and creator designs.",
+  alternates: { canonical: "https://www.pixores.com/templates" },
 };
 
 type PublicTemplateCard = {
