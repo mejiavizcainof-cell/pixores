@@ -3,7 +3,7 @@ import PolicyPage, { type PolicySection } from "@/components/PolicyPage";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Read the terms governing the use of Pixores online image tools, Studio, templates, accounts, and AI services.",
+  description: "Read the terms governing the use of Pixores online image tools, Thumbnail Maker, templates, accounts, and AI services.",
   alternates: { canonical: "https://www.pixores.com/terms-of-service" },
 };
 

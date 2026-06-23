@@ -22,7 +22,7 @@ function escapeSvg(text: string) {
 export async function GET() {
   return NextResponse.json({ 
     status: "online", 
-    message: "Studio API activa. Utiliza POST para procesar imágenes o IA." 
+    message: "Thumbnail Maker API activa. Utiliza POST para procesar imágenes o IA."
   }, { status: 200 });
 }
 

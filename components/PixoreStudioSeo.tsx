@@ -26,16 +26,16 @@ export default function PixoreStudioSeo() {
             listStyle: "none",
           }}
         >
-          About Pixore Studio V2 and thumbnail creator features
+          About Pixores Thumbnail Maker and its editing features
         </summary>
 
         <div style={{ padding: "0 18px 18px", color: "#334155" }}>
           <h2 style={{ fontSize: "18px" }}>
-            What is Pixore Studio V2?
+            What is Pixores Thumbnail Maker?
           </h2>
 
           <p>
-            Pixore Studio V2 is a professional online YouTube thumbnail maker that
+            Pixores Thumbnail Maker is a professional online YouTube thumbnail maker that
             allows creators to design eye-catching thumbnails directly from their browser.
           </p>
 
@@ -50,7 +50,7 @@ export default function PixoreStudioSeo() {
 
           <p>
             YouTube thumbnails play a critical role in improving click-through rates.
-            Pixore Studio V2 helps creators build professional thumbnails quickly and efficiently.
+            Pixores Thumbnail Maker helps creators build professional thumbnails quickly and efficiently.
           </p>
 
           <h2 style={{ fontSize: "18px" }}>
@@ -67,12 +67,12 @@ export default function PixoreStudioSeo() {
           </ul>
 
           <h2 style={{ fontSize: "18px" }}>
-            Why Use Pixore Studio V2?
+            Why Use Pixores Thumbnail Maker?
           </h2>
 
           <p>
             Whether you are a YouTuber, marketer, entrepreneur or content creator,
-            Pixore Studio V2 provides the tools needed to create thumbnails that
+            Pixores Thumbnail Maker provides the tools needed to create thumbnails that
             stand out and attract more clicks.
           </p>
         </div>

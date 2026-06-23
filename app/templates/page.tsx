@@ -179,7 +179,7 @@ export default async function TemplatesPage() {
               </h2>
 
               <Link
-                href={`/thumbnail-creator?template=${template.id}`}
+                href={`/youtube-thumbnail-maker?template=${template.id}`}
                 style={{
                   display: "inline-block",
                   background: "#2563EB",

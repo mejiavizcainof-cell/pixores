@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${request.nextUrl.origin}/thumbnail-creator?payment=success`,
-      cancel_url: `${request.nextUrl.origin}/thumbnail-creator?payment=cancelled`,
+      success_url: `${request.nextUrl.origin}/youtube-thumbnail-maker?payment=success`,
+      cancel_url: `${request.nextUrl.origin}/youtube-thumbnail-maker?payment=cancelled`,
       metadata: {
         userId,
         packageId,
@@ -72,9 +72,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: error.message || "Stripe checkout failed" },
+      {
+        error: error instanceof Error ? error.message : "Stripe checkout failed",
+      },
       { status: 500 }
     );
   }

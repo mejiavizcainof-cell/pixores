@@ -220,7 +220,7 @@ Choose PNG when the transparent result must work in common editors and presentat
 Only remove and reuse images you created or have permission to edit. A technical ability to isolate a subject does not grant rights to publish someone else's work.
 
 [H2: Keep a clean master]
-Save the full-resolution transparent PNG before adding text, outlines, or a new background. That master can be reused in [LINK: Pixores Studio|/thumbnail-creator], social posts, and future designs without repeating the removal process.
+Save the full-resolution transparent PNG before adding text, outlines, or a new background. That master can be reused in [LINK: Pixores Thumbnail Maker|/youtube-thumbnail-maker], social posts, and future designs without repeating the removal process.
 
 [H2: Final checklist]
 Use a sharp source, review difficult edges, test the cutout on multiple colors, export to a transparency-capable format, and keep the master. For more background-removal advice, read [LINK: How to Remove Image Backgrounds for Free|/blog/remove-image-background-free].

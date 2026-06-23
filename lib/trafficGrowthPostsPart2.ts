@@ -23,7 +23,7 @@ Two or three dominant colors are usually easier to control than a rainbow of com
 [H2: Make text readable]
 Thumbnail text should be brief, large, and meaningfully different from the video title. Use strong contrast between text and its immediate background. A subtle shadow, solid shape, or outline can improve separation, but heavy effects often create noise.
 
-Check the design at the size it appears in a mobile feed. The [LINK: Pixores thumbnail creator|/thumbnail-creator] lets you build the composition on a 16:9 canvas and adjust layers without flattening the design too early.
+Check the design at the size it appears in a mobile feed. The [LINK: Pixores Thumbnail Maker|/youtube-thumbnail-maker] lets you build the composition on a 16:9 canvas and adjust layers without flattening the design too early.
 
 [H2: Avoid misleading color tactics]
 Extreme warning colors, fake notification marks, or urgent visual cues may attract attention, but they can also create the wrong expectation. The thumbnail should accurately represent the video. Sustainable performance comes from matching a strong visual with content that fulfills the promise.
@@ -73,7 +73,7 @@ Useful test variables include:
 Minor changes such as moving an icon a few pixels may produce little practical insight. Completely unrelated concepts can produce a winner, but they make the reason harder to understand.
 
 [H2: Create consistent variants]
-Use [LINK: Pixores Studio|/thumbnail-creator] to duplicate a design and modify the intended variable while keeping dimensions, export settings, and overall quality consistent. Start with the recommended [LINK: YouTube thumbnail dimensions|/blog/best-youtube-thumbnail-size] so each version is evaluated on equal technical footing.
+Use [LINK: Pixores Thumbnail Maker|/youtube-thumbnail-maker] to duplicate a design and modify the intended variable while keeping dimensions, export settings, and overall quality consistent. Start with the recommended [LINK: YouTube thumbnail dimensions|/blog/best-youtube-thumbnail-size] so each version is evaluated on equal technical footing.
 
 [H2: Give the test enough opportunity]
 Small samples can fluctuate. Avoid making a confident decision from a handful of impressions or a short unusual traffic spike. Consider traffic sources, audience familiarity, topic, and publication timing. A thumbnail shown to loyal subscribers may behave differently from one shown to new viewers.

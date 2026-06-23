@@ -6,7 +6,7 @@ import styles from "@/components/DiscoveryPages.module.css";
 
 export const metadata: Metadata = {
   title: "About Pixores",
-  description: "Learn about Pixores, our browser-first image tools, creator studio, templates, privacy approach, and mission.",
+  description: "Learn about Pixores, our browser-first image tools, thumbnail maker, templates, privacy approach, and mission.",
   alternates: { canonical: "https://www.pixores.com/about" },
 };
 
@@ -17,7 +17,7 @@ const values = [
 ];
 
 const pillars = [
-  { icon: Layers3, title: "Pixores Studio", description: "A layer-based editor for thumbnails, social graphics, text, frames, personal brand assets, and exports.", href: "/thumbnail-creator", link: "Open Studio" },
+  { icon: Layers3, title: "Pixores Thumbnail Maker", description: "A layer-based editor for YouTube thumbnails, social graphics, text, frames, personal brand assets, and exports.", href: "/youtube-thumbnail-maker", link: "Open Thumbnail Maker" },
   { icon: Sparkles, title: "AI image tools", description: "Background removal and image upscaling make advanced edits accessible through straightforward controls.", href: "/tools", link: "Explore AI tools" },
   { icon: MonitorSmartphone, title: "Everyday utilities", description: "Conversion, compression, resizing, cropping, watermarks, and more across desktop and mobile.", href: "/tools", link: "Browse all tools" },
 ];
@@ -29,9 +29,9 @@ export default function AboutPage() {
         <div className={styles.heroInner}>
           <div className={styles.brandRow}><Image src="/logo.png" alt="Pixores" width={30} height={30} /> Built for creators and everyday image work</div>
           <h1>About Pixores</h1>
-          <p className={styles.heroText}>Pixores brings practical image tools, editable templates, and a capable creator studio together in one accessible browser-based workspace.</p>
+          <p className={styles.heroText}>Pixores brings practical image tools, editable templates, and a capable thumbnail maker together in one accessible browser-based workspace.</p>
           <div className={styles.heroActions}>
-            <Link href="/thumbnail-creator" className={styles.primaryButton}>Open Pixores Studio <ArrowRight size={17} /></Link>
+            <Link href="/youtube-thumbnail-maker" className={styles.primaryButton}>Open Thumbnail Maker <ArrowRight size={17} /></Link>
             <Link href="/tools" className={styles.secondaryButton}>Explore all tools</Link>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default function AboutPage() {
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHeader}><span>What Pixores offers</span><h2>From quick fixes to finished designs</h2><p>Focused utilities work alongside Studio and templates, so users can choose the workflow that matches the job.</p></div>
+        <div className={styles.sectionHeader}><span>What Pixores offers</span><h2>From quick fixes to finished designs</h2><p>Focused utilities work alongside the Thumbnail Maker and templates, so users can choose the workflow that matches the job.</p></div>
         <div className={styles.pillarGrid}>{pillars.map(({ icon: Icon, title, description, href, link }) => <article key={title} className={styles.pillarCard}><div className={styles.pillarIcon}><Icon size={20} /></div><h3>{title}</h3><p>{description}</p><Link href={href}>{link} <ArrowRight size={13} /></Link></article>)}</div>
       </section>
 

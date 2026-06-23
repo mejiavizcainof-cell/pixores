@@ -1,39 +1,18 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { permanentRedirect } from "next/navigation";
 
-import ThumbnailEditorV2 from "@/components/ThumbnailEditorV2";
-import PixoreStudioSeo from "@/components/PixoreStudioSeo";
-import PixoreStudioSchema from "@/components/PixoreStudioSchema";
-
-export const metadata: Metadata = {
-  title: "Pixore Studio V2 | Free YouTube Thumbnail Maker",
-
-  description:
-    "Create professional YouTube thumbnails online with Pixore Studio V2. Drag and drop editor, layers, custom fonts and PNG export.",
-
-  alternates: { canonical: "https://www.pixores.com/thumbnail-creator" },
-
-  keywords: [
-    "youtube thumbnail maker",
-    "thumbnail creator",
-    "free thumbnail maker",
-    "thumbnail editor",
-    "youtube thumbnail generator",
-    "pixore studio",
-    "pixore studio v2",
-  ],
+type LegacyPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function Page() {
-  return (
-    <>
-      <PixoreStudioSchema />
+export default async function LegacyThumbnailCreatorPage({ searchParams }: LegacyPageProps) {
+  const values = await searchParams;
+  const query = new URLSearchParams();
 
-      <Suspense fallback={<div>Loading editor...</div>}>
-        <ThumbnailEditorV2 />
-      </Suspense>
+  for (const [key, value] of Object.entries(values)) {
+    if (Array.isArray(value)) value.forEach((item) => query.append(key, item));
+    else if (value !== undefined) query.set(key, value);
+  }
 
-      <PixoreStudioSeo />
-    </>
-  );
+  const suffix = query.size ? `?${query.toString()}` : "";
+  permanentRedirect(`/youtube-thumbnail-maker${suffix}`);
 }

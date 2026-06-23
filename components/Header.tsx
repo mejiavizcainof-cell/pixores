@@ -15,7 +15,7 @@ const navItems = [
   { href: "/crop-image", label: "Crop Image" },
   { href: "/watermark-image", label: "Watermark" },
   { href: "/templates", label: "Templates" },
-  { href: "/thumbnail-creator", label: "Studio" },
+  { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
   { href: "/blog", label: "Blog" },
   { href: "/faq", label: "FAQ" },
 ];

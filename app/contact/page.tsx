@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const topics = [
   { icon: Bug, title: "Technical support", description: "Report a tool, upload, conversion, editor, or download problem." },
   { icon: CreditCard, title: "Billing and credits", description: "Questions about purchases, credits, or account transactions." },
-  { icon: Lightbulb, title: "Feature requests", description: "Suggest a new tool or improvement for Pixores Studio." },
+  { icon: Lightbulb, title: "Feature requests", description: "Suggest a new tool or improvement for Pixores Thumbnail Maker." },
   { icon: ShieldCheck, title: "Privacy requests", description: "Ask about account data, saved content, or privacy rights." },
 ];
 

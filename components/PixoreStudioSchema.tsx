@@ -11,7 +11,10 @@ export default function PixoreStudioSchema() {
             "SoftwareApplication",
 
           name:
-            "Pixore Studio V2",
+            "Pixores Thumbnail Maker",
+
+          url:
+            "https://www.pixores.com/youtube-thumbnail-maker",
 
           applicationCategory:
             "DesignApplication",

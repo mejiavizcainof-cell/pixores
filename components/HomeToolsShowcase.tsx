@@ -19,7 +19,7 @@ import {
 import styles from "./DiscoveryPages.module.css";
 
 const featuredTools = [
-  { title: "Pixores Studio", href: "/thumbnail-creator", description: "Design thumbnails and social graphics with editable layers.", category: "Create", badge: "Featured", icon: Layers3 },
+  { title: "Pixores Thumbnail Maker", href: "/youtube-thumbnail-maker", description: "Design YouTube thumbnails and social graphics with editable layers.", category: "Create", badge: "Featured", icon: Layers3 },
   { title: "Design Templates", href: "/templates", description: "Customize ready-made layouts for popular social formats.", category: "Create", badge: "Featured", icon: Palette },
   { title: "AI Background Remover", href: "/remove-background", description: "Remove backgrounds and download a transparent PNG.", category: "AI", badge: "AI", icon: WandSparkles },
   { title: "AI Image Upscaler", href: "/image-upscaler", description: "Increase resolution with AI-powered enhancement.", category: "AI", badge: "AI", icon: Sparkles },

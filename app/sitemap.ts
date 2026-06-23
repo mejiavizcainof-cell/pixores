@@ -10,7 +10,7 @@ const publicPages = [
   { path: "/image-upscaler", changeFrequency: "weekly" as const, priority: 0.95 },
   { path: "/crop-image", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/watermark-image", changeFrequency: "monthly" as const, priority: 0.9 },
-  { path: "/thumbnail-creator", changeFrequency: "weekly" as const, priority: 0.95 },
+  { path: "/youtube-thumbnail-maker", changeFrequency: "weekly" as const, priority: 0.95 },
   { path: "/instagram-reel-downloader", changeFrequency: "monthly" as const, priority: 0.75 },
   { path: "/templates", changeFrequency: "weekly" as const, priority: 0.75 },
   { path: "/blog", changeFrequency: "weekly" as const, priority: 0.8 },

@@ -88,14 +88,14 @@ export default function Footer() {
         </a>
 
         <a
-          href="/thumbnail-creator"
+          href="/youtube-thumbnail-maker"
           style={{
             color: COLORS.text,
             textDecoration: "none",
             fontWeight: 500,
           }}
         >
-          Pixores Studio
+          Thumbnail Maker
         </a>
 
         <a

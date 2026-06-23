@@ -20,7 +20,6 @@ const siteIdentity = {
       "@id": `${SITE_URL}/#website`,
       url: `${SITE_URL}/`,
       name: "Pixores",
-      alternateName: "Pixores Studio",
       description:
         "Free online tools to create, edit, convert, compress, resize, and optimize images.",
       publisher: {

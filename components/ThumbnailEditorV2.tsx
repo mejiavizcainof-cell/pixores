@@ -3509,7 +3509,7 @@ const buyCredits = async (packageId: string) => {
           fontWeight: 800,
         }}
       >
-        Loading Pixores Studio...
+        Loading Pixores Thumbnail Maker...
       </div>
     );
   }
@@ -3536,7 +3536,7 @@ const buyCredits = async (packageId: string) => {
             P
           </div>
           <div style={{ minWidth: 0 }}>
-            <h1 style={{ fontSize: isMobileLayout ? "14px" : "16px", fontWeight: 850, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Studio</h1>
+            <h1 style={{ fontSize: isMobileLayout ? "14px" : "16px", fontWeight: 850, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Thumbnail Maker</h1>
             {!isMobileLayout && <p style={{ margin: 0, color: "#64748B", fontSize: "12px" }}>Thumbnail editor</p>}
           </div>
         </div>
@@ -3583,7 +3583,7 @@ const buyCredits = async (packageId: string) => {
       <header style={{ display: "none", minHeight: isMobileLayout ? "56px" : "68px", background: isMobileLayout ? "#0F172A" : "rgba(255,255,255,0.96)", color: isMobileLayout ? "#FFFFFF" : "#0F172A", alignItems: "center", justifyContent: "space-between", gap: isMobileLayout ? "12px" : "14px", padding: isMobileLayout ? "8px 14px" : "0 18px", borderBottom: isMobileLayout ? "none" : "1px solid #E2E8F0", boxShadow: isMobileLayout ? "0 2px 4px rgba(0,0,0,0.1)" : "0 8px 24px rgba(15,23,42,0.06)", zIndex: 10, flexWrap: "nowrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: isMobileLayout ? "1 1 180px" : "0 0 auto" }}>
           <span style={{ fontSize: "20px" }}>🎨</span>
-          <h1 style={{ fontSize: isMobileLayout ? "15px" : "17px", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Studio V2</h1>
+          <h1 style={{ fontSize: isMobileLayout ? "15px" : "17px", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Thumbnail Maker</h1>
         </div>
 
         <div

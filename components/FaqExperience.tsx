@@ -14,8 +14,8 @@ const faqItems = [
   { category: "Files", question: "Is there a file size limit?", answer: "Limits vary by tool, browser memory, and server resources. Large files may take longer to process, especially on mobile devices." },
   { category: "Files", question: "Does Pixores support batch processing?", answer: "Selected tools support multiple files, including the watermark tool and several conversion workflows. Availability is shown directly on each tool page." },
   { category: "Privacy", question: "How does Pixores protect my files?", answer: "We minimize retention, use secure connections, and process files only for the requested operation. You should still avoid uploading confidential material to any online service unless necessary." },
-  { category: "Studio", question: "Can I save designs and templates?", answer: "Signed-in users can save projects. Administrators can also publish and update public templates through Pixores Studio." },
-  { category: "Studio", question: "Can I download transparent images?", answer: "Yes. Pixores Studio supports transparent PNG export, and the Background Remover lets you download images without a background." },
+  { category: "Thumbnail Maker", question: "Can I save designs and templates?", answer: "Signed-in users can save projects. Administrators can also publish and update public templates through Pixores Thumbnail Maker." },
+  { category: "Thumbnail Maker", question: "Can I download transparent images?", answer: "Yes. Pixores Thumbnail Maker supports transparent PNG export, and the Background Remover lets you download images without a background." },
   { category: "Support", question: "How can I contact Pixores?", answer: "Email support@pixores.com or use the Contact page. Include the tool name, browser, device, and a short description of the issue." },
 ];
 
@@ -38,7 +38,7 @@ export default function FaqExperience() {
         <div className={styles.heroInner}>
           <span className={styles.eyebrow}><HelpCircle size={17} /> Help center</span>
           <h1>Frequently Asked Questions</h1>
-          <p className={styles.heroDescription}>Clear answers about files, privacy, accounts, mobile tools, and Pixores Studio.</p>
+          <p className={styles.heroDescription}>Clear answers about files, privacy, accounts, mobile tools, and Pixores Thumbnail Maker.</p>
         </div>
       </header>
 

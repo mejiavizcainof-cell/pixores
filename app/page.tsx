@@ -7,8 +7,8 @@ import { blogPosts } from "@/lib/blogPosts";
 import styles from "./HomePage.module.css";
 
 export const metadata: Metadata = {
-  title: "Pixores Studio - Thumbnail Creator, Templates & Image Tools",
-  description: "Create professional thumbnails with Pixores Studio, start from ready-made templates, and use fast online image tools.",
+  title: "Free YouTube Thumbnail Maker, Templates & Image Tools",
+  description: "Create professional YouTube thumbnails with Pixores Thumbnail Maker, customize templates, and use fast online image tools.",
   alternates: {
     canonical: "https://www.pixores.com",
     languages: {
@@ -33,10 +33,10 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <p className={styles.eyebrow}>Create with confidence</p>
-          <h1>Pixores Studio</h1>
+          <h1>Pixores Thumbnail Maker</h1>
           <p className={styles.heroText}>Create professional thumbnails with flexible text, layers, backgrounds, frames, and reusable assets. Start from scratch or customize a ready-made template.</p>
           <div className={styles.heroActions}>
-            <Link href="/thumbnail-creator" className={styles.primaryButton}>Open Pixores Studio <ArrowRight size={17} /></Link>
+            <Link href="/youtube-thumbnail-maker" className={styles.primaryButton}>Open Thumbnail Maker <ArrowRight size={17} /></Link>
             <Link href="/templates" className={styles.secondaryButton}>Browse Templates</Link>
           </div>
         </div>
