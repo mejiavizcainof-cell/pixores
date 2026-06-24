@@ -1,6 +1,7 @@
 "use client";
 import { supabase } from "@/lib/supabaseClient";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { getFontEmbedCSS, toPng } from "html-to-image";
 import html2canvas from "html2canvas";
@@ -13,13 +14,19 @@ import { EDITOR_VECTOR_ASSETS, vectorSvgDataUrl, type EditorVectorAsset } from "
 
 type Layer = {
   id: string | number; 
-  type: "text" | "image" | "shape";
+  type: "text" | "image" | "shape" | "drawing";
   name: string;
   text?: string;
   textHtml?: string;
   src?: string;
   vectorSvg?: string;
   vectorColor?: string;
+  drawingPoints?: DrawingPoint[];
+  drawingTool?: "pencil" | "brush";
+  drawingColor?: string;
+  drawingSize?: number;
+  drawingViewWidth?: number;
+  drawingViewHeight?: number;
   frameImageSrc?: string;
   frameImageSrc2?: string;
   frameImageFit?: "cover" | "contain";
@@ -124,6 +131,37 @@ type Layer = {
   angle?: number; 
   isLocked?: boolean;
 };
+
+type DrawingPoint = {
+  x: number;
+  y: number;
+};
+
+type DrawingTool = "select" | "pencil" | "brush" | "eraser";
+
+function getSmoothDrawingPath(points: DrawingPoint[]) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y} L ${points[0].x + 0.01} ${points[0].y + 0.01}`;
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const midpointX = (points[index].x + points[index + 1].x) / 2;
+    const midpointY = (points[index].y + points[index + 1].y) / 2;
+    path += ` Q ${points[index].x} ${points[index].y} ${midpointX} ${midpointY}`;
+  }
+  const last = points[points.length - 1];
+  path += ` L ${last.x} ${last.y}`;
+  return path;
+}
+
+function distanceToDrawingSegment(point: DrawingPoint, start: DrawingPoint, end: DrawingPoint) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+
+  const ratio = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(point.x - (start.x + ratio * dx), point.y - (start.y + ratio * dy));
+}
 
 type GridImage = {
   src?: string;
@@ -608,6 +646,10 @@ export default function ThumbnailEditorV2() {
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | number | null>(null);
   const [textSelectionPreview, setTextSelectionPreview] = useState<{ layerId: string | number; start: number; end: number; text: string } | null>(null);
   const [activeTextColor, setActiveTextColor] = useState<string | null>(null);
+  const [drawingTool, setDrawingTool] = useState<DrawingTool>("select");
+  const [drawingColor, setDrawingColor] = useState<string>("#111827");
+  const [drawingSize, setDrawingSize] = useState<number>(8);
+  const [drawingDraft, setDrawingDraft] = useState<DrawingPoint[]>([]);
 
   const [savedProjects, setSavedProjects] = useState<any[]>([]);
   const [showProjects, setShowProjects] = useState(false);
@@ -643,6 +685,8 @@ export default function ThumbnailEditorV2() {
   const hasLoadedBrandAssetsRef = useRef(false);
   const loadedTemplateIdRef = useRef<string | null>(null);
   const previousLayerCountRef = useRef(layers.length);
+  const drawingPointerIdRef = useRef<number | null>(null);
+  const drawingDraftRef = useRef<DrawingPoint[]>([]);
 
   useEffect(() => {
     const previousCount = previousLayerCountRef.current;
@@ -2110,6 +2154,121 @@ const updateVectorAssetColor = (color: string) => {
       ? { ...layer, vectorColor: color, src: vectorSvgDataUrl(layer.vectorSvg, color) }
       : layer
   ));
+};
+
+const getCanvasDrawingPoint = (event: ReactPointerEvent<HTMLDivElement>): DrawingPoint => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(canvasWidth, ((event.clientX - rect.left) / rect.width) * canvasWidth)),
+    y: Math.max(0, Math.min(canvasHeight, ((event.clientY - rect.top) / rect.height) * canvasHeight)),
+  };
+};
+
+const eraseDrawingAt = (point: DrawingPoint) => {
+  const eraserRadius = Math.max(14, drawingSize * 1.8);
+  setLayers((currentLayers) => currentLayers.filter((layer) => {
+    if (layer.type !== "drawing" || !layer.drawingPoints?.length) return true;
+
+    const viewWidth = layer.drawingViewWidth || layer.width || 1;
+    const viewHeight = layer.drawingViewHeight || layer.height || 1;
+    const renderedWidth = layer.width || viewWidth;
+    const renderedHeight = layer.height || viewHeight;
+    const left = (layer.x / 100) * canvasWidth - renderedWidth / 2;
+    const top = (layer.y / 100) * canvasHeight - renderedHeight / 2;
+    const globalPoints = layer.drawingPoints.map((drawingPoint) => ({
+      x: left + (drawingPoint.x / viewWidth) * renderedWidth,
+      y: top + (drawingPoint.y / viewHeight) * renderedHeight,
+    }));
+    const hitRadius = eraserRadius + (layer.drawingSize || 1) / 2;
+
+    if (globalPoints.length === 1) return Math.hypot(point.x - globalPoints[0].x, point.y - globalPoints[0].y) > hitRadius;
+    return !globalPoints.some((drawingPoint, index) => (
+      index > 0 && distanceToDrawingSegment(point, globalPoints[index - 1], drawingPoint) <= hitRadius
+    ));
+  }));
+};
+
+const handleDrawingPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  if (drawingTool === "select") return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.setPointerCapture(event.pointerId);
+  drawingPointerIdRef.current = event.pointerId;
+  const point = getCanvasDrawingPoint(event);
+
+  if (drawingTool === "eraser") {
+    eraseDrawingAt(point);
+    return;
+  }
+
+  setSelectedLayerId(null);
+  setIsCropMode(false);
+  drawingDraftRef.current = [point];
+  setDrawingDraft([point]);
+};
+
+const handleDrawingPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+  if (drawingPointerIdRef.current !== event.pointerId || drawingTool === "select") return;
+  event.preventDefault();
+  const point = getCanvasDrawingPoint(event);
+
+  if (drawingTool === "eraser") {
+    eraseDrawingAt(point);
+    return;
+  }
+
+  const currentPoints = drawingDraftRef.current;
+  const previous = currentPoints[currentPoints.length - 1];
+  if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 2) return;
+  const nextPoints = [...currentPoints, point];
+  drawingDraftRef.current = nextPoints;
+  setDrawingDraft(nextPoints);
+};
+
+const finishDrawingStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
+  if (drawingPointerIdRef.current !== event.pointerId) return;
+  drawingPointerIdRef.current = null;
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+
+  const completedPoints = drawingDraftRef.current;
+  if ((drawingTool !== "pencil" && drawingTool !== "brush") || completedPoints.length === 0) {
+    drawingDraftRef.current = [];
+    setDrawingDraft([]);
+    return;
+  }
+
+  const padding = drawingSize * 2;
+  const minX = Math.max(0, Math.min(...completedPoints.map((point) => point.x)) - padding);
+  const minY = Math.max(0, Math.min(...completedPoints.map((point) => point.y)) - padding);
+  const maxX = Math.min(canvasWidth, Math.max(...completedPoints.map((point) => point.x)) + padding);
+  const maxY = Math.min(canvasHeight, Math.max(...completedPoints.map((point) => point.y)) + padding);
+  const viewWidth = Math.max(drawingSize * 4, maxX - minX);
+  const viewHeight = Math.max(drawingSize * 4, maxY - minY);
+  const relativePoints = completedPoints.map((point) => ({ x: point.x - minX, y: point.y - minY }));
+  const uniqueId = `drawing-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const newLayer: Layer = {
+    id: uniqueId,
+    type: "drawing",
+    name: drawingTool === "brush" ? "Brush Stroke" : "Pencil Stroke",
+    x: ((minX + maxX) / 2 / canvasWidth) * 100,
+    y: ((minY + maxY) / 2 / canvasHeight) * 100,
+    width: viewWidth,
+    height: viewHeight,
+    drawingPoints: relativePoints,
+    drawingTool,
+    drawingColor,
+    drawingSize,
+    drawingViewWidth: viewWidth,
+    drawingViewHeight: viewHeight,
+    opacity: drawingTool === "brush" ? 0.92 : 1,
+    angle: 0,
+    isLocked: false,
+  };
+
+  setLayers((currentLayers) => [...currentLayers, newLayer]);
+  setSelectedLayerId(uniqueId);
+  drawingDraftRef.current = [];
+  setDrawingDraft([]);
 };
 
 const handlePasteFromClipboard = async () => {
@@ -4946,7 +5105,7 @@ const buyCredits = async (packageId: string) => {
             <div style={{ height: "40px", marginBottom: "12px" }} />
           )}
 
-          <div style={{ width: "100%", maxWidth: isMobileLayout ? "100%" : "820px", display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+          <div style={{ width: "100%", maxWidth: isMobileLayout ? "100%" : "820px", display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
             <button
               type="button"
               title="Undo"
@@ -4976,7 +5135,10 @@ const buyCredits = async (packageId: string) => {
             <button
               type="button"
               title="Select top layer"
-              onClick={handleSelectTopLayer}
+              onClick={() => {
+                setDrawingTool("select");
+                handleSelectTopLayer();
+              }}
               disabled={layers.length === 0}
               style={{ height: "34px", padding: "0 12px", borderRadius: "10px", border: "1px solid #CBD5E1", background: layers.length === 0 ? "#F1F5F9" : "#FFFFFF", color: layers.length === 0 ? "#94A3B8" : "#334155", cursor: layers.length === 0 ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: 800 }}
             >
@@ -4991,6 +5153,54 @@ const buyCredits = async (packageId: string) => {
             >
               Delete
             </button>
+            <div style={{ width: "1px", height: "28px", background: "#CBD5E1" }} />
+            {([
+              { id: "select", label: "Select", icon: "↖" },
+              { id: "pencil", label: "Pencil", icon: "✎" },
+              { id: "brush", label: "Brush", icon: "🖌" },
+              { id: "eraser", label: "Eraser", icon: "▱" },
+            ] as const).map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                title={tool.label}
+                aria-label={tool.label}
+                onClick={() => {
+                  setDrawingTool(tool.id);
+                  drawingDraftRef.current = [];
+                  setDrawingDraft([]);
+                  if (tool.id === "pencil" && drawingSize > 12) setDrawingSize(6);
+                  if (tool.id === "brush" && drawingSize < 10) setDrawingSize(18);
+                  if (tool.id !== "select") setSelectedLayerId(null);
+                }}
+                style={{ height: "34px", minWidth: "38px", padding: "0 9px", borderRadius: "10px", border: drawingTool === tool.id ? "2px solid #2563EB" : "1px solid #CBD5E1", background: drawingTool === tool.id ? "#DBEAFE" : "#FFFFFF", color: "#0F172A", cursor: "pointer", fontSize: "16px", fontWeight: 800 }}
+              >
+                <span aria-hidden="true">{tool.icon}</span>
+              </button>
+            ))}
+            <label title="Drawing color" style={{ width: "36px", height: "34px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", display: "grid", placeItems: "center", cursor: drawingTool === "eraser" ? "not-allowed" : "pointer" }}>
+              <input
+                type="color"
+                value={drawingColor}
+                disabled={drawingTool === "eraser"}
+                onChange={(event) => setDrawingColor(event.target.value)}
+                aria-label="Drawing color"
+                style={{ width: "26px", height: "26px", border: "none", padding: 0, background: "transparent", cursor: "inherit" }}
+              />
+            </label>
+            <label title="Brush size" style={{ height: "34px", minWidth: "112px", padding: "0 8px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", display: "flex", alignItems: "center", gap: "6px", color: "#334155", fontSize: "11px", fontWeight: 800 }}>
+              {drawingSize}px
+              <input
+                type="range"
+                min="2"
+                max="60"
+                step="1"
+                value={drawingSize}
+                onChange={(event) => setDrawingSize(Number(event.target.value))}
+                aria-label="Brush size"
+                style={{ width: "58px" }}
+              />
+            </label>
           </div>
 
           {/* CANVAS AREA */}
@@ -5276,6 +5486,24 @@ const buyCredits = async (packageId: string) => {
       : { dangerouslySetInnerHTML: { __html: getTextLayerHtml(layer) } })}
   >
   </div>
+) : layer.type === "drawing" ? (
+  <svg
+    width={layer.width}
+    height={layer.height}
+    viewBox={`0 0 ${layer.drawingViewWidth || layer.width || 1} ${layer.drawingViewHeight || layer.height || 1}`}
+    style={{ display: "block", overflow: "visible", pointerEvents: "none" }}
+    aria-hidden="true"
+  >
+    <path
+      d={getSmoothDrawingPath(layer.drawingPoints || [])}
+      fill="none"
+      stroke={layer.drawingColor || "#111827"}
+      strokeWidth={layer.drawingSize || 6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={layer.drawingTool === "brush" ? { filter: `drop-shadow(0 1px 1px ${layer.drawingColor || "#111827"}55)` } : undefined}
+    />
+  </svg>
 ) : layer.type === "shape" ? (
   layer.shapeType === "rectangle" ? (
     <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), borderRadius: `${layer.borderRadius || 8}px` }} />
@@ -5793,6 +6021,37 @@ const buyCredits = async (packageId: string) => {
                 </div>
               );
             })}
+            {!isExporting && drawingTool !== "select" && (
+              <div
+                data-drawing-overlay="true"
+                onPointerDown={handleDrawingPointerDown}
+                onPointerMove={handleDrawingPointerMove}
+                onPointerUp={finishDrawingStroke}
+                onPointerCancel={finishDrawingStroke}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 1000,
+                  cursor: drawingTool === "eraser" ? "cell" : "crosshair",
+                  touchAction: "none",
+                  userSelect: "none",
+                }}
+              >
+                {drawingDraft.length > 0 && drawingTool !== "eraser" && (
+                  <svg width={canvasWidth} height={canvasHeight} viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
+                    <path
+                      d={getSmoothDrawingPath(drawingDraft)}
+                      fill="none"
+                      stroke={drawingColor}
+                      strokeWidth={drawingSize}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={drawingTool === "brush" ? 0.92 : 1}
+                    />
+                  </svg>
+                )}
+              </div>
+            )}
             </div>
           </div>
         </section>
@@ -5913,7 +6172,7 @@ const buyCredits = async (packageId: string) => {
               )}
 
               {/* PIXEL DIMENSIONS INPUT */}
-              {(selectedLayer.type === "image" || selectedLayer.type === "shape" || selectedLayer.type === "text") && (
+              {(selectedLayer.type === "image" || selectedLayer.type === "shape" || selectedLayer.type === "text" || selectedLayer.type === "drawing") && (
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
                   <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: "6px" }}>Exact Dimensions (px)</label>
                   <div style={{ display: "flex", gap: "8px" }}>
@@ -5992,11 +6251,25 @@ const buyCredits = async (packageId: string) => {
                 </div>
               )}
 
+              {selectedLayer.type === "drawing" && (
+                <div style={{ background: "#EFF6FF", padding: "10px", borderRadius: "8px", border: "1px solid #BFDBFE", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#1E3A8A" }}>Stroke thickness</label>
+                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#2563EB" }}>{selectedLayer.drawingSize || 6}px</span>
+                  </div>
+                  <input type="range" min="2" max="60" step="1" value={selectedLayer.drawingSize || 6} onChange={(event) => updateSelectedLayer({ drawingSize: Number(event.target.value) })} style={{ width: "100%" }} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    <button type="button" onClick={() => updateSelectedLayer({ drawingTool: "pencil", opacity: 1 })} style={{ padding: "7px", borderRadius: "6px", border: selectedLayer.drawingTool === "pencil" ? "1px solid #2563EB" : "1px solid #CBD5E1", background: selectedLayer.drawingTool === "pencil" ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "11px", fontWeight: 800, cursor: "pointer" }}>Pencil</button>
+                    <button type="button" onClick={() => updateSelectedLayer({ drawingTool: "brush", opacity: 0.92 })} style={{ padding: "7px", borderRadius: "6px", border: selectedLayer.drawingTool === "brush" ? "1px solid #2563EB" : "1px solid #CBD5E1", background: selectedLayer.drawingTool === "brush" ? "#DBEAFE" : "#FFFFFF", color: "#334155", fontSize: "11px", fontWeight: 800, cursor: "pointer" }}>Brush</button>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "11px", fontWeight: 600 }}>Element Primary Color</label>
+                <label style={{ fontSize: "11px", fontWeight: 600 }}>{selectedLayer.type === "drawing" ? "Stroke Color" : "Element Primary Color"}</label>
                 <input
                   type="color"
-                  value={selectedLayer.type === "text" ? (activeTextColor || normalizeColorToHex(selectedLayer.color) || "#000000") : (normalizeColorToHex(selectedLayer.color) || "#FFFFFF")}
+                  value={selectedLayer.type === "drawing" ? (selectedLayer.drawingColor || "#111827") : selectedLayer.type === "text" ? (activeTextColor || normalizeColorToHex(selectedLayer.color) || "#000000") : (normalizeColorToHex(selectedLayer.color) || "#FFFFFF")}
                   onMouseDown={() => {
                     if (selectedLayer.type === "text") {
                       const editableElement = getEditableTextElement(selectedLayer.id);
@@ -6010,6 +6283,10 @@ const buyCredits = async (packageId: string) => {
                     }
                   }}
                   onChange={(e) => {
+                    if (selectedLayer.type === "drawing") {
+                      updateSelectedLayer({ drawingColor: e.target.value });
+                      return;
+                    }
                     if (selectedLayer.type === "text") {
                       applyColorToSelectedText(e.target.value);
                       return;
