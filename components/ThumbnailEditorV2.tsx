@@ -104,6 +104,9 @@ type Layer = {
   isUnderline?: boolean;
   isStrikethrough?: boolean;
   isUppercase?: boolean;
+  textMode?: "normal" | "vertical" | "circle";
+  textCircleRadius?: number;
+  textCircleStart?: number;
   textAlign?: "left" | "center" | "right" | "justify";
   letterSpacing?: number;
   lineHeight?: number;
@@ -242,6 +245,36 @@ type EditableTemplateData = {
   preview: string | null;
   layers: Layer[];
 };
+
+type StudioProjectData = {
+  schemaVersion: 2;
+  savedAt: string;
+  editor: "ThumbnailEditorV2";
+  canvas: {
+    width: number;
+    height: number;
+    preset: keyof typeof PRESET_SIZES;
+    backgroundColor: string;
+    backgroundImage: string | null;
+    backgroundOpacity: number;
+    backgroundBlur: number;
+    strokeColor: string;
+    strokeWidth: number;
+  };
+  layers: Layer[];
+};
+
+type SavedStudioProject = {
+  id: string;
+  user_id: string;
+  name: string;
+  project_data: Partial<StudioProjectData> & Record<string, any>;
+  thumbnail: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type AutosaveStatus = "idle" | "saved" | "dirty" | "saving" | "error";
 const PREMADE_ASSETS = [
 
   { category: "people", name: "Shocked Man", src: "/template-assets/people/shocked-man.png" },
@@ -576,6 +609,12 @@ const TEXT_PRESETS = [
 
 const TEXT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 120, 144, 180, 240, 300];
 
+const TEXT_MODE_OPTIONS: Array<{ value: NonNullable<Layer["textMode"]>; label: string; title: string }> = [
+  { value: "normal", label: "Normal", title: "Normal text" },
+  { value: "vertical", label: "Vertical", title: "Vertical text" },
+  { value: "circle", label: "Circle", title: "Circular text" },
+];
+
 const escapeTextHtml = (value: string) =>
   value
     .replace(/&/g, "&amp;")
@@ -651,11 +690,13 @@ export default function ThumbnailEditorV2() {
   const [drawingSize, setDrawingSize] = useState<number>(8);
   const [drawingDraft, setDrawingDraft] = useState<DrawingPoint[]>([]);
 
-  const [savedProjects, setSavedProjects] = useState<any[]>([]);
+  const [savedProjects, setSavedProjects] = useState<SavedStudioProject[]>([]);
   const [showProjects, setShowProjects] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  const [autosaveMessage, setAutosaveMessage] = useState<string>("Not saved yet");
   const [credits, setCredits] = useState<number | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -676,6 +717,9 @@ export default function ThumbnailEditorV2() {
   const uploadsSectionRef = useRef<HTMLLabelElement>(null);
   const initialDragOffset = useRef({ x: 0, y: 0 });
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const autosaveLastSnapshotRef = useRef<string>("");
+  const autosaveProjectIdRef = useRef<string | null>(null);
   const isApplyingHistoryRef = useRef(false);
   const lastHistorySnapshotRef = useRef<string>("[]");
   const savedTextSelectionRef = useRef<{ layerId: string | number; start: number; end: number } | null>(null);
@@ -1592,11 +1636,26 @@ try {
     }
   };
 
-  const handleUploadBackground = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const fileToDataUrl = (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleUploadBackground = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPreview(URL.createObjectURL(file));
-    if (isMobileLayout) setMobilePanel(null);
+
+    try {
+      setPreview(await fileToDataUrl(file));
+      if (isMobileLayout) setMobilePanel(null);
+    } catch (error) {
+      console.error("Unable to load background image:", error);
+      alert("Background image could not be loaded.");
+    }
   };
 
   const blobToDataUrl = (blob: Blob) => {
@@ -1806,10 +1865,21 @@ try {
     const files = e.target.files;
     if (!files) return;
     const fileList = Array.from(files);
-    const newFiles: ImportedFile[] = [];
-    for (let i = 0; i < fileList.length; i++) {
-      newFiles.push({ url: URL.createObjectURL(fileList[i]), name: fileList[i].name });
+    let newFiles: ImportedFile[] = [];
+
+    try {
+      newFiles = await Promise.all(
+        fileList.map(async (file) => ({
+          url: await fileToDataUrl(file),
+          name: file.name,
+        })),
+      );
+    } catch (error) {
+      console.error("Unable to import image files:", error);
+      alert("One or more images could not be imported.");
+      return;
     }
+
     setImportedImages((prev) => [...prev, ...newFiles]);
     if (saveImportsToBrand) {
       await saveFilesToBrandAssets(fileList);
@@ -2333,6 +2403,9 @@ const handleSelectTopLayer = () => {
       isUnderline: false,
       isStrikethrough: false,
       isUppercase: false,
+      textMode: preset?.textMode || "normal",
+      textCircleRadius: preset?.textCircleRadius || 110,
+      textCircleStart: preset?.textCircleStart || 0,
       hasTextBg: false,
       textBgColor: "#FF0000",
       textBgPadding: 6,
@@ -3158,6 +3231,13 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     return layer.textHtml || escapeTextHtml(layer.text || "");
   };
 
+  const getPlainTextFromLayer = (layer: Layer) => {
+    if (!layer.textHtml) return layer.text || "";
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = stripSelectionPreviewHtml(layer.textHtml);
+    return wrapper.innerText || layer.text || "";
+  };
+
   const applyColorToSelectedText = (color: string) => {
     setActiveTextColor(normalizeColorToHex(color) || color);
     if (!selectedLayer || selectedLayer.type !== "text") {
@@ -3228,6 +3308,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     const workspace = workspaceRef.current;
 
     if (!workspace) return null;
+    let exportNode: HTMLElement | null = null;
 
     try {
       setIsExporting(true);
@@ -3238,14 +3319,15 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       );
 
     await waitForEditorFonts();
-    await waitForCanvasImages(workspace);
+    exportNode = await prepareWorkspaceForExport(workspace);
+    await waitForCanvasImages(exportNode);
 
-      const thumbnail = await toPng(workspace, {
+      const thumbnail = await toPng(exportNode, {
         cacheBust: true,
         canvasWidth,
         canvasHeight,
         pixelRatio: 0.25,
-        skipFonts: false,
+        skipFonts: true,
         backgroundColor: canvasBgColor,
         style: {
           boxShadow: "none",
@@ -3257,8 +3339,58 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       console.error("Could not generate project thumbnail:", error);
       return null;
     } finally {
+      exportNode?.remove();
       setIsExporting(false);
     }
+  };
+
+  const buildProjectData = (savedAt = new Date().toISOString()): StudioProjectData => ({
+    schemaVersion: 2,
+    savedAt,
+    editor: "ThumbnailEditorV2",
+    canvas: {
+      width: canvasWidth,
+      height: canvasHeight,
+      preset: currentPreset,
+      backgroundColor: canvasBgColor,
+      backgroundImage: preview,
+      backgroundOpacity,
+      backgroundBlur,
+      strokeColor: canvasStrokeColor,
+      strokeWidth: canvasStrokeWidth,
+    },
+    layers,
+  });
+
+  const buildStableProjectSnapshot = () => JSON.stringify(buildProjectData(""));
+
+  const applyProjectData = (data: SavedStudioProject["project_data"]) => {
+    const canvasData = data?.canvas;
+
+    const nextCanvasWidth = Number(canvasData?.width ?? data?.canvasWidth ?? 1280);
+    const nextCanvasHeight = Number(canvasData?.height ?? data?.canvasHeight ?? 720);
+
+    setCurrentPreset(
+      (canvasData?.preset as keyof typeof PRESET_SIZES | undefined) ||
+      getPresetForDimensions(nextCanvasWidth, nextCanvasHeight)
+    );
+    setCanvasWidth(nextCanvasWidth);
+    setCanvasHeight(nextCanvasHeight);
+    setCanvasBgColor(String(canvasData?.backgroundColor ?? data?.canvasBgColor ?? "#FFFFFF"));
+    setCanvasStrokeColor(String(canvasData?.strokeColor ?? data?.canvasStrokeColor ?? "#0F172A"));
+    setCanvasStrokeWidth(Number(canvasData?.strokeWidth ?? data?.canvasStrokeWidth ?? 0));
+    setBackgroundOpacity(Number(canvasData?.backgroundOpacity ?? 1));
+    setBackgroundBlur(Number(canvasData?.backgroundBlur ?? 0));
+    setPreview((canvasData?.backgroundImage ?? data?.preview ?? null) as string | null);
+
+    const nextLayers = Array.isArray(data?.layers) ? data.layers as Layer[] : [];
+    setLayers(nextLayers);
+    setSelectedLayerId(nextLayers[0]?.id || null);
+    setIsCropMode(false);
+    setEditingTextLayerId(null);
+    setUndoStack([]);
+    setRedoStack([]);
+    lastHistorySnapshotRef.current = JSON.stringify(nextLayers);
   };
 
   const saveProject = async () => {
@@ -3273,17 +3405,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     if (!projectName) return;
 
     const thumbnail = await createProjectThumbnail();
-
-    const projectData = {
-      canvasWidth,
-      canvasHeight,
-      canvasBgColor,
-      canvasStrokeColor,
-      canvasStrokeWidth,
-      preview,
-      layers,
-      thumbnail,
-    };
+    const projectData = buildProjectData();
 
     const { data, error } = await supabase
       .from("projects")
@@ -3294,15 +3416,19 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
         thumbnail,
       })
       .select()
-      .single();
+      .single<SavedStudioProject>();
 
     if (error) {
       alert(error.message);
       return;
     }
 
+    autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+    autosaveProjectIdRef.current = data.id;
     setCurrentProjectId(data.id);
     setSavedProjects((prev) => [data, ...prev]);
+    setAutosaveStatus("saved");
+    setAutosaveMessage("Saved");
     alert("Project saved successfully!");
   };
 
@@ -3467,18 +3593,14 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       return;
     }
 
-    const thumbnail = await createProjectThumbnail();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      alert("Please login first.");
+      return;
+    }
 
-    const projectData = {
-      canvasWidth,
-      canvasHeight,
-      canvasBgColor,
-      canvasStrokeColor,
-      canvasStrokeWidth,
-      preview,
-      layers,
-      thumbnail,
-    };
+    const thumbnail = await createProjectThumbnail();
+    const projectData = buildProjectData();
 
     const { data, error } = await supabase
       .from("projects")
@@ -3488,17 +3610,22 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", currentProjectId)
+      .eq("user_id", userData.user.id)
       .select()
-      .single();
+      .single<SavedStudioProject>();
 
     if (error) {
       alert(error.message);
       return;
     }
 
+    autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+    autosaveProjectIdRef.current = data.id;
     setSavedProjects((prev) =>
       prev.map((project) => (project.id === currentProjectId ? data : project))
     );
+    setAutosaveStatus("saved");
+    setAutosaveMessage("Saved");
 
     alert("Project updated successfully!");
   };
@@ -3515,7 +3642,8 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       .from("projects")
       .select("id,user_id,name,project_data,thumbnail,created_at,updated_at")
       .eq("user_id", userData.user.id)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .returns<SavedStudioProject[]>();
 
     if (error) {
       alert(error.message);
@@ -3526,22 +3654,13 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     setShowProjects(true);
   };
 
-  const openProject = (project: any) => {
-    const data = project.project_data;
-
-    setCanvasWidth(data.canvasWidth || 1280);
-    setCanvasHeight(data.canvasHeight || 720);
-    setCanvasBgColor(data.canvasBgColor || "#FFFFFF");
-    setCanvasStrokeColor(data.canvasStrokeColor || "#0F172A");
-    setCanvasStrokeWidth(data.canvasStrokeWidth || 0);
-    setPreview(data.preview || null);
-
-    if (Array.isArray(data.layers)) {
-      setLayers(data.layers);
-      setSelectedLayerId(data.layers[0]?.id || null);
-    }
-
+  const openProject = (project: SavedStudioProject) => {
+    applyProjectData(project.project_data);
+    autosaveLastSnapshotRef.current = "";
+    autosaveProjectIdRef.current = project.id;
     setCurrentProjectId(project.id);
+    setAutosaveStatus("saved");
+    setAutosaveMessage("Saved");
     setShowProjects(false);
   };
 
@@ -3549,10 +3668,17 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     const confirmDelete = confirm("Delete this project?");
     if (!confirmDelete) return;
 
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      alert("Please login first.");
+      return;
+    }
+
     const { error } = await supabase
       .from("projects")
       .delete()
-      .eq("id", projectId);
+      .eq("id", projectId)
+      .eq("user_id", userData.user.id);
 
     if (error) {
       alert(error.message);
@@ -3563,8 +3689,95 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
     if (currentProjectId === projectId) {
       setCurrentProjectId(null);
+      autosaveLastSnapshotRef.current = "";
+      autosaveProjectIdRef.current = null;
+      setAutosaveStatus("idle");
+      setAutosaveMessage("Not saved yet");
     }
   };
+
+  useEffect(() => {
+    if (!currentProjectId) {
+      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+      setAutosaveStatus("idle");
+      setAutosaveMessage("Not saved yet");
+      return;
+    }
+
+    const stableSnapshot = buildStableProjectSnapshot();
+
+    if (autosaveProjectIdRef.current !== currentProjectId) {
+      autosaveProjectIdRef.current = currentProjectId;
+      autosaveLastSnapshotRef.current = stableSnapshot;
+      setAutosaveStatus("saved");
+      setAutosaveMessage("Saved");
+      return;
+    }
+
+    if (stableSnapshot === autosaveLastSnapshotRef.current) {
+      if (autosaveStatus !== "saving" && autosaveStatus !== "error") {
+        setAutosaveStatus("saved");
+        setAutosaveMessage("Saved");
+      }
+      return;
+    }
+
+    setAutosaveStatus("dirty");
+    setAutosaveMessage("Unsaved changes");
+
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+
+    autosaveTimerRef.current = window.setTimeout(async () => {
+      try {
+        setAutosaveStatus("saving");
+        setAutosaveMessage("Saving...");
+
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) throw new Error("Please login first.");
+
+        const projectData = buildProjectData();
+        const { data, error } = await supabase
+          .from("projects")
+          .update({
+            project_data: projectData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", currentProjectId)
+          .eq("user_id", userData.user.id)
+          .select()
+          .single<SavedStudioProject>();
+
+        if (error) throw error;
+
+        autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+        setSavedProjects((prev) =>
+          prev.map((project) => (project.id === currentProjectId ? data : project))
+        );
+        setAutosaveStatus("saved");
+        setAutosaveMessage("Saved");
+      } catch (error) {
+        console.error("Autosave failed:", error);
+        setAutosaveStatus("error");
+        setAutosaveMessage("Autosave failed");
+      }
+    }, 12000);
+
+    return () => {
+      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    };
+  }, [
+    currentProjectId,
+    canvasWidth,
+    canvasHeight,
+    currentPreset,
+    canvasBgColor,
+    canvasStrokeColor,
+    canvasStrokeWidth,
+    preview,
+    backgroundOpacity,
+    backgroundBlur,
+    layers,
+  ]);
 
   const getCropClipPath = (layer: Layer) => {
     if (layer.type !== "image") return "none";
@@ -3746,6 +3959,13 @@ const buyCredits = async (packageId: string) => {
   }
 };
 
+const autosaveBadgeColor =
+  autosaveStatus === "saved" ? "#059669" :
+  autosaveStatus === "saving" ? "#2563EB" :
+  autosaveStatus === "dirty" ? "#D97706" :
+  autosaveStatus === "error" ? "#DC2626" :
+  "#64748B";
+
   if (!isClientMounted) {
     return (
       <div
@@ -3804,6 +4024,20 @@ const buyCredits = async (packageId: string) => {
             <button onClick={saveProject} style={{ padding: "8px 11px", background: "#2563EB", color: "#FFFFFF", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Save</button>
             <button onClick={updateProject} disabled={!currentProjectId} style={{ padding: "8px 11px", background: currentProjectId ? "#FFFFFF" : "#F1F5F9", color: currentProjectId ? "#334155" : "#94A3B8", border: "none", borderRadius: "9px", fontWeight: 800, cursor: currentProjectId ? "pointer" : "not-allowed", fontSize: "13px" }}>Update</button>
             <button onClick={loadMyProjects} style={{ padding: "8px 11px", background: "#FFFFFF", color: "#334155", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Projects</button>
+            <span
+              title={currentProjectId ? "Project autosave status" : "Save this project once to enable autosave"}
+              style={{
+                padding: "7px 9px",
+                borderRadius: "9px",
+                background: "#F8FAFC",
+                color: autosaveBadgeColor,
+                fontSize: "12px",
+                fontWeight: 850,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {autosaveMessage}
+            </span>
             {isAdmin && searchParams.get("template") && (
               <button
                 onClick={updatePublicTemplate}
@@ -5008,6 +5242,41 @@ const buyCredits = async (packageId: string) => {
                 {TEXT_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}
               </select>
 
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "3px", borderRadius: "12px", background: "#F1F5F9", flex: "0 0 auto" }}>
+                {TEXT_MODE_OPTIONS.map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    title={mode.title}
+                    onClick={() => {
+                      const nextFields: Partial<Layer> = { textMode: mode.value };
+                      if (mode.value === "circle") {
+                        nextFields.width = selectedLayer.width || 260;
+                        nextFields.height = selectedLayer.height || selectedLayer.width || 260;
+                        nextFields.textCircleRadius = selectedLayer.textCircleRadius || 110;
+                        nextFields.textCircleStart = selectedLayer.textCircleStart || 0;
+                        nextFields.text = selectedLayer.text || getPlainTextFromLayer(selectedLayer);
+                      }
+                      updateSelectedLayer(nextFields);
+                    }}
+                    style={{
+                      height: "30px",
+                      padding: "0 9px",
+                      borderRadius: "9px",
+                      border: "none",
+                      background: (selectedLayer.textMode || "normal") === mode.value ? "#FFFFFF" : "transparent",
+                      color: (selectedLayer.textMode || "normal") === mode.value ? "#2563EB" : "#334155",
+                      fontSize: "12px",
+                      fontWeight: 850,
+                      cursor: "pointer",
+                      boxShadow: (selectedLayer.textMode || "normal") === mode.value ? "0 1px 4px rgba(15,23,42,0.12)" : "none",
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
               <label title="Text color" style={{ width: "34px", height: "34px", borderRadius: "10px", border: "none", background: "#FFFFFF", cursor: "pointer", display: "grid", placeItems: "center", fontWeight: 900, position: "relative" }}>
                 A
                 <span style={{ position: "absolute", bottom: "4px", width: "22px", height: "4px", borderRadius: "99px", background: activeTextColor || selectedLayer.color || "#000000" }} />
@@ -5393,99 +5662,157 @@ const buyCredits = async (packageId: string) => {
                   {/* TEXT */}
                   {/* TEXT / SHAPE / IMAGE */}
 {layer.type === "text" ? (
-  <div
-    contentEditable={!isExporting && editingTextLayerId === layer.id}
-    suppressContentEditableWarning
-    onDoubleClick={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      beginTextEditing(layer.id, false);
-    }}
-    onClick={(e) => {
-      e.stopPropagation();
-      setSelectedLayerId(layer.id);
-    }}
-    onMouseDown={(e) => {
-      if (editingTextLayerId === layer.id) {
+  (layer.textMode || "normal") === "circle" ? (() => {
+    const circleSize = Math.max(layer.width || 260, layer.height || layer.width || 260, 120);
+    const center = circleSize / 2;
+    const radius = Math.max(24, Math.min(layer.textCircleRadius || 110, center - 8));
+    const pathId = `text-circle-${layer.id}`;
+    const startOffset = `${(((layer.textCircleStart || 0) % 360 + 360) % 360) / 360 * 100}%`;
+    return (
+      <svg
+        width={circleSize}
+        height={circleSize}
+        viewBox={`0 0 ${circleSize} ${circleSize}`}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setSelectedLayerId(layer.id);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedLayerId(layer.id);
+        }}
+        style={{
+          display: "block",
+          overflow: "visible",
+          fontFamily: `${layer.fontFamily || "Inter"}, Inter, Arial, sans-serif`,
+          fontSize: `${layer.fontSize}px`,
+          fontWeight: layer.isBold ? "bold" : "900",
+          fontStyle: layer.isItalic ? "italic" : "normal",
+          textDecoration: `${layer.isUnderline ? "underline" : ""} ${layer.isStrikethrough ? "line-through" : ""}`.trim() || "none",
+          textTransform: layer.isUppercase ? "uppercase" : "none",
+          letterSpacing: `${layer.letterSpacing || 0}px`,
+          cursor: "move",
+          animation: !isExporting && layer.textAnimation === "pop" ? "pixoresTextPop 1.4s ease-in-out infinite" : !isExporting && layer.textAnimation === "float" ? "pixoresTextFloat 1.8s ease-in-out infinite" : "none",
+          filter: layer.shadowBlur ? `drop-shadow(${layer.shadowOffsetX || 0}px ${layer.shadowOffsetY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000000"})` : undefined,
+        }}
+        aria-label={layer.text || ""}
+      >
+        <defs>
+          <path
+            id={pathId}
+            d={`M ${center} ${center} m -${radius} 0 a ${radius} ${radius} 0 1 1 ${radius * 2} 0 a ${radius} ${radius} 0 1 1 -${radius * 2} 0`}
+          />
+        </defs>
+        <text
+          fill={layer.color || "#000000"}
+          stroke={(layer.strokeWidth || 0) > 0 ? layer.strokeColor || "#000000" : "none"}
+          strokeWidth={layer.strokeWidth || 0}
+          paintOrder="stroke fill"
+        >
+          <textPath href={`#${pathId}`} startOffset={startOffset} textAnchor={layer.textAlign === "left" ? "start" : layer.textAlign === "right" ? "end" : "middle"}>
+            {layer.isUppercase ? (layer.text || "").toUpperCase() : layer.text || ""}
+          </textPath>
+        </text>
+      </svg>
+    );
+  })() : (
+    <div
+      contentEditable={!isExporting && editingTextLayerId === layer.id}
+      suppressContentEditableWarning
+      onDoubleClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
-      }
-    }}
-    onBlur={(e) => {
-      const draft = textEditDraftRef.current?.layerId === layer.id ? textEditDraftRef.current : null;
-      const text = draft?.text ?? e.currentTarget.innerText;
-      const textHtml = draft?.textHtml ?? stripSelectionPreviewHtml(e.currentTarget.innerHTML);
-      setLayers((currentLayers) => currentLayers.map((currentLayer) => (
-        currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
-      )));
-      if (textEditDraftRef.current?.layerId === layer.id) textEditDraftRef.current = null;
-      setEditingTextLayerId((currentId) => currentId === layer.id ? null : currentId);
-      setTextSelectionPreview(null);
-    }}
-    onInput={(e) => {
-      const text = e.currentTarget.innerText;
-      const textHtml = stripSelectionPreviewHtml(e.currentTarget.innerHTML);
-      textEditDraftRef.current = {
-        layerId: layer.id,
-        text,
-        textHtml,
-      };
-      setLayers((currentLayers) => currentLayers.map((currentLayer) => (
-        currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
-      )));
-    }}
-    onMouseUp={(e) => {
-      rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
-    }}
-    onTouchEnd={(e) => {
-      if (editingTextLayerId === layer.id) {
+        beginTextEditing(layer.id, false);
+      }}
+      onClick={(e) => {
         e.stopPropagation();
+        setSelectedLayerId(layer.id);
+      }}
+      onMouseDown={(e) => {
+        if (editingTextLayerId === layer.id) {
+          e.stopPropagation();
+        }
+      }}
+      onBlur={(e) => {
+        const draft = textEditDraftRef.current?.layerId === layer.id ? textEditDraftRef.current : null;
+        const text = draft?.text ?? e.currentTarget.innerText;
+        const textHtml = draft?.textHtml ?? stripSelectionPreviewHtml(e.currentTarget.innerHTML);
+        setLayers((currentLayers) => currentLayers.map((currentLayer) => (
+          currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
+        )));
+        if (textEditDraftRef.current?.layerId === layer.id) textEditDraftRef.current = null;
+        setEditingTextLayerId((currentId) => currentId === layer.id ? null : currentId);
+        setTextSelectionPreview(null);
+      }}
+      onInput={(e) => {
+        const text = e.currentTarget.innerText;
+        const textHtml = stripSelectionPreviewHtml(e.currentTarget.innerHTML);
+        textEditDraftRef.current = {
+          layerId: layer.id,
+          text,
+          textHtml,
+        };
+        setLayers((currentLayers) => currentLayers.map((currentLayer) => (
+          currentLayer.id === layer.id ? { ...currentLayer, text, textHtml } : currentLayer
+        )));
+      }}
+      onMouseUp={(e) => {
         rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
-      }
-    }}
-    onKeyUp={(e) => {
-      rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
-    }}
-    onKeyDown={(e) => {
-      if (e.key === "Escape") {
-        (e.currentTarget as HTMLElement).blur();
-      }
-      e.stopPropagation();
-    }}
-    style={{
-      width: layer.width ? `${layer.width}px` : "max-content",
-      maxWidth: `${canvasWidth}px`,
-      minWidth: "24px",
-      boxSizing: "border-box",
-      display: "inline-block",
-      fontSize: `${layer.fontSize}px`,
-      color: layer.color,
-      fontFamily: `${layer.fontFamily || "Inter"}, Inter, Arial, sans-serif`,
-      textAlign: layer.textAlign || "center",
-      fontWeight: layer.isBold ? "bold" : "900",
-      fontStyle: layer.isItalic ? "italic" : "normal",
-      textDecoration: `${layer.isUnderline ? "underline" : ""} ${layer.isStrikethrough ? "line-through" : ""}`.trim() || "none",
-      textTransform: layer.isUppercase ? "uppercase" : "none",
-      background: layer.hasTextBg ? layer.textBgColor || "#000000" : "transparent",
-      padding: layer.hasTextBg ? `${layer.textBgPadding || 6}px ${Math.max(8, (layer.textBgPadding || 6) * 2)}px` : "0px",
-      borderRadius: `${layer.borderRadius || 4}px`,
-      whiteSpace: layer.width ? "pre-wrap" : "pre",
-      overflowWrap: layer.width ? "break-word" : "normal",
-      wordBreak: "normal",
-      lineHeight: layer.lineHeight || 1,
-      letterSpacing: `${layer.letterSpacing || 0}px`,
-      cursor: editingTextLayerId === layer.id ? "text" : "move",
-      userSelect: editingTextLayerId === layer.id ? "text" : "none",
-      WebkitUserSelect: editingTextLayerId === layer.id ? "text" : "none",
-      outline: editingTextLayerId === layer.id ? "1px dashed rgba(37, 99, 235, 0.55)" : "none",
-      animation: !isExporting && layer.textAnimation === "pop" ? "pixoresTextPop 1.4s ease-in-out infinite" : !isExporting && layer.textAnimation === "float" ? "pixoresTextFloat 1.8s ease-in-out infinite" : "none",
-      ...getEfectosEstilo(layer),
-    }}
-    data-layer-text-id={String(layer.id)}
-    {...(editingTextLayerId === layer.id
-      ? {}
-      : { dangerouslySetInnerHTML: { __html: getTextLayerHtml(layer) } })}
-  >
-  </div>
+      }}
+      onTouchEnd={(e) => {
+        if (editingTextLayerId === layer.id) {
+          e.stopPropagation();
+          rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
+        }
+      }}
+      onKeyUp={(e) => {
+        rememberTextSelection(layer.id, e.currentTarget as HTMLElement);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          (e.currentTarget as HTMLElement).blur();
+        }
+        e.stopPropagation();
+      }}
+      style={{
+        width: layer.width ? `${layer.width}px` : "max-content",
+        maxWidth: `${canvasWidth}px`,
+        minWidth: "24px",
+        boxSizing: "border-box",
+        display: "inline-block",
+        fontSize: `${layer.fontSize}px`,
+        color: layer.color,
+        fontFamily: `${layer.fontFamily || "Inter"}, Inter, Arial, sans-serif`,
+        textAlign: layer.textAlign || "center",
+        fontWeight: layer.isBold ? "bold" : "900",
+        fontStyle: layer.isItalic ? "italic" : "normal",
+        textDecoration: `${layer.isUnderline ? "underline" : ""} ${layer.isStrikethrough ? "line-through" : ""}`.trim() || "none",
+        textTransform: layer.isUppercase ? "uppercase" : "none",
+        background: layer.hasTextBg ? layer.textBgColor || "#000000" : "transparent",
+        padding: layer.hasTextBg ? `${layer.textBgPadding || 6}px ${Math.max(8, (layer.textBgPadding || 6) * 2)}px` : "0px",
+        borderRadius: `${layer.borderRadius || 4}px`,
+        whiteSpace: layer.width ? "pre-wrap" : "pre",
+        overflowWrap: layer.width ? "break-word" : "normal",
+        wordBreak: "normal",
+        lineHeight: layer.lineHeight || 1,
+        letterSpacing: `${layer.letterSpacing || 0}px`,
+        writingMode: layer.textMode === "vertical" ? "vertical-rl" : "horizontal-tb",
+        textOrientation: layer.textMode === "vertical" ? "upright" : "mixed",
+        cursor: editingTextLayerId === layer.id ? "text" : "move",
+        userSelect: editingTextLayerId === layer.id ? "text" : "none",
+        WebkitUserSelect: editingTextLayerId === layer.id ? "text" : "none",
+        outline: editingTextLayerId === layer.id ? "1px dashed rgba(37, 99, 235, 0.55)" : "none",
+        animation: !isExporting && layer.textAnimation === "pop" ? "pixoresTextPop 1.4s ease-in-out infinite" : !isExporting && layer.textAnimation === "float" ? "pixoresTextFloat 1.8s ease-in-out infinite" : "none",
+        ...getEfectosEstilo(layer),
+      }}
+      data-layer-text-id={String(layer.id)}
+      {...(editingTextLayerId === layer.id
+        ? {}
+        : { dangerouslySetInnerHTML: { __html: getTextLayerHtml(layer) } })}
+    >
+    </div>
+  )
 ) : layer.type === "drawing" ? (
   <svg
     width={layer.width}
@@ -6417,6 +6744,49 @@ const buyCredits = async (packageId: string) => {
               {selectedLayer.type === "text" && (
                 <div style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: "8px" }}>
                   <label style={{ fontSize: "11px", fontWeight: 800, color: "#475569" }}>Pixores Text Controls</label>
+                  <label style={{ fontSize: "10px", color: "#64748B", display: "grid", gap: "4px" }}>
+                    Text
+                    <textarea
+                      value={selectedLayer.text || ""}
+                      onChange={(e) => updateSelectedLayer({ text: e.target.value, textHtml: undefined })}
+                      rows={(selectedLayer.textMode || "normal") === "circle" ? 2 : 1}
+                      style={{ width: "100%", minHeight: "34px", resize: "vertical", border: "1px solid #CBD5E1", borderRadius: "7px", padding: "7px", color: "#0F172A", background: "#FFFFFF", fontSize: "12px", fontWeight: 700 }}
+                    />
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px" }}>
+                    {TEXT_MODE_OPTIONS.map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        onClick={() => {
+                          const nextFields: Partial<Layer> = { textMode: mode.value };
+                          if (mode.value === "circle") {
+                            nextFields.width = selectedLayer.width || 260;
+                            nextFields.height = selectedLayer.height || selectedLayer.width || 260;
+                            nextFields.textCircleRadius = selectedLayer.textCircleRadius || 110;
+                            nextFields.textCircleStart = selectedLayer.textCircleStart || 0;
+                            nextFields.text = selectedLayer.text || getPlainTextFromLayer(selectedLayer);
+                          }
+                          updateSelectedLayer(nextFields);
+                        }}
+                        style={{ padding: "7px 4px", borderRadius: "7px", border: "1px solid #CBD5E1", background: (selectedLayer.textMode || "normal") === mode.value ? "#DBEAFE" : "#FFFFFF", color: (selectedLayer.textMode || "normal") === mode.value ? "#1D4ED8" : "#334155", fontSize: "11px", fontWeight: 850, cursor: "pointer" }}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  {(selectedLayer.textMode || "normal") === "circle" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <label style={{ fontSize: "10px", color: "#64748B" }}>
+                        Circle Radius ({selectedLayer.textCircleRadius || 110}px)
+                        <input type="range" min="30" max="260" value={selectedLayer.textCircleRadius || 110} onChange={(e) => updateSelectedLayer({ textCircleRadius: Number(e.target.value), width: Math.max(selectedLayer.width || 260, Number(e.target.value) * 2 + 24), height: Math.max(selectedLayer.height || 260, Number(e.target.value) * 2 + 24) })} style={{ width: "100%" }} />
+                      </label>
+                      <label style={{ fontSize: "10px", color: "#64748B" }}>
+                        Start Angle ({selectedLayer.textCircleStart || 0}°)
+                        <input type="range" min="-180" max="180" value={selectedLayer.textCircleStart || 0} onChange={(e) => updateSelectedLayer({ textCircleStart: Number(e.target.value) })} style={{ width: "100%" }} />
+                      </label>
+                    </div>
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                     <label style={{ fontSize: "10px", color: "#64748B" }}>
                       Outline
@@ -6683,6 +7053,10 @@ const buyCredits = async (packageId: string) => {
             <button onClick={updateProject} disabled={!currentProjectId} style={{ padding: "12px 10px", background: currentProjectId ? "#F59E0B" : "#94A3B8", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: currentProjectId ? "pointer" : "not-allowed" }}>Update</button>
             <button onClick={loadMyProjects} style={{ padding: "12px 10px", background: "#0F172A", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>My Projects</button>
             <button disabled={isExporting} onClick={() => downloadPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>PNG HD</button>
+          </div>
+
+          <div style={{ padding: "10px 12px", borderRadius: "10px", background: "#F8FAFC", color: autosaveBadgeColor, fontWeight: 850, fontSize: "13px", textAlign: "center", border: "1px solid #E2E8F0" }}>
+            {autosaveMessage}
           </div>
 
           {isAdmin && (
