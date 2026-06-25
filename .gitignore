@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local admin bulk upload inbox
+/admin-bulk-assets/*
+!/admin-bulk-assets/.gitkeep
+!/admin-bulk-assets/README.md
+!/admin-bulk-assets/people/
+!/admin-bulk-assets/people/.gitkeep
+!/admin-bulk-assets/objects/
+!/admin-bulk-assets/objects/.gitkeep
+!/admin-bulk-assets/shapes/
+!/admin-bulk-assets/shapes/.gitkeep
+!/admin-bulk-assets/frames/
+!/admin-bulk-assets/frames/.gitkeep
+!/admin-bulk-assets/backgrounds/
+!/admin-bulk-assets/backgrounds/.gitkeep

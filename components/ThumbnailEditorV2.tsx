@@ -9,6 +9,13 @@ import { templates } from "@/lib/templates";
 import type { AdminAsset } from "@/lib/adminAssets";
 import type { EditorBrandAsset } from "@/lib/brandAssets";
 import { EDITOR_VECTOR_ASSETS, vectorSvgDataUrl, type EditorVectorAsset } from "@/lib/editorVectorAssets";
+import {
+  STUDIO_PROJECT_EDITOR,
+  STUDIO_PROJECT_SCHEMA_VERSION,
+  normalizeStudioProjectData,
+  type SavedStudioProject,
+  type StudioProjectData,
+} from "@/lib/studioProject";
 
 
 
@@ -244,34 +251,6 @@ type EditableTemplateData = {
   canvasStrokeWidth: number;
   preview: string | null;
   layers: Layer[];
-};
-
-type StudioProjectData = {
-  schemaVersion: 2;
-  savedAt: string;
-  editor: "ThumbnailEditorV2";
-  canvas: {
-    width: number;
-    height: number;
-    preset: keyof typeof PRESET_SIZES;
-    backgroundColor: string;
-    backgroundImage: string | null;
-    backgroundOpacity: number;
-    backgroundBlur: number;
-    strokeColor: string;
-    strokeWidth: number;
-  };
-  layers: Layer[];
-};
-
-type SavedStudioProject = {
-  id: string;
-  user_id: string;
-  name: string;
-  project_data: Partial<StudioProjectData> & Record<string, any>;
-  thumbnail: string | null;
-  created_at: string;
-  updated_at: string;
 };
 
 type AutosaveStatus = "idle" | "saved" | "dirty" | "saving" | "error";
@@ -690,13 +669,14 @@ export default function ThumbnailEditorV2() {
   const [drawingSize, setDrawingSize] = useState<number>(8);
   const [drawingDraft, setDrawingDraft] = useState<DrawingPoint[]>([]);
 
-  const [savedProjects, setSavedProjects] = useState<SavedStudioProject[]>([]);
+  const [savedProjects, setSavedProjects] = useState<SavedStudioProject<Layer>[]>([]);
   const [showProjects, setShowProjects] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
   const [autosaveMessage, setAutosaveMessage] = useState<string>("Not saved yet");
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<Date | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -1650,7 +1630,11 @@ try {
     if (!file) return;
 
     try {
-      setPreview(await fileToDataUrl(file));
+      const remoteUrl = await uploadStudioAssetToSupabase(file, "background").catch((error) => {
+        console.warn("Studio background upload fallback:", error);
+        return null;
+      });
+      setPreview(remoteUrl || await fileToDataUrl(file));
       if (isMobileLayout) setMobilePanel(null);
     } catch (error) {
       console.error("Unable to load background image:", error);
@@ -1705,6 +1689,34 @@ try {
   const getSupabaseAccessToken = async () => {
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token || null;
+  };
+
+  const uploadStudioAssetToSupabase = async (file: File, kind: "background" | "image" | "frame-image" = "image") => {
+    const token = await getSupabaseAccessToken();
+    if (!token) return null;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", file.name);
+    formData.append("kind", kind);
+    if (currentProjectId) formData.append("project_id", currentProjectId);
+
+    const response = await fetch("/api/studio/assets", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Unable to save this image to Studio assets.");
+    }
+
+    const payload = await response.json();
+    const asset = payload.asset as { url?: string; previewUrl?: string };
+    return asset.url || asset.previewUrl || null;
   };
 
   const loadBrandAssetsFromSupabase = async () => {
@@ -1866,13 +1878,21 @@ try {
     if (!files) return;
     const fileList = Array.from(files);
     let newFiles: ImportedFile[] = [];
+    const importKind = selectedLayer && isImageFrame(selectedLayer) ? "frame-image" : "image";
 
     try {
       newFiles = await Promise.all(
-        fileList.map(async (file) => ({
-          url: await fileToDataUrl(file),
-          name: file.name,
-        })),
+        fileList.map(async (file) => {
+          const remoteUrl = await uploadStudioAssetToSupabase(file, importKind).catch((error) => {
+            console.warn("Studio image upload fallback:", error);
+            return null;
+          });
+
+          return {
+            url: remoteUrl || await fileToDataUrl(file),
+            name: file.name,
+          };
+        }),
       );
     } catch (error) {
       console.error("Unable to import image files:", error);
@@ -3344,10 +3364,10 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     }
   };
 
-  const buildProjectData = (savedAt = new Date().toISOString()): StudioProjectData => ({
-    schemaVersion: 2,
+  const buildProjectData = (savedAt = new Date().toISOString()): StudioProjectData<Layer> => ({
+    schemaVersion: STUDIO_PROJECT_SCHEMA_VERSION,
     savedAt,
-    editor: "ThumbnailEditorV2",
+    editor: STUDIO_PROJECT_EDITOR,
     canvas: {
       width: canvasWidth,
       height: canvasHeight,
@@ -3364,26 +3384,56 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
   const buildStableProjectSnapshot = () => JSON.stringify(buildProjectData(""));
 
-  const applyProjectData = (data: SavedStudioProject["project_data"]) => {
-    const canvasData = data?.canvas;
+  const formatSavedTime = (date: Date) =>
+    date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
 
-    const nextCanvasWidth = Number(canvasData?.width ?? data?.canvasWidth ?? 1280);
-    const nextCanvasHeight = Number(canvasData?.height ?? data?.canvasHeight ?? 720);
+  const markAutosaved = (date = new Date()) => {
+    setLastAutosavedAt(date);
+    setAutosaveStatus("saved");
+    setAutosaveMessage(`Saved ${formatSavedTime(date)}`);
+  };
+
+  const getProjectApiHeaders = async () => {
+    const token = await getSupabaseAccessToken();
+    if (!token) throw new Error("Please login first.");
+
+    return {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+  };
+
+  const readProjectApiResponse = async (response: Response) => {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Project request failed.");
+    }
+    return payload;
+  };
+
+  const applyProjectData = (data: SavedStudioProject<Layer>["project_data"]) => {
+    const normalizedProject = normalizeStudioProjectData<Layer>(data);
+    const canvasData = normalizedProject.canvas;
+    const nextCanvasWidth = canvasData.width;
+    const nextCanvasHeight = canvasData.height;
 
     setCurrentPreset(
-      (canvasData?.preset as keyof typeof PRESET_SIZES | undefined) ||
+      (canvasData.preset in PRESET_SIZES ? canvasData.preset as keyof typeof PRESET_SIZES : undefined) ||
       getPresetForDimensions(nextCanvasWidth, nextCanvasHeight)
     );
     setCanvasWidth(nextCanvasWidth);
     setCanvasHeight(nextCanvasHeight);
-    setCanvasBgColor(String(canvasData?.backgroundColor ?? data?.canvasBgColor ?? "#FFFFFF"));
-    setCanvasStrokeColor(String(canvasData?.strokeColor ?? data?.canvasStrokeColor ?? "#0F172A"));
-    setCanvasStrokeWidth(Number(canvasData?.strokeWidth ?? data?.canvasStrokeWidth ?? 0));
-    setBackgroundOpacity(Number(canvasData?.backgroundOpacity ?? 1));
-    setBackgroundBlur(Number(canvasData?.backgroundBlur ?? 0));
-    setPreview((canvasData?.backgroundImage ?? data?.preview ?? null) as string | null);
+    setCanvasBgColor(canvasData.backgroundColor);
+    setCanvasStrokeColor(canvasData.strokeColor);
+    setCanvasStrokeWidth(canvasData.strokeWidth);
+    setBackgroundOpacity(canvasData.backgroundOpacity);
+    setBackgroundBlur(canvasData.backgroundBlur);
+    setPreview(canvasData.backgroundImage);
 
-    const nextLayers = Array.isArray(data?.layers) ? data.layers as Layer[] : [];
+    const nextLayers = normalizedProject.layers;
     setLayers(nextLayers);
     setSelectedLayerId(nextLayers[0]?.id || null);
     setIsCropMode(false);
@@ -3394,42 +3444,33 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
   };
 
   const saveProject = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-
-    if (!userData.user) {
-      alert("Please login first.");
-      return;
-    }
-
     const projectName = prompt("Project name:", "Untitled Project");
     if (!projectName) return;
 
-    const thumbnail = await createProjectThumbnail();
-    const projectData = buildProjectData();
+    try {
+      const thumbnail = await createProjectThumbnail();
+      const projectData = buildProjectData();
+      const response = await fetch("/api/studio/projects", {
+        method: "POST",
+        headers: await getProjectApiHeaders(),
+        body: JSON.stringify({
+          name: projectName,
+          project_data: projectData,
+          thumbnail,
+        }),
+      });
+      const payload = await readProjectApiResponse(response);
+      const project = payload.project as SavedStudioProject<Layer>;
 
-    const { data, error } = await supabase
-      .from("projects")
-      .insert({
-        user_id: userData.user.id,
-        name: projectName,
-        project_data: projectData,
-        thumbnail,
-      })
-      .select()
-      .single<SavedStudioProject>();
-
-    if (error) {
-      alert(error.message);
-      return;
+      autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      autosaveProjectIdRef.current = project.id;
+      setCurrentProjectId(project.id);
+      setSavedProjects((prev) => [project, ...prev]);
+      markAutosaved(project.updated_at ? new Date(project.updated_at) : undefined);
+      alert("Project saved successfully!");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Project could not be saved.");
     }
-
-    autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
-    autosaveProjectIdRef.current = data.id;
-    setCurrentProjectId(data.id);
-    setSavedProjects((prev) => [data, ...prev]);
-    setAutosaveStatus("saved");
-    setAutosaveMessage("Saved");
-    alert("Project saved successfully!");
   };
 
   const saveAsPublicTemplate = async () => {
@@ -3593,74 +3634,53 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       return;
     }
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      alert("Please login first.");
-      return;
+    try {
+      const thumbnail = await createProjectThumbnail();
+      const projectData = buildProjectData();
+      const response = await fetch(`/api/studio/projects/${encodeURIComponent(currentProjectId)}`, {
+        method: "PATCH",
+        headers: await getProjectApiHeaders(),
+        body: JSON.stringify({
+          project_data: projectData,
+          thumbnail,
+        }),
+      });
+      const payload = await readProjectApiResponse(response);
+      const project = payload.project as SavedStudioProject<Layer>;
+
+      autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      autosaveProjectIdRef.current = project.id;
+      setSavedProjects((prev) =>
+        prev.map((savedProject) => (savedProject.id === currentProjectId ? project : savedProject))
+      );
+      markAutosaved(project.updated_at ? new Date(project.updated_at) : undefined);
+
+      alert("Project updated successfully!");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Project could not be updated.");
     }
-
-    const thumbnail = await createProjectThumbnail();
-    const projectData = buildProjectData();
-
-    const { data, error } = await supabase
-      .from("projects")
-      .update({
-        project_data: projectData,
-        thumbnail,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", currentProjectId)
-      .eq("user_id", userData.user.id)
-      .select()
-      .single<SavedStudioProject>();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
-    autosaveProjectIdRef.current = data.id;
-    setSavedProjects((prev) =>
-      prev.map((project) => (project.id === currentProjectId ? data : project))
-    );
-    setAutosaveStatus("saved");
-    setAutosaveMessage("Saved");
-
-    alert("Project updated successfully!");
   };
 
   const loadMyProjects = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-
-    if (!userData.user) {
-      alert("Please login first.");
-      return;
+    try {
+      const response = await fetch("/api/studio/projects", {
+        headers: await getProjectApiHeaders(),
+        cache: "no-store",
+      });
+      const payload = await readProjectApiResponse(response);
+      setSavedProjects(Array.isArray(payload.projects) ? payload.projects as SavedStudioProject<Layer>[] : []);
+      setShowProjects(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Projects could not be loaded.");
     }
-
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id,user_id,name,project_data,thumbnail,created_at,updated_at")
-      .eq("user_id", userData.user.id)
-      .order("updated_at", { ascending: false })
-      .returns<SavedStudioProject[]>();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setSavedProjects(data || []);
-    setShowProjects(true);
   };
 
-  const openProject = (project: SavedStudioProject) => {
+  const openProject = (project: SavedStudioProject<Layer>) => {
     applyProjectData(project.project_data);
     autosaveLastSnapshotRef.current = "";
     autosaveProjectIdRef.current = project.id;
     setCurrentProjectId(project.id);
-    setAutosaveStatus("saved");
-    setAutosaveMessage("Saved");
+    markAutosaved(project.updated_at ? new Date(project.updated_at) : undefined);
     setShowProjects(false);
   };
 
@@ -3668,31 +3688,24 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     const confirmDelete = confirm("Delete this project?");
     if (!confirmDelete) return;
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      alert("Please login first.");
-      return;
-    }
+    try {
+      const response = await fetch(`/api/studio/projects/${encodeURIComponent(projectId)}`, {
+        method: "DELETE",
+        headers: await getProjectApiHeaders(),
+      });
+      await readProjectApiResponse(response);
+      setSavedProjects((prev) => prev.filter((project) => project.id !== projectId));
 
-    const { error } = await supabase
-      .from("projects")
-      .delete()
-      .eq("id", projectId)
-      .eq("user_id", userData.user.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setSavedProjects((prev) => prev.filter((project) => project.id !== projectId));
-
-    if (currentProjectId === projectId) {
-      setCurrentProjectId(null);
-      autosaveLastSnapshotRef.current = "";
-      autosaveProjectIdRef.current = null;
-      setAutosaveStatus("idle");
-      setAutosaveMessage("Not saved yet");
+      if (currentProjectId === projectId) {
+        setCurrentProjectId(null);
+        autosaveLastSnapshotRef.current = "";
+        autosaveProjectIdRef.current = null;
+        setAutosaveStatus("idle");
+        setAutosaveMessage("Not saved yet");
+        setLastAutosavedAt(null);
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Project could not be deleted.");
     }
   };
 
@@ -3701,6 +3714,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
       if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
       setAutosaveStatus("idle");
       setAutosaveMessage("Not saved yet");
+      setLastAutosavedAt(null);
       return;
     }
 
@@ -3709,15 +3723,23 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     if (autosaveProjectIdRef.current !== currentProjectId) {
       autosaveProjectIdRef.current = currentProjectId;
       autosaveLastSnapshotRef.current = stableSnapshot;
-      setAutosaveStatus("saved");
-      setAutosaveMessage("Saved");
+      if (lastAutosavedAt) {
+        markAutosaved(lastAutosavedAt);
+      } else {
+        setAutosaveStatus("saved");
+        setAutosaveMessage("Saved");
+      }
       return;
     }
 
     if (stableSnapshot === autosaveLastSnapshotRef.current) {
       if (autosaveStatus !== "saving" && autosaveStatus !== "error") {
-        setAutosaveStatus("saved");
-        setAutosaveMessage("Saved");
+        if (lastAutosavedAt) {
+          markAutosaved(lastAutosavedAt);
+        } else {
+          setAutosaveStatus("saved");
+          setAutosaveMessage("Saved");
+        }
       }
       return;
     }
@@ -3732,29 +3754,22 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
         setAutosaveStatus("saving");
         setAutosaveMessage("Saving...");
 
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) throw new Error("Please login first.");
-
         const projectData = buildProjectData();
-        const { data, error } = await supabase
-          .from("projects")
-          .update({
+        const response = await fetch(`/api/studio/projects/${encodeURIComponent(currentProjectId)}`, {
+          method: "PATCH",
+          headers: await getProjectApiHeaders(),
+          body: JSON.stringify({
             project_data: projectData,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", currentProjectId)
-          .eq("user_id", userData.user.id)
-          .select()
-          .single<SavedStudioProject>();
-
-        if (error) throw error;
+          }),
+        });
+        const payload = await readProjectApiResponse(response);
+        const project = payload.project as SavedStudioProject<Layer>;
 
         autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
         setSavedProjects((prev) =>
-          prev.map((project) => (project.id === currentProjectId ? data : project))
+          prev.map((savedProject) => (savedProject.id === currentProjectId ? project : savedProject))
         );
-        setAutosaveStatus("saved");
-        setAutosaveMessage("Saved");
+        markAutosaved(project.updated_at ? new Date(project.updated_at) : undefined);
       } catch (error) {
         console.error("Autosave failed:", error);
         setAutosaveStatus("error");
@@ -4240,7 +4255,7 @@ const autosaveBadgeColor =
   >
     {(project.thumbnail || project.project_data?.thumbnail) ? (
       <img
-        src={project.thumbnail || project.project_data?.thumbnail}
+        src={(project.thumbnail || project.project_data?.thumbnail) || undefined}
         alt={project.name}
         style={{
           width: "120px",
