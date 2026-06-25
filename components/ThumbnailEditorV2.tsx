@@ -29,11 +29,12 @@ type Layer = {
   vectorSvg?: string;
   vectorColor?: string;
   drawingPoints?: DrawingPoint[];
-  drawingTool?: "pencil" | "brush";
+  drawingTool?: "pencil" | "brush" | "canvasEraser";
   drawingColor?: string;
   drawingSize?: number;
   drawingViewWidth?: number;
   drawingViewHeight?: number;
+  selectionPoints?: DrawingPoint[];
   frameImageSrc?: string;
   frameImageSrc2?: string;
   frameImageFit?: "cover" | "contain";
@@ -54,6 +55,7 @@ type Layer = {
   | "rectangle"
   | "circle"
   | "triangle"
+  | "selectionPolygon"
   | "star"
   | "badge"
   | "speechBubble"
@@ -147,7 +149,10 @@ type DrawingPoint = {
   y: number;
 };
 
-type DrawingTool = "select" | "pencil" | "brush" | "eraser";
+type DrawingTool = "select" | "pencil" | "brush" | "strokeEraser" | "canvasEraser" | "pointSelect";
+
+const BRUSH_SIZE_OPTIONS = [4, 8, 14, 22, 34];
+const ERASER_SIZE_OPTIONS = [16, 28, 44, 64, 96];
 
 function getSmoothDrawingPath(points: DrawingPoint[]) {
   if (points.length === 0) return "";
@@ -668,6 +673,7 @@ export default function ThumbnailEditorV2() {
   const [drawingColor, setDrawingColor] = useState<string>("#111827");
   const [drawingSize, setDrawingSize] = useState<number>(8);
   const [drawingDraft, setDrawingDraft] = useState<DrawingPoint[]>([]);
+  const [selectionPoints, setSelectionPoints] = useState<DrawingPoint[]>([]);
 
   const [savedProjects, setSavedProjects] = useState<SavedStudioProject<Layer>[]>([]);
   const [showProjects, setShowProjects] = useState(false);
@@ -2278,6 +2284,41 @@ const eraseDrawingAt = (point: DrawingPoint) => {
   }));
 };
 
+const createPointSelectionLayer = () => {
+  if (selectionPoints.length < 3) return;
+
+  const padding = 8;
+  const minX = Math.max(0, Math.min(...selectionPoints.map((point) => point.x)) - padding);
+  const minY = Math.max(0, Math.min(...selectionPoints.map((point) => point.y)) - padding);
+  const maxX = Math.min(canvasWidth, Math.max(...selectionPoints.map((point) => point.x)) + padding);
+  const maxY = Math.min(canvasHeight, Math.max(...selectionPoints.map((point) => point.y)) + padding);
+  const width = Math.max(20, maxX - minX);
+  const height = Math.max(20, maxY - minY);
+  const uniqueId = `selection-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const newLayer: Layer = {
+    id: uniqueId,
+    type: "shape",
+    name: "Point Selection",
+    shapeType: "selectionPolygon",
+    x: ((minX + maxX) / 2 / canvasWidth) * 100,
+    y: ((minY + maxY) / 2 / canvasHeight) * 100,
+    width,
+    height,
+    selectionPoints: selectionPoints.map((point) => ({ x: point.x - minX, y: point.y - minY })),
+    color: "rgba(37, 99, 235, 0.18)",
+    strokeColor: "#2563EB",
+    strokeWidth: 3,
+    opacity: 1,
+    angle: 0,
+    isLocked: false,
+  };
+
+  setLayers((currentLayers) => [...currentLayers, newLayer]);
+  setSelectedLayerId(uniqueId);
+  setSelectionPoints([]);
+  setDrawingTool("select");
+};
+
 const handleDrawingPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
   if (drawingTool === "select") return;
   event.preventDefault();
@@ -2286,7 +2327,14 @@ const handleDrawingPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
   drawingPointerIdRef.current = event.pointerId;
   const point = getCanvasDrawingPoint(event);
 
-  if (drawingTool === "eraser") {
+  if (drawingTool === "pointSelect") {
+    setSelectionPoints((currentPoints) => [...currentPoints, point]);
+    drawingPointerIdRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    return;
+  }
+
+  if (drawingTool === "strokeEraser") {
     eraseDrawingAt(point);
     return;
   }
@@ -2302,10 +2350,12 @@ const handleDrawingPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
   event.preventDefault();
   const point = getCanvasDrawingPoint(event);
 
-  if (drawingTool === "eraser") {
+  if (drawingTool === "strokeEraser") {
     eraseDrawingAt(point);
     return;
   }
+
+  if (drawingTool === "pointSelect") return;
 
   const currentPoints = drawingDraftRef.current;
   const previous = currentPoints[currentPoints.length - 1];
@@ -2321,7 +2371,7 @@ const finishDrawingStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
   if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
 
   const completedPoints = drawingDraftRef.current;
-  if ((drawingTool !== "pencil" && drawingTool !== "brush") || completedPoints.length === 0) {
+  if ((drawingTool !== "pencil" && drawingTool !== "brush" && drawingTool !== "canvasEraser") || completedPoints.length === 0) {
     drawingDraftRef.current = [];
     setDrawingDraft([]);
     return;
@@ -2336,17 +2386,18 @@ const finishDrawingStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
   const viewHeight = Math.max(drawingSize * 4, maxY - minY);
   const relativePoints = completedPoints.map((point) => ({ x: point.x - minX, y: point.y - minY }));
   const uniqueId = `drawing-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const isCanvasEraser = drawingTool === "canvasEraser";
   const newLayer: Layer = {
     id: uniqueId,
     type: "drawing",
-    name: drawingTool === "brush" ? "Brush Stroke" : "Pencil Stroke",
+    name: isCanvasEraser ? "Canvas Eraser" : drawingTool === "brush" ? "Brush Stroke" : "Pencil Stroke",
     x: ((minX + maxX) / 2 / canvasWidth) * 100,
     y: ((minY + maxY) / 2 / canvasHeight) * 100,
     width: viewWidth,
     height: viewHeight,
     drawingPoints: relativePoints,
-    drawingTool,
-    drawingColor,
+    drawingTool: isCanvasEraser ? "canvasEraser" : drawingTool,
+    drawingColor: isCanvasEraser ? canvasBgColor : drawingColor,
     drawingSize,
     drawingViewWidth: viewWidth,
     drawingViewHeight: viewHeight,
@@ -5266,11 +5317,14 @@ const autosaveBadgeColor =
                     onClick={() => {
                       const nextFields: Partial<Layer> = { textMode: mode.value };
                       if (mode.value === "circle") {
-                        nextFields.width = selectedLayer.width || 260;
-                        nextFields.height = selectedLayer.height || selectedLayer.width || 260;
-                        nextFields.textCircleRadius = selectedLayer.textCircleRadius || 110;
+                        const circleText = selectedLayer.text || getPlainTextFromLayer(selectedLayer);
+                        const estimatedTextWidth = Math.max(1, circleText.length) * ((selectedLayer.fontSize || 40) * 0.62 + (selectedLayer.letterSpacing || 0));
+                        const autoRadius = Math.max(selectedLayer.textCircleRadius || 110, (estimatedTextWidth * 1.35) / (Math.PI * 2));
+                        nextFields.width = Math.max(selectedLayer.width || 260, autoRadius * 2 + (selectedLayer.fontSize || 40) * 2);
+                        nextFields.height = Math.max(selectedLayer.height || selectedLayer.width || 260, autoRadius * 2 + (selectedLayer.fontSize || 40) * 2);
+                        nextFields.textCircleRadius = autoRadius;
                         nextFields.textCircleStart = selectedLayer.textCircleStart || 0;
-                        nextFields.text = selectedLayer.text || getPlainTextFromLayer(selectedLayer);
+                        nextFields.text = circleText;
                       }
                       updateSelectedLayer(nextFields);
                     }}
@@ -5439,10 +5493,9 @@ const autosaveBadgeColor =
             </button>
             <div style={{ width: "1px", height: "28px", background: "#CBD5E1" }} />
             {([
-              { id: "select", label: "Select", icon: "↖" },
-              { id: "pencil", label: "Pencil", icon: "✎" },
-              { id: "brush", label: "Brush", icon: "🖌" },
-              { id: "eraser", label: "Eraser", icon: "▱" },
+              { id: "select", label: "Select", active: drawingTool === "select" || drawingTool === "pointSelect" },
+              { id: "pencil", label: "Brush", active: drawingTool === "pencil" || drawingTool === "brush" },
+              { id: "canvasEraser", label: "Eraser", active: drawingTool === "strokeEraser" || drawingTool === "canvasEraser" },
             ] as const).map((tool) => (
               <button
                 key={tool.id}
@@ -5454,37 +5507,64 @@ const autosaveBadgeColor =
                   drawingDraftRef.current = [];
                   setDrawingDraft([]);
                   if (tool.id === "pencil" && drawingSize > 12) setDrawingSize(6);
-                  if (tool.id === "brush" && drawingSize < 10) setDrawingSize(18);
+                  if (tool.id === "canvasEraser" && drawingSize < 16) setDrawingSize(28);
                   if (tool.id !== "select") setSelectedLayerId(null);
                 }}
-                style={{ height: "34px", minWidth: "38px", padding: "0 9px", borderRadius: "10px", border: drawingTool === tool.id ? "2px solid #2563EB" : "1px solid #CBD5E1", background: drawingTool === tool.id ? "#DBEAFE" : "#FFFFFF", color: "#0F172A", cursor: "pointer", fontSize: "16px", fontWeight: 800 }}
+                style={{ height: "34px", minWidth: "68px", padding: "0 12px", borderRadius: "10px", border: tool.active ? "2px solid #2563EB" : "1px solid #CBD5E1", background: tool.active ? "#DBEAFE" : "#FFFFFF", color: "#0F172A", cursor: "pointer", fontSize: "12px", fontWeight: 900 }}
               >
-                <span aria-hidden="true">{tool.icon}</span>
+                {tool.label}
               </button>
             ))}
-            <label title="Drawing color" style={{ width: "36px", height: "34px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", display: "grid", placeItems: "center", cursor: drawingTool === "eraser" ? "not-allowed" : "pointer" }}>
-              <input
-                type="color"
-                value={drawingColor}
-                disabled={drawingTool === "eraser"}
-                onChange={(event) => setDrawingColor(event.target.value)}
-                aria-label="Drawing color"
-                style={{ width: "26px", height: "26px", border: "none", padding: 0, background: "transparent", cursor: "inherit" }}
-              />
-            </label>
-            <label title="Brush size" style={{ height: "34px", minWidth: "112px", padding: "0 8px", borderRadius: "10px", border: "1px solid #CBD5E1", background: "#FFFFFF", display: "flex", alignItems: "center", gap: "6px", color: "#334155", fontSize: "11px", fontWeight: 800 }}>
-              {drawingSize}px
-              <input
-                type="range"
-                min="2"
-                max="60"
-                step="1"
-                value={drawingSize}
-                onChange={(event) => setDrawingSize(Number(event.target.value))}
-                aria-label="Brush size"
-                style={{ width: "58px" }}
-              />
-            </label>
+            {(drawingTool === "select" || drawingTool === "pointSelect") && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px", border: "1px solid #CBD5E1", borderRadius: "12px", background: "#FFFFFF" }}>
+                <button type="button" onClick={() => setDrawingTool("pointSelect")} style={{ height: "30px", padding: "0 9px", borderRadius: "8px", border: drawingTool === "pointSelect" ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                  Point
+                </button>
+                {drawingTool === "pointSelect" && selectionPoints.length > 0 && (
+                  <button type="button" onClick={() => setSelectionPoints([])} style={{ height: "30px", border: "none", background: "#EFF6FF", color: "#2563EB", borderRadius: "8px", padding: "0 9px", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                    Clear {selectionPoints.length}
+                  </button>
+                )}
+                {drawingTool === "pointSelect" && selectionPoints.length >= 3 && (
+                  <button type="button" onClick={createPointSelectionLayer} style={{ height: "30px", border: "none", background: "#2563EB", color: "#FFFFFF", borderRadius: "8px", padding: "0 10px", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                    Create Layer
+                  </button>
+                )}
+              </div>
+            )}
+            {(drawingTool === "pencil" || drawingTool === "brush") && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px", border: "1px solid #CBD5E1", borderRadius: "12px", background: "#FFFFFF" }}>
+                <button type="button" onClick={() => setDrawingTool("pencil")} style={{ height: "30px", padding: "0 9px", borderRadius: "8px", border: drawingTool === "pencil" ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                  Pencil
+                </button>
+                <button type="button" onClick={() => setDrawingTool("brush")} style={{ height: "30px", padding: "0 9px", borderRadius: "8px", border: drawingTool === "brush" ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                  Brush
+                </button>
+                <label title="Drawing color" style={{ width: "32px", height: "30px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#FFFFFF", display: "grid", placeItems: "center", cursor: "pointer" }}>
+                  <input type="color" value={drawingColor} onChange={(event) => setDrawingColor(event.target.value)} aria-label="Drawing color" style={{ width: "24px", height: "24px", border: "none", padding: 0, background: "transparent", cursor: "inherit" }} />
+                </label>
+                {BRUSH_SIZE_OPTIONS.map((size) => (
+                  <button key={`brush-size-${size}`} type="button" onClick={() => setDrawingSize(size)} style={{ width: "32px", height: "30px", borderRadius: "8px", border: drawingSize === size ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                    {size}
+                  </button>
+                ))}
+              </div>
+            )}
+            {(drawingTool === "strokeEraser" || drawingTool === "canvasEraser") && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px", border: "1px solid #CBD5E1", borderRadius: "12px", background: "#FFFFFF" }}>
+                <button type="button" onClick={() => setDrawingTool("strokeEraser")} style={{ height: "30px", padding: "0 9px", borderRadius: "8px", border: drawingTool === "strokeEraser" ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                  Strokes
+                </button>
+                <button type="button" onClick={() => setDrawingTool("canvasEraser")} style={{ height: "30px", padding: "0 9px", borderRadius: "8px", border: drawingTool === "canvasEraser" ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "11px", fontWeight: 900, cursor: "pointer" }}>
+                  Canvas
+                </button>
+                {ERASER_SIZE_OPTIONS.map((size) => (
+                  <button key={`eraser-size-${size}`} type="button" onClick={() => setDrawingSize(size)} style={{ width: "34px", height: "30px", borderRadius: "8px", border: drawingSize === size ? "2px solid #2563EB" : "1px solid #CBD5E1", background: "#F8FAFC", color: "#0F172A", fontSize: "10px", fontWeight: 900, cursor: "pointer" }}>
+                    {size}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* CANVAS AREA */}
@@ -5587,6 +5667,7 @@ const buyCredits = async (packageId: string) => {
                 <div
                   
   key={layer.id}
+  data-editor-layer-id={String(layer.id)}
   onMouseDown={(e) => {
     const { clientX, clientY } = getCoords(e);
     if (
@@ -5678,9 +5759,18 @@ const buyCredits = async (packageId: string) => {
                   {/* TEXT / SHAPE / IMAGE */}
 {layer.type === "text" ? (
   (layer.textMode || "normal") === "circle" ? (() => {
-    const circleSize = Math.max(layer.width || 260, layer.height || layer.width || 260, 120);
+    const circularText = layer.isUppercase ? (layer.text || "").toUpperCase() : layer.text || "";
+    const fontSize = layer.fontSize || 40;
+    const letterSpacing = layer.letterSpacing || 0;
+    const estimatedTextWidth = Math.max(1, circularText.length) * (fontSize * 0.62 + letterSpacing);
+    const minimumRadiusForText = (estimatedTextWidth * 1.35) / (Math.PI * 2);
+    const requestedRadius = layer.textCircleRadius || 110;
+    const radius = Math.max(24, requestedRadius, minimumRadiusForText);
+    const circleSize = Math.max(layer.width || 260, layer.height || layer.width || 260, radius * 2 + fontSize * 2.2, 120);
     const center = circleSize / 2;
-    const radius = Math.max(24, Math.min(layer.textCircleRadius || 110, center - 8));
+    const safeRadius = Math.min(radius, center - fontSize * 0.9);
+    const pathLength = Math.max(1, Math.PI * 2 * safeRadius);
+    const fittedTextLength = Math.min(estimatedTextWidth, pathLength * 0.94);
     const pathId = `text-circle-${layer.id}`;
     const startOffset = `${(((layer.textCircleStart || 0) % 360 + 360) % 360) / 360 * 100}%`;
     return (
@@ -5716,7 +5806,7 @@ const buyCredits = async (packageId: string) => {
         <defs>
           <path
             id={pathId}
-            d={`M ${center} ${center} m -${radius} 0 a ${radius} ${radius} 0 1 1 ${radius * 2} 0 a ${radius} ${radius} 0 1 1 -${radius * 2} 0`}
+            d={`M ${center} ${center} m -${safeRadius} 0 a ${safeRadius} ${safeRadius} 0 1 1 ${safeRadius * 2} 0 a ${safeRadius} ${safeRadius} 0 1 1 -${safeRadius * 2} 0`}
           />
         </defs>
         <text
@@ -5725,8 +5815,8 @@ const buyCredits = async (packageId: string) => {
           strokeWidth={layer.strokeWidth || 0}
           paintOrder="stroke fill"
         >
-          <textPath href={`#${pathId}`} startOffset={startOffset} textAnchor={layer.textAlign === "left" ? "start" : layer.textAlign === "right" ? "end" : "middle"}>
-            {layer.isUppercase ? (layer.text || "").toUpperCase() : layer.text || ""}
+          <textPath href={`#${pathId}`} startOffset={startOffset} textAnchor="start" textLength={fittedTextLength} lengthAdjust="spacingAndGlyphs">
+            {circularText}
           </textPath>
         </text>
       </svg>
@@ -5847,7 +5937,23 @@ const buyCredits = async (packageId: string) => {
     />
   </svg>
 ) : layer.type === "shape" ? (
-  layer.shapeType === "rectangle" ? (
+  layer.shapeType === "selectionPolygon" ? (
+    <svg
+      width={layer.width}
+      height={layer.height}
+      viewBox={`0 0 ${layer.width || 1} ${layer.height || 1}`}
+      style={{ display: "block", overflow: "visible", pointerEvents: "none" }}
+      aria-hidden="true"
+    >
+      <polygon
+        points={(layer.selectionPoints || []).map((point) => `${point.x},${point.y}`).join(" ")}
+        fill={layer.color || "rgba(37,99,235,0.16)"}
+        stroke={layer.strokeColor || "#2563EB"}
+        strokeWidth={layer.strokeWidth || 3}
+        strokeDasharray="10 8"
+      />
+    </svg>
+  ) : layer.shapeType === "rectangle" ? (
     <div style={{ width: `${layer.width}px`, height: `${layer.height}px`, background: getLayerFill(layer), borderRadius: `${layer.borderRadius || 8}px` }} />
   ) : layer.shapeType === "circle" ? (
     <div style={{ width: `${layer.width}px`, height: `${layer.width}px`, background: getLayerFill(layer), borderRadius: "50%" }} />
@@ -6363,6 +6469,20 @@ const buyCredits = async (packageId: string) => {
                 </div>
               );
             })}
+            {!isExporting && selectionPoints.length > 0 && (
+              <svg width={canvasWidth} height={canvasHeight} viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} style={{ position: "absolute", inset: 0, zIndex: 999, pointerEvents: "none" }} aria-hidden="true">
+                <polyline
+                  points={selectionPoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                  fill={selectionPoints.length > 2 ? "rgba(37, 99, 235, 0.12)" : "none"}
+                  stroke="#2563EB"
+                  strokeWidth={3}
+                  strokeDasharray="10 8"
+                />
+                {selectionPoints.map((point, index) => (
+                  <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r={7} fill="#FFFFFF" stroke="#2563EB" strokeWidth={3} />
+                ))}
+              </svg>
+            )}
             {!isExporting && drawingTool !== "select" && (
               <div
                 data-drawing-overlay="true"
@@ -6374,17 +6494,17 @@ const buyCredits = async (packageId: string) => {
                   position: "absolute",
                   inset: 0,
                   zIndex: 1000,
-                  cursor: drawingTool === "eraser" ? "cell" : "crosshair",
+                  cursor: (drawingTool === "strokeEraser" || drawingTool === "canvasEraser") ? "cell" : "crosshair",
                   touchAction: "none",
                   userSelect: "none",
                 }}
               >
-                {drawingDraft.length > 0 && drawingTool !== "eraser" && (
+                {drawingDraft.length > 0 && drawingTool !== "strokeEraser" && drawingTool !== "pointSelect" && (
                   <svg width={canvasWidth} height={canvasHeight} viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
                     <path
                       d={getSmoothDrawingPath(drawingDraft)}
                       fill="none"
-                      stroke={drawingColor}
+                      stroke={drawingTool === "canvasEraser" ? canvasBgColor : drawingColor}
                       strokeWidth={drawingSize}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -6776,11 +6896,14 @@ const buyCredits = async (packageId: string) => {
                         onClick={() => {
                           const nextFields: Partial<Layer> = { textMode: mode.value };
                           if (mode.value === "circle") {
-                            nextFields.width = selectedLayer.width || 260;
-                            nextFields.height = selectedLayer.height || selectedLayer.width || 260;
-                            nextFields.textCircleRadius = selectedLayer.textCircleRadius || 110;
+                            const circleText = selectedLayer.text || getPlainTextFromLayer(selectedLayer);
+                            const estimatedTextWidth = Math.max(1, circleText.length) * ((selectedLayer.fontSize || 40) * 0.62 + (selectedLayer.letterSpacing || 0));
+                            const autoRadius = Math.max(selectedLayer.textCircleRadius || 110, (estimatedTextWidth * 1.35) / (Math.PI * 2));
+                            nextFields.width = Math.max(selectedLayer.width || 260, autoRadius * 2 + (selectedLayer.fontSize || 40) * 2);
+                            nextFields.height = Math.max(selectedLayer.height || selectedLayer.width || 260, autoRadius * 2 + (selectedLayer.fontSize || 40) * 2);
+                            nextFields.textCircleRadius = autoRadius;
                             nextFields.textCircleStart = selectedLayer.textCircleStart || 0;
-                            nextFields.text = selectedLayer.text || getPlainTextFromLayer(selectedLayer);
+                            nextFields.text = circleText;
                           }
                           updateSelectedLayer(nextFields);
                         }}
@@ -6794,7 +6917,7 @@ const buyCredits = async (packageId: string) => {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                       <label style={{ fontSize: "10px", color: "#64748B" }}>
                         Circle Radius ({selectedLayer.textCircleRadius || 110}px)
-                        <input type="range" min="30" max="260" value={selectedLayer.textCircleRadius || 110} onChange={(e) => updateSelectedLayer({ textCircleRadius: Number(e.target.value), width: Math.max(selectedLayer.width || 260, Number(e.target.value) * 2 + 24), height: Math.max(selectedLayer.height || 260, Number(e.target.value) * 2 + 24) })} style={{ width: "100%" }} />
+                        <input type="range" min="30" max="520" value={selectedLayer.textCircleRadius || 110} onChange={(e) => updateSelectedLayer({ textCircleRadius: Number(e.target.value), width: Math.max(selectedLayer.width || 260, Number(e.target.value) * 2 + (selectedLayer.fontSize || 40) * 2), height: Math.max(selectedLayer.height || 260, Number(e.target.value) * 2 + (selectedLayer.fontSize || 40) * 2) })} style={{ width: "100%" }} />
                       </label>
                       <label style={{ fontSize: "10px", color: "#64748B" }}>
                         Start Angle ({selectedLayer.textCircleStart || 0}°)
