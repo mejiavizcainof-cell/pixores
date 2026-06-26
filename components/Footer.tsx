@@ -1,7 +1,19 @@
+"use client";
+
 import { COLORS } from "@/lib/theme";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { isPixoresDesktopMode } from "@/components/DesktopModeHost";
 
 export default function Footer() {
+  const [isDesktopMode, setIsDesktopMode] = useState(false);
+
+  useEffect(() => {
+    setIsDesktopMode(isPixoresDesktopMode());
+  }, []);
+
+  if (isDesktopMode) return null;
+
   return (
     <footer
       style={{

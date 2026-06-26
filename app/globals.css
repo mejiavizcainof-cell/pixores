@@ -44,3 +44,12 @@ select,
 textarea {
   font: inherit;
 }
+
+body.pixores-desktop-mode > header,
+body.pixores-desktop-mode > footer {
+  display: none !important;
+}
+
+body.pixores-desktop-mode {
+  background: #f8fafc;
+}

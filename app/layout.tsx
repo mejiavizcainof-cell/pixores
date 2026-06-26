@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import ConversionProgressHost from "@/components/ConversionProgressHost";
+import DesktopModeHost from "@/components/DesktopModeHost";
 import "./globals.css";
 
 
@@ -74,6 +75,18 @@ export default function RootLayout({
       >
         <GoogleAnalytics />
         <ConversionProgressHost />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (new URLSearchParams(window.location.search).get("desktop") === "1") {
+                  document.body.classList.add("pixores-desktop-mode");
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
+        <DesktopModeHost />
 
         <Header />
 

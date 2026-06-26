@@ -21,7 +21,14 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function YouTubeThumbnailMakerPage() {
+type YouTubeThumbnailMakerPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function YouTubeThumbnailMakerPage({ searchParams }: YouTubeThumbnailMakerPageProps) {
+  const values = await searchParams;
+  const isDesktopMode = values.desktop === "1";
+
   return (
     <>
       <PixoreStudioSchema />
@@ -30,7 +37,7 @@ export default function YouTubeThumbnailMakerPage() {
         <ThumbnailEditorV2 />
       </Suspense>
 
-      <PixoreStudioSeo />
+      {!isDesktopMode && <PixoreStudioSeo />}
     </>
   );
 }

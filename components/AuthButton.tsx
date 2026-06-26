@@ -118,7 +118,7 @@ export default function AuthButton() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/youtube-thumbnail-maker`,
+        redirectTo: window.location.href,
       },
     });
   };

@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useSearchParams } from "next/navigation";
-import { getFontEmbedCSS, toPng } from "html-to-image";
+import { toPng } from "html-to-image";
 import html2canvas from "html2canvas";
 import { templates } from "@/lib/templates";
 import type { AdminAsset } from "@/lib/adminAssets";
@@ -215,6 +215,34 @@ type ImportedFile = {
   url: string;
   name: string;
 };
+
+type PixoresDesktopMediaFile = {
+  name: string;
+  mimeType: string;
+  kind: "image" | "video" | "audio" | "file";
+  dataUrl: string;
+};
+
+type PixoresDesktopBridge = {
+  saveProjectJson?: (payload: unknown) => Promise<{ canceled?: boolean; filePath?: string }>;
+  openProjectJson?: () => Promise<{ canceled?: boolean; filePath?: string; project?: unknown }>;
+  saveAutosaveJson?: (payload: unknown) => Promise<{ saved?: boolean; filePath?: string }>;
+  openAutosaveJson?: () => Promise<{ found: false } | { found: true; filePath: string; project: unknown }>;
+  importMedia?: () => Promise<{ canceled?: boolean; files?: PixoresDesktopMediaFile[] }>;
+  saveDataUrl?: (payload: {
+    dataUrl: string;
+    defaultPath: string;
+    filters?: { name: string; extensions: string[] }[];
+  }) => Promise<{ canceled?: boolean; filePath?: string; error?: string }>;
+};
+
+type ProjectStorageMode = "unsaved" | "cloud" | "local" | "local-draft";
+
+declare global {
+  interface Window {
+    pixoresDesktop?: PixoresDesktopBridge;
+  }
+}
 
 type BackgroundAsset = {
   name: string;
@@ -636,6 +664,7 @@ export default function ThumbnailEditorV2() {
   const [canvasStrokeWidth, setCanvasStrokeWidth] = useState<number>(0);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false);
+  const [isDesktopBridgeAvailable, setIsDesktopBridgeAvailable] = useState<boolean>(false);
   const [mobileViewport, setMobileViewport] = useState({ width: 390, height: 800 });
   const [undoStack, setUndoStack] = useState<Layer[][]>([]);
   const [redoStack, setRedoStack] = useState<Layer[][]>([]);
@@ -680,6 +709,8 @@ export default function ThumbnailEditorV2() {
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [projectStorageMode, setProjectStorageMode] = useState<ProjectStorageMode>("unsaved");
+  const [localProjectPath, setLocalProjectPath] = useState<string | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
   const [autosaveMessage, setAutosaveMessage] = useState<string>("Not saved yet");
   const [lastAutosavedAt, setLastAutosavedAt] = useState<Date | null>(null);
@@ -704,7 +735,9 @@ export default function ThumbnailEditorV2() {
   const initialDragOffset = useRef({ x: 0, y: 0 });
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
+  const localAutosaveTimerRef = useRef<number | null>(null);
   const autosaveLastSnapshotRef = useRef<string>("");
+  const localAutosaveLastSnapshotRef = useRef<string>("");
   const autosaveProjectIdRef = useRef<string | null>(null);
   const isApplyingHistoryRef = useRef(false);
   const lastHistorySnapshotRef = useRef<string>("[]");
@@ -757,6 +790,19 @@ export default function ThumbnailEditorV2() {
     initialAngle: 0,
   });
   const searchParams = useSearchParams();
+
+  useLayoutEffect(() => {
+    const isDesktopMode =
+      searchParams.get("desktop") === "1" ||
+      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("desktop") === "1");
+
+    document.body.classList.toggle("pixores-desktop-mode", isDesktopMode);
+
+    return () => {
+      document.body.classList.remove("pixores-desktop-mode");
+    };
+  }, [searchParams]);
+
   const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
   const mobileCanvasDisplayWidth = mobilePanel
     ? Math.max(150, Math.min(mobileViewport.width - 24, Math.max(120, mobileViewport.height * 0.6 - 170) * (canvasWidth / canvasHeight)))
@@ -1247,7 +1293,8 @@ useEffect(() => {
   };
 }, []);
  
-useEffect(() => {
+  useEffect(() => {
+    setIsDesktopBridgeAvailable(Boolean(window.pixoresDesktop));
     const updateLayout = () => {
       setIsMobileLayout(window.innerWidth < 900);
       setMobileViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -1631,6 +1678,37 @@ try {
     });
   };
 
+  const getDesktopBridge = () =>
+    typeof window !== "undefined" ? window.pixoresDesktop : undefined;
+
+  const saveDataUrlWithDesktop = async (
+    dataUrl: string,
+    defaultPath: string,
+    filters: { name: string; extensions: string[] }[],
+  ) => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.saveDataUrl || !dataUrl.startsWith("data:")) return false;
+
+    const result = await desktop.saveDataUrl({ dataUrl, defaultPath, filters });
+    if (result?.error) throw new Error(result.error);
+    return !result?.canceled;
+  };
+
+  const downloadDataUrl = async (
+    dataUrl: string,
+    fileName: string,
+    filters: { name: string; extensions: string[] }[],
+  ) => {
+    if (await saveDataUrlWithDesktop(dataUrl, fileName, filters)) return;
+
+    const link = document.createElement("a");
+    link.download = fileName;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleUploadBackground = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1646,6 +1724,26 @@ try {
       console.error("Unable to load background image:", error);
       alert("Background image could not be loaded.");
     }
+  };
+
+  const importBackgroundFromDesktop = async () => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.importMedia) return false;
+
+    const result = await desktop.importMedia();
+    if (result?.canceled) return true;
+
+    const imageFile = (result.files || []).find((file) => file.kind === "image" && file.dataUrl);
+    if (!imageFile) {
+      alert("Choose an image file to use as the canvas background.");
+      return true;
+    }
+
+    setPreview(imageFile.dataUrl);
+    setBackgroundOpacity(1);
+    setBackgroundBlur(0);
+    if (isMobileLayout) setMobilePanel(null);
+    return true;
   };
 
   const blobToDataUrl = (blob: Blob) => {
@@ -1879,37 +1977,10 @@ try {
     if (isMobileLayout) setMobilePanel(null);
   };
 
-  const handleImportImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const fileList = Array.from(files);
-    let newFiles: ImportedFile[] = [];
-    const importKind = selectedLayer && isImageFrame(selectedLayer) ? "frame-image" : "image";
-
-    try {
-      newFiles = await Promise.all(
-        fileList.map(async (file) => {
-          const remoteUrl = await uploadStudioAssetToSupabase(file, importKind).catch((error) => {
-            console.warn("Studio image upload fallback:", error);
-            return null;
-          });
-
-          return {
-            url: remoteUrl || await fileToDataUrl(file),
-            name: file.name,
-          };
-        }),
-      );
-    } catch (error) {
-      console.error("Unable to import image files:", error);
-      alert("One or more images could not be imported.");
-      return;
-    }
+  const addImportedImagesToEditor = (newFiles: ImportedFile[]) => {
+    if (newFiles.length === 0) return;
 
     setImportedImages((prev) => [...prev, ...newFiles]);
-    if (saveImportsToBrand) {
-      await saveFilesToBrandAssets(fileList);
-    }
 
     if (selectedLayer && isImageFrame(selectedLayer) && (isCompositionFrame(selectedLayer.shapeType) || isGridFrame(selectedLayer.shapeType))) {
       const remainingFiles = [...newFiles];
@@ -1947,7 +2018,7 @@ try {
       remainingFiles.forEach((fileObj, index) => {
         addImageToCanvas(fileObj, { offset: index, allowFrame: false });
       });
-      e.target.value = "";
+
       if (isMobileLayout) setMobilePanel(null);
       return;
     }
@@ -1955,8 +2026,63 @@ try {
     newFiles.forEach((fileObj, index) => {
       addImageToCanvas(fileObj, { offset: index, allowFrame: index === 0 });
     });
-    e.target.value = "";
     if (isMobileLayout) setMobilePanel(null);
+  };
+
+  const importImagesFromDesktop = async () => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.importMedia) return false;
+
+    const result = await desktop.importMedia();
+    if (result?.canceled) return true;
+
+    const imageFiles = (result.files || []).filter((file) => file.kind === "image" && file.dataUrl);
+    if (imageFiles.length === 0) {
+      alert("Choose one or more image files.");
+      return true;
+    }
+
+    addImportedImagesToEditor(imageFiles.map((file) => ({
+      url: file.dataUrl,
+      name: file.name,
+    })));
+
+    return true;
+  };
+
+  const handleImportImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const fileList = Array.from(files);
+    let newFiles: ImportedFile[] = [];
+    const importKind = selectedLayer && isImageFrame(selectedLayer) ? "frame-image" : "image";
+
+    try {
+      newFiles = await Promise.all(
+        fileList.map(async (file) => {
+          const remoteUrl = await uploadStudioAssetToSupabase(file, importKind).catch((error) => {
+            console.warn("Studio image upload fallback:", error);
+            return null;
+          });
+
+          return {
+            url: remoteUrl || await fileToDataUrl(file),
+            name: file.name,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error("Unable to import image files:", error);
+      alert("One or more images could not be imported.");
+      return;
+    }
+
+    if (saveImportsToBrand) {
+      await saveFilesToBrandAssets(fileList);
+    }
+
+    addImportedImagesToEditor(newFiles);
+    e.target.value = "";
   };
 const isImageFrame = (layer?: Layer) => {
   return (
@@ -2487,7 +2613,7 @@ const handleSelectTopLayer = () => {
       opacity: 1,
       angle: 0,
     };
-    setLayers([...layers, newLayer]);
+    setLayers((currentLayers) => [...currentLayers, newLayer]);
     setSelectedLayerId(newLayer.id);
   };
 
@@ -2566,7 +2692,7 @@ gradientColor2: "#8B5CF6",
       opacity: 1,
       angle: 0,
     };
-    setLayers([...layers, newLayer]);
+    setLayers((currentLayers) => [...currentLayers, newLayer]);
     setSelectedLayerId(newLayer.id);
   };
 
@@ -2857,19 +2983,11 @@ gradientDirection: "diagonal",
       return normalizeDataUrl(canvas);
     };
 
-    let fontEmbedCSS: string | undefined;
-    try {
-      fontEmbedCSS = await getFontEmbedCSS(node, { preferredFontFormat: "woff2" });
-    } catch (fontError) {
-      console.warn("Font embedding could not be prepared; using loaded document fonts.", fontError);
-    }
-
     try {
       const dataUrl = await toPng(node, {
         cacheBust: true,
         pixelRatio: exportScale,
-        skipFonts: false,
-        fontEmbedCSS,
+        skipFonts: true,
         backgroundColor: transparent ? "transparent" : canvasBgColor,
         filter: transparent
           ? (childNode) => !(childNode instanceof HTMLImageElement && childNode.alt === "Bg")
@@ -2908,7 +3026,7 @@ const duplicateLayer = () => {
     y: selectedLayer.y + 3,
   };
 
-  setLayers([...layers, copy]);
+  setLayers((currentLayers) => [...currentLayers, copy]);
   setSelectedLayerId(copy.id);
 };
 
@@ -2930,17 +3048,9 @@ const downloadPNG = async () => {
 
     const dataUrl = await exportNodeToPng(exportNode, false);
 
-    const link =
-      document.createElement("a");
-
-    link.download =
-      "pixores-design.png";
-
-    link.href = dataUrl;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadDataUrl(dataUrl, "pixores-design.png", [
+      { name: "PNG Image", extensions: ["png"] },
+    ]);
   } catch (err) {
     console.error("PNG export failed:", err);
     alert(`The PNG could not be generated. ${getExportErrorMessage(err)}`);
@@ -2968,12 +3078,9 @@ const downloadTransparentPNG = async () => {
 
     const dataUrl = await exportNodeToPng(exportNode, true);
 
-    const link = document.createElement("a");
-    link.download = "pixores-design-transparent.png";
-    link.href = dataUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadDataUrl(dataUrl, "pixores-design-transparent.png", [
+      { name: "PNG Image", extensions: ["png"] },
+    ]);
   } catch (err) {
     console.error("Transparent PNG export failed:", err);
     alert(`The transparent PNG could not be generated. ${getExportErrorMessage(err)}`);
@@ -3021,12 +3128,9 @@ const downloadJPG = async () => {
     const pngDataUrl = await exportNodeToPng(exportNode, false);
     const jpgDataUrl = await pngDataUrlToJpeg(pngDataUrl, 0.95);
 
-    const link = document.createElement("a");
-    link.download = "pixores-design.jpg";
-    link.href = jpgDataUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadDataUrl(jpgDataUrl, "pixores-design.jpg", [
+      { name: "JPEG Image", extensions: ["jpg", "jpeg"] },
+    ]);
   } catch (err) {
     console.error("JPG export failed:", err);
     alert(`The JPG could not be generated. ${getExportErrorMessage(err)}`);
@@ -3040,18 +3144,15 @@ const downloadSelectedNoBgPNG = async () => {
   if (!selectedLayer || selectedLayer.type !== "image" || !selectedLayer.src) return;
 
   try {
-    const link = document.createElement("a");
     const safeName = (selectedLayer.name || "no-bg-image")
       .replace(/\.[a-z0-9]+$/i, "")
       .replace(/[^a-z0-9-_]+/gi, "-")
       .replace(/^-+|-+$/g, "")
       .toLowerCase();
 
-    link.download = `${safeName || "no-bg-image"}.png`;
-    link.href = selectedLayer.src;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadDataUrl(selectedLayer.src, `${safeName || "no-bg-image"}.png`, [
+      { name: "PNG Image", extensions: ["png"] },
+    ]);
   } catch (err) {
     console.error(err);
     alert("The no-background PNG could not be downloaded.");
@@ -3066,7 +3167,22 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
   const updateSelectedLayer = (fields: Partial<Layer>) => {
     if (!selectedLayerId) return;
-    setLayers(layers.map((l) => (l.id === selectedLayerId ? { ...l, ...fields } : l)));
+    setLayers((currentLayers) => {
+      let didChange = false;
+      const nextLayers = currentLayers.map((layer) => {
+        if (layer.id !== selectedLayerId) return layer;
+
+        const hasFieldChange = Object.entries(fields).some(
+          ([key, value]) => layer[key as keyof Layer] !== value,
+        );
+
+        if (!hasFieldChange) return layer;
+        didChange = true;
+        return { ...layer, ...fields };
+      });
+
+      return didChange ? nextLayers : currentLayers;
+    });
   };
 
   const updateSelectedGridCell = (index: number, fields: Partial<GridImage>) => {
@@ -3494,6 +3610,94 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     lastHistorySnapshotRef.current = JSON.stringify(nextLayers);
   };
 
+  const saveLocalProject = async () => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.saveProjectJson) return;
+
+    try {
+      const savedAt = new Date();
+      const projectName = `Pixores Local Project ${savedAt.toISOString().slice(0, 16).replace("T", " ")}`;
+      const payload = {
+        name: projectName,
+        project_data: buildProjectData(savedAt.toISOString()),
+        saved_from: "pixores-studio-desktop",
+      };
+
+      const result = await desktop.saveProjectJson(payload);
+      if (result?.canceled) return;
+
+      setProjectStorageMode("local");
+      setLocalProjectPath(result.filePath || null);
+      localAutosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      markAutosaved(new Date());
+      setAutosaveMessage(`Saved local ${formatSavedTime(new Date())}`);
+      alert("Local project saved successfully.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Local project could not be saved.");
+    }
+  };
+
+  const openLocalProject = async () => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.openProjectJson) return;
+
+    try {
+      const result = await desktop.openProjectJson();
+      if (result?.canceled || !result.project) return;
+
+      const project = result.project as Partial<SavedStudioProject<Layer>> & {
+        project_data?: SavedStudioProject<Layer>["project_data"];
+      };
+      const projectData = project.project_data || (result.project as SavedStudioProject<Layer>["project_data"]);
+
+      applyProjectData(projectData);
+      setCurrentProjectId(null);
+      autosaveProjectIdRef.current = null;
+      autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      localAutosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      setProjectStorageMode("local-draft");
+      setLocalProjectPath(result.filePath || null);
+      setAutosaveStatus("saved");
+      setAutosaveMessage("Local project opened");
+      setShowProjects(false);
+      alert("Local project opened successfully.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Local project could not be opened.");
+    }
+  };
+
+  const recoverLocalAutosave = async () => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.openAutosaveJson) return;
+
+    try {
+      const result = await desktop.openAutosaveJson();
+      if (!result.found) {
+        alert("No local autosave was found.");
+        return;
+      }
+
+      const project = result.project as Partial<SavedStudioProject<Layer>> & {
+        project_data?: SavedStudioProject<Layer>["project_data"];
+      };
+      const projectData = project.project_data || (result.project as SavedStudioProject<Layer>["project_data"]);
+
+      applyProjectData(projectData);
+      setCurrentProjectId(null);
+      autosaveProjectIdRef.current = null;
+      autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      localAutosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+      setProjectStorageMode("local-draft");
+      setLocalProjectPath(result.filePath);
+      setAutosaveStatus("saved");
+      setAutosaveMessage("Recovered local autosave");
+      setShowProjects(false);
+      alert("Local autosave recovered successfully.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Local autosave could not be recovered.");
+    }
+  };
+
   const saveProject = async () => {
     const projectName = prompt("Project name:", "Untitled Project");
     if (!projectName) return;
@@ -3515,6 +3719,8 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
       autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
       autosaveProjectIdRef.current = project.id;
+      setProjectStorageMode("cloud");
+      setLocalProjectPath(null);
       setCurrentProjectId(project.id);
       setSavedProjects((prev) => [project, ...prev]);
       markAutosaved(project.updated_at ? new Date(project.updated_at) : undefined);
@@ -3701,6 +3907,8 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
       autosaveLastSnapshotRef.current = buildStableProjectSnapshot();
       autosaveProjectIdRef.current = project.id;
+      setProjectStorageMode("cloud");
+      setLocalProjectPath(null);
       setSavedProjects((prev) =>
         prev.map((savedProject) => (savedProject.id === currentProjectId ? project : savedProject))
       );
@@ -3731,6 +3939,8 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     autosaveLastSnapshotRef.current = "";
     autosaveProjectIdRef.current = project.id;
     setCurrentProjectId(project.id);
+    setProjectStorageMode("cloud");
+    setLocalProjectPath(null);
     markAutosaved(project.updated_at ? new Date(project.updated_at) : undefined);
     setShowProjects(false);
   };
@@ -3749,6 +3959,8 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
       if (currentProjectId === projectId) {
         setCurrentProjectId(null);
+        setProjectStorageMode("unsaved");
+        setLocalProjectPath(null);
         autosaveLastSnapshotRef.current = "";
         autosaveProjectIdRef.current = null;
         setAutosaveStatus("idle");
@@ -3763,9 +3975,11 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
   useEffect(() => {
     if (!currentProjectId) {
       if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
-      setAutosaveStatus("idle");
-      setAutosaveMessage("Not saved yet");
-      setLastAutosavedAt(null);
+      if (projectStorageMode === "unsaved") {
+        setAutosaveStatus("idle");
+        setAutosaveMessage("Not saved yet");
+        setLastAutosavedAt(null);
+      }
       return;
     }
 
@@ -3833,6 +4047,68 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
     };
   }, [
     currentProjectId,
+    canvasWidth,
+    canvasHeight,
+    currentPreset,
+    canvasBgColor,
+    canvasStrokeColor,
+    canvasStrokeWidth,
+    preview,
+    backgroundOpacity,
+    backgroundBlur,
+    layers,
+    projectStorageMode,
+  ]);
+
+  useEffect(() => {
+    const desktop = getDesktopBridge();
+    if (!desktop?.saveAutosaveJson || !isDesktopBridgeAvailable) return;
+    const saveAutosaveJson = desktop.saveAutosaveJson;
+
+    const stableSnapshot = buildStableProjectSnapshot();
+    if (stableSnapshot === localAutosaveLastSnapshotRef.current) return;
+
+    if (projectStorageMode === "cloud") {
+      localAutosaveLastSnapshotRef.current = stableSnapshot;
+      return;
+    }
+
+    setAutosaveStatus("dirty");
+    setAutosaveMessage("Unsaved local changes");
+
+    if (localAutosaveTimerRef.current) window.clearTimeout(localAutosaveTimerRef.current);
+
+    localAutosaveTimerRef.current = window.setTimeout(async () => {
+      try {
+        setAutosaveStatus("saving");
+        setAutosaveMessage("Autosaving local...");
+
+        const savedAt = new Date();
+        await saveAutosaveJson({
+          name: "Pixores Desktop Autosave",
+          project_data: buildProjectData(savedAt.toISOString()),
+          local_project_path: localProjectPath,
+          saved_from: "pixores-studio-desktop-autosave",
+        });
+
+        localAutosaveLastSnapshotRef.current = buildStableProjectSnapshot();
+        setProjectStorageMode((current) => current === "unsaved" ? "local-draft" : current);
+        markAutosaved(savedAt);
+        setAutosaveMessage(`Local autosaved ${formatSavedTime(savedAt)}`);
+      } catch (error) {
+        console.error("Local autosave failed:", error);
+        setAutosaveStatus("error");
+        setAutosaveMessage("Local autosave failed");
+      }
+    }, 8000);
+
+    return () => {
+      if (localAutosaveTimerRef.current) window.clearTimeout(localAutosaveTimerRef.current);
+    };
+  }, [
+    isDesktopBridgeAvailable,
+    projectStorageMode,
+    localProjectPath,
     canvasWidth,
     canvasHeight,
     currentPreset,
@@ -4032,24 +4308,17 @@ const autosaveBadgeColor =
   autosaveStatus === "error" ? "#DC2626" :
   "#64748B";
 
-  if (!isClientMounted) {
-    return (
-      <div
-        suppressHydrationWarning
-        style={{
-          minHeight: "70vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#F8FAFC",
-          color: "#475569",
-          fontFamily: "Inter, Arial, sans-serif",
-          fontWeight: 800,
-        }}
-      >
-        Loading Pixores Thumbnail Maker...
-      </div>
-    );
-  }
+const projectStorageLabel =
+  projectStorageMode === "cloud" ? "Cloud project" :
+  projectStorageMode === "local" ? "Local project" :
+  projectStorageMode === "local-draft" ? "Local draft" :
+  "Not saved";
+
+const projectStorageColor =
+  projectStorageMode === "cloud" ? "#2563EB" :
+  projectStorageMode === "local" ? "#059669" :
+  projectStorageMode === "local-draft" ? "#D97706" :
+  "#64748B";
 
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
@@ -4090,6 +4359,13 @@ const autosaveBadgeColor =
             <button onClick={saveProject} style={{ padding: "8px 11px", background: "#2563EB", color: "#FFFFFF", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Save</button>
             <button onClick={updateProject} disabled={!currentProjectId} style={{ padding: "8px 11px", background: currentProjectId ? "#FFFFFF" : "#F1F5F9", color: currentProjectId ? "#334155" : "#94A3B8", border: "none", borderRadius: "9px", fontWeight: 800, cursor: currentProjectId ? "pointer" : "not-allowed", fontSize: "13px" }}>Update</button>
             <button onClick={loadMyProjects} style={{ padding: "8px 11px", background: "#FFFFFF", color: "#334155", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Projects</button>
+            {isDesktopBridgeAvailable && (
+              <>
+                <button onClick={openLocalProject} style={{ padding: "8px 11px", background: "#FFFFFF", color: "#334155", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Open Local</button>
+                <button onClick={saveLocalProject} style={{ padding: "8px 11px", background: "#FFFFFF", color: "#334155", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Save Local</button>
+                <button onClick={recoverLocalAutosave} style={{ padding: "8px 11px", background: "#FFF7ED", color: "#C2410C", border: "none", borderRadius: "9px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>Recover Autosave</button>
+              </>
+            )}
             <span
               title={currentProjectId ? "Project autosave status" : "Save this project once to enable autosave"}
               style={{
@@ -4115,6 +4391,22 @@ const autosaveBadgeColor =
             )}
             {isAdmin && <button onClick={saveAsPublicTemplate} style={{ padding: "8px 11px", background: "#F8FAFC", color: "#475569", border: "none", borderRadius: "9px", fontWeight: 850, cursor: "pointer", fontSize: "13px" }}>New Template</button>}
           </div>
+
+          <span
+            title={localProjectPath || projectStorageLabel}
+            style={{
+              padding: "8px 10px",
+              borderRadius: "10px",
+              border: "1px solid #E2E8F0",
+              background: "#FFFFFF",
+              color: projectStorageColor,
+              fontSize: "12px",
+              fontWeight: 850,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {projectStorageLabel}
+          </span>
 
           <div style={{ position: "relative" }}>
             <button disabled={isExporting} onClick={() => setShowExportMenu((current) => !current)} style={{ padding: "10px 14px", background: isExporting ? "#94A3B8" : "#10B981", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 850, cursor: isExporting ? "wait" : "pointer", fontSize: "13px", boxShadow: isExporting ? "none" : "0 8px 18px rgba(16,185,129,0.18)" }}>
@@ -4539,6 +4831,12 @@ const autosaveBadgeColor =
     />
 
     <label
+      onClick={async (event) => {
+        if (getDesktopBridge()?.importMedia) {
+          event.preventDefault();
+          await importBackgroundFromDesktop();
+        }
+      }}
       style={{
         width: "100%",
         padding: "12px",
@@ -4735,7 +5033,16 @@ const autosaveBadgeColor =
     ))}
   </div>
 
-  <label ref={uploadsSectionRef} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px dashed #8B5CF6", color: "#6D28D9", fontWeight: 750, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px", background: "#FAF5FF", scrollMarginTop: "12px" }}>
+  <label
+    ref={uploadsSectionRef}
+    onClick={async (event) => {
+      if (getDesktopBridge()?.importMedia) {
+        event.preventDefault();
+        await importImagesFromDesktop();
+      }
+    }}
+    style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px dashed #8B5CF6", color: "#6D28D9", fontWeight: 750, display: "block", textAlign: "center", cursor: "pointer", fontSize: "13px", background: "#FAF5FF", scrollMarginTop: "12px" }}
+  >
     Import Graphics / PNGs
     <input type="file" accept="image/*" multiple onChange={handleImportImage} style={{ display: "none" }} />
   </label>
