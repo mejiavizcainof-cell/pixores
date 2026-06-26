@@ -11,13 +11,12 @@ import styles from "./Header.module.css";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
-  { href: "/remove-background", label: "AI Background Remover" },
+  { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
+  { href: "/templates", label: "Templates" },
+  { href: "/remove-background", label: "Remove BG" },
   { href: "/image-upscaler", label: "Upscaler" },
   { href: "/crop-image", label: "Crop Image" },
   { href: "/watermark-image", label: "Watermark" },
-  { href: "/templates", label: "Templates" },
-  { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
-  { href: "/desktop", label: "Desktop" },
   { href: "/blog", label: "Blog" },
   { href: "/faq", label: "FAQ" },
 ];
