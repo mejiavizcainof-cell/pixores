@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import { supabase } from "@/lib/supabaseClient";
-import { isPixoresDesktopMode } from "@/components/DesktopModeHost";
 import styles from "./Header.module.css";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
   { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
+  { href: "/video-maker", label: "Video Maker" },
   { href: "/templates", label: "Templates" },
   { href: "/remove-background", label: "Remove BG" },
   { href: "/image-upscaler", label: "Upscaler" },
@@ -24,11 +24,6 @@ const navItems = [
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isDesktopMode, setIsDesktopMode] = useState(false);
-
-  useEffect(() => {
-    setIsDesktopMode(isPixoresDesktopMode());
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -65,8 +60,6 @@ export default function Header() {
       listener.subscription.unsubscribe();
     };
   }, []);
-
-  if (isDesktopMode) return null;
 
   return (
     <header className={styles.header}>

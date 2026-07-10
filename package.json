@@ -1,22 +1,93 @@
 {
   "name": "image-tools",
-  "version": "0.1.0",
+  "version": "0.1.3-beta.1",
   "private": true,
+  "main": "desktop/electron/main.mjs",
   "scripts": {
     "dev": "node scripts/generate-background-manifest.mjs && next dev",
     "build": "node scripts/generate-background-manifest.mjs && next build",
+    "desktop:dev": "node scripts/desktop-dev.mjs",
+    "desktop:build": "npm run build",
+    "desktop:package": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder --win nsis",
     "start": "next start",
     "lint": "eslint",
     "sync:admin-assets": "node scripts/sync-admin-assets.mjs"
   },
+  "build": {
+    "appId": "com.pixores.video-maker",
+    "productName": "Pixores Video Maker",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@remotion/compositor-*/**/*",
+      "node_modules/@esbuild/**",
+      "node_modules/esbuild/**",
+      "node_modules/@next/swc-*/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/@img/sharp-*/**/*",
+      "src/video-render/**/*",
+      "public/template-assets/**/*"
+    ],
+    "compression": "normal",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      ".next/**/*",
+      "!.next/cache/**/*",
+      "!.next/dev/**/*",
+      "app/**/*",
+      "components/**/*",
+      "desktop/electron/**/*",
+      "lib/**/*",
+      "public/**/*",
+      "!public/background/**/*",
+      "!public/blog/**/*",
+      "!public/templates/**/*",
+      "!public/uploads/**/*",
+      "!release/**/*",
+      "!tmp-desktop-render-test/**/*",
+      "scripts/generate-background-manifest.mjs",
+      "src/**/*",
+      "next.config.ts",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "desktop/electron/main.mjs"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "desktop/assets/icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://downloads.pixores.com/video-maker/"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Pixores Video Maker"
+    }
+  },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
+    "@remotion/bundler": "^4.0.484",
+    "@remotion/renderer": "^4.0.484",
     "@stripe/stripe-js": "^9.8.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tiptap/extension-image": "^3.26.1",
     "@tiptap/extension-link": "^3.26.1",
     "@tiptap/react": "^3.26.1",
     "@tiptap/starter-kit": "^3.26.1",
+    "electron-updater": "^6.8.9",
     "heic-convert": "^2.1.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
@@ -28,6 +99,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-image-crop": "^11.0.10",
+    "remotion": "^4.0.484",
     "sharp": "^0.34.5",
     "stripe": "^22.2.1"
   },
@@ -37,10 +109,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.0",
+    "concurrently": "^10.0.3",
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.10"
   }
 }

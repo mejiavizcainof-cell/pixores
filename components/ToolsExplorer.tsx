@@ -25,6 +25,7 @@ import styles from "./DiscoveryPages.module.css";
 
 const tools = [
   { title: "Pixores Thumbnail Maker", href: "/youtube-thumbnail-maker", description: "Build YouTube thumbnails with layers, text, frames, and templates.", category: "Creator", badge: "Featured", icon: Palette },
+  { title: "Pixores Video Maker", href: "/video-maker", description: "Create short social videos with media, text overlays, social formats, and WebM export.", category: "Creator", badge: "New", icon: Video },
   { title: "Design Templates", href: "/templates", description: "Start with editable designs for YouTube, Instagram, Facebook, sports, gaming, and business.", category: "Creator", badge: "Featured", icon: Images },
   { title: "AI Background Remover", href: "/remove-background", description: "Remove an image background and download a transparent PNG.", category: "AI", badge: "AI", icon: WandSparkles },
   { title: "AI Image Upscaler", href: "/image-upscaler", description: "Increase image resolution by 2x or 4x while preserving important details.", category: "AI", badge: "AI", icon: Sparkles },

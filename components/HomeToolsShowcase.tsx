@@ -8,18 +8,19 @@ import {
   FileOutput,
   ImageDown,
   ImagePlus,
-  Images,
   Layers3,
   Maximize2,
   Palette,
   Search,
   Sparkles,
+  Video,
   WandSparkles,
 } from "lucide-react";
 import styles from "./DiscoveryPages.module.css";
 
 const featuredTools = [
   { title: "Pixores Thumbnail Maker", href: "/youtube-thumbnail-maker", description: "Design YouTube thumbnails and social graphics with editable layers.", category: "Create", badge: "Featured", icon: Layers3 },
+  { title: "Pixores Video Maker", href: "/video-maker", description: "Make short videos with social formats, text overlays, and browser export.", category: "Create", badge: "New", icon: Video },
   { title: "Design Templates", href: "/templates", description: "Customize ready-made layouts for popular social formats.", category: "Create", badge: "Featured", icon: Palette },
   { title: "AI Background Remover", href: "/remove-background", description: "Remove backgrounds and download a transparent PNG.", category: "AI", badge: "AI", icon: WandSparkles },
   { title: "AI Image Upscaler", href: "/image-upscaler", description: "Increase resolution with AI-powered enhancement.", category: "AI", badge: "AI", icon: Sparkles },
@@ -28,7 +29,7 @@ const featuredTools = [
   { title: "Compress Image", href: "/compress-image", description: "Reduce file size while preserving useful quality.", category: "Optimize", icon: ImageDown },
   { title: "Resize Image", href: "/resize-image", description: "Change image dimensions for web and social media.", category: "Optimize", icon: Maximize2 },
   { title: "JPG to PNG", href: "/jpg-to-png", description: "Convert JPG images to PNG format.", category: "Convert", icon: FileOutput },
-  { title: "PNG to JPG", href: "/png-to-jpg", description: "Convert PNG images to compact JPG files.", category: "Convert", icon: Images },
+  { title: "PNG to JPG", href: "/png-to-jpg", description: "Convert PNG images to compact JPG files.", category: "Convert", icon: FileOutput },
 ];
 
 const categories = ["All", "Create", "AI", "Edit", "Optimize", "Convert"];
