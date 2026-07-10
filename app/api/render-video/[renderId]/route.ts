@@ -1,9 +1,8 @@
-import { getRenderJob } from "@/src/video-render/server/render-jobs";
-
 /**
  * In-memory render job status endpoint.
  *
- * Returns queued/rendering/completed/failed state for local render progress.
+ * Web deployments intentionally avoid importing the Remotion render pipeline
+ * because its native binaries exceed Vercel's standard function size limit.
  */
 
 export const runtime = "nodejs";
@@ -19,20 +18,16 @@ export async function GET(_request: Request, context: { params: Promise<{ render
     return Response.json({ ok: false, error: "Invalid renderId" }, { status: 400 });
   }
 
-  const job = getRenderJob(renderId);
-  if (!job) {
-    return Response.json({ ok: false, error: "Render job not found" }, { status: 404 });
-  }
-
-  return Response.json({
-    ok: true,
-    renderId: job.renderId,
-    status: job.status,
-    progress: job.progress,
-    outputUrl: job.outputUrl,
-    error: job.error,
-    warnings: job.warnings,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-  });
+  return Response.json(
+    {
+      ok: false,
+      renderId,
+      status: "unavailable",
+      progress: 0,
+      outputUrl: "",
+      error: "Server render status is disabled on the web deployment. Use Desktop local render or MediaRecorder export.",
+      warnings: [],
+    },
+    { status: 501 },
+  );
 }
