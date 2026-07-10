@@ -1,15 +1,27 @@
 "use client";
 
-import { COLORS } from "@/lib/theme";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { isPixoresDesktopMode } from "@/components/DesktopModeHost";
+
+const footerLinkStyle: CSSProperties = {
+  color: "#F8FAFC",
+  textDecoration: "none",
+  fontWeight: 600,
+};
 
 export default function Footer() {
   const [isDesktopMode, setIsDesktopMode] = useState(false);
 
   useEffect(() => {
-    setIsDesktopMode(isPixoresDesktopMode());
+    const frame = window.requestAnimationFrame(() => {
+      setIsDesktopMode(isPixoresDesktopMode());
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   if (isDesktopMode) return null;
@@ -19,8 +31,8 @@ export default function Footer() {
       style={{
         marginTop: "80px",
         padding: "40px 20px",
-        borderTop: `1px solid ${COLORS.border}`,
-        backgroundColor: COLORS.white,
+        borderTop: "1px solid #334155",
+        backgroundColor: "#1F2937",
         textAlign: "center",
       }}
     >
@@ -35,154 +47,98 @@ export default function Footer() {
       >
         <a
           href="/about"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           About Us
         </a>
 
         <a
           href="/tools"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Tools
         </a>
 
         <a
           href="/remove-background"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Remove Background
         </a>
 
         <a
           href="/image-upscaler"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Image Upscaler
         </a>
 
         <a
           href="/crop-image"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Crop Image
         </a>
 
         <a
           href="/watermark-image"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Add Watermark
         </a>
 
         <a
           href="/youtube-thumbnail-maker"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Thumbnail Maker
         </a>
 
         <a
           href="/templates"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Templates
         </a>
 
         <Link
           href="/blog"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Blog
         </Link>
 
         <a
           href="/faq"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           FAQ
         </a>
 
         <a
           href="/privacy-policy"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Privacy Policy
         </a>
 
         <a
           href="/terms-of-service"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Terms of Service
         </a>
 
         <a
           href="/cookie-policy"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Cookie Policy
         </a>
 
         <a
           href="/contact"
-          style={{
-            color: COLORS.text,
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
+          style={footerLinkStyle}
         >
           Contact
         </a>
@@ -190,12 +146,12 @@ export default function Footer() {
 
       <p
         style={{
-          color: COLORS.muted,
+          color: "#CBD5E1",
           fontSize: "14px",
           margin: 0,
         }}
       >
-        © {new Date().getFullYear()} Pixores.
+        &copy; {new Date().getFullYear()} Pixores.
         All rights reserved.
       </p>
     </footer>

@@ -69,6 +69,78 @@
   background: #eff6ff;
 }
 
+.downloadDropdown {
+  position: relative;
+}
+
+.downloadButton {
+  height: 36px;
+  padding: 9px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.downloadButton:hover,
+.downloadButton:focus-visible {
+  color: #2563eb;
+  background: #eff6ff;
+  outline: none;
+}
+
+.downloadMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 20;
+  min-width: 210px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.downloadDropdown:hover .downloadMenu,
+.downloadDropdown:focus-within .downloadMenu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.downloadMenuItem {
+  padding: 11px 12px;
+  border-radius: 7px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.downloadMenuItem:hover,
+.downloadMenuItem:focus-visible {
+  color: #2563eb;
+  background: #eff6ff;
+  outline: none;
+}
+
 .actions {
   display: flex;
   flex: 0 0 auto;
@@ -137,6 +209,26 @@
     font-weight: 750;
     text-decoration: none;
   }
+
+  .mobileDownloadGroup {
+    padding: 8px;
+    display: grid;
+    grid-column: span 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #eff6ff;
+  }
+
+  .mobileDownloadTitle {
+    grid-column: 1 / -1;
+    padding: 2px 6px 4px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
 }
 
 @media (max-width: 820px) {
@@ -178,6 +270,10 @@
 
   .mobileNav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobileDownloadGroup {
+    grid-column: 1 / -1;
   }
 }
 

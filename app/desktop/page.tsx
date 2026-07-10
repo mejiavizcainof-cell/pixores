@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const defaultDesktopDownloadUrl =
-  "https://downloads.pixores.com/video-maker/Pixores%20Video%20Maker%20Setup%200.1.3-beta.1.exe";
+  "https://github.com/mejiavizcainof-cell/pixores/releases/download/pixores-video-maker-v0.1.3-beta.1/Pixores.Video.Maker.Setup.0.1.3-beta.1.exe";
 
 const desktopDownloadUrl =
   process.env.NEXT_PUBLIC_DESKTOP_DOWNLOAD_URL || defaultDesktopDownloadUrl;
@@ -37,7 +37,7 @@ export default function DesktopPage() {
               </a>
             ) : (
               <button type="button" disabled style={{ ...primaryButtonStyle, opacity: 0.58, cursor: "not-allowed" }}>
-                Download coming soon
+                Download temporarily unavailable
               </button>
             )}
             <Link href="/youtube-thumbnail-maker" style={secondaryButtonStyle}>
@@ -46,6 +46,7 @@ export default function DesktopPage() {
           </div>
           <p style={{ marginTop: "14px", color: "#64748B", fontSize: "14px" }}>
             Beta build 0.1.3-beta.1. Windows 10/11 recommended.
+            {!hasDownload ? " The installer link is being updated." : ""}
           </p>
         </div>
 

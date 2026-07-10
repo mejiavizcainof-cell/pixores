@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Layers3, Video } from "lucide-react";
 import HomeToolsShowcase from "@/components/HomeToolsShowcase";
 import SiteIdentitySchema from "@/components/SiteIdentitySchema";
 import { blogPosts } from "@/lib/blogPosts";
 import styles from "./HomePage.module.css";
 
 export const metadata: Metadata = {
-  title: "Free YouTube Thumbnail Maker, Templates & Image Tools",
-  description: "Create professional YouTube thumbnails with Pixores Thumbnail Maker, customize templates, and use fast online image tools.",
+  title: "Free Thumbnail Maker, Video Maker & Image Tools",
+  description: "Create YouTube thumbnails, edit short videos, customize templates, and use fast online image tools with Pixores.",
   alternates: {
     canonical: "https://www.pixores.com",
     languages: {
@@ -23,7 +23,7 @@ const benefits = [
   { title: "No registration required", description: "Use standard image tools immediately. Sign in only for saved projects and AI features." },
   { title: "Fast processing", description: "Complete everyday image tasks quickly from desktop or mobile." },
   { title: "Secure workflows", description: "Files are processed only to complete the image task you request." },
-  { title: "Professional creator tools", description: "Build thumbnails, prepare graphics, and enhance images in one place." },
+  { title: "Professional creator tools", description: "Build thumbnails, create videos, prepare graphics, and enhance images in one place." },
 ];
 
 export default function Home() {
@@ -33,11 +33,27 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <p className={styles.eyebrow}>Create with confidence</p>
-          <h1>Pixores Thumbnail Maker</h1>
-          <p className={styles.heroText}>Create professional thumbnails with flexible text, layers, backgrounds, frames, and reusable assets. Start from scratch or customize a ready-made template.</p>
+          <h1>Thumbnail Maker and Video Maker</h1>
+          <p className={styles.heroText}>Create professional YouTube thumbnails, social graphics, and short videos with templates, flexible text, layers, media tools, and browser-friendly exports.</p>
           <div className={styles.heroActions}>
             <Link href="/youtube-thumbnail-maker" className={styles.primaryButton}>Open Thumbnail Maker <ArrowRight size={17} /></Link>
-            <Link href="/templates" className={styles.secondaryButton}>Browse Templates</Link>
+            <Link href="/video-maker" className={styles.secondaryButton}>Open Video Maker</Link>
+          </div>
+          <div className={styles.heroProducts} aria-label="Pixores creator tools">
+            <Link href="/youtube-thumbnail-maker" className={styles.heroProductCard}>
+              <span className={styles.productIcon}><Layers3 size={20} /></span>
+              <span>
+                <b>YouTube Thumbnail Maker</b>
+                <small>Design thumbnails with layers, frames, backgrounds, and reusable assets.</small>
+              </span>
+            </Link>
+            <Link href="/video-maker" className={styles.heroProductCard}>
+              <span className={styles.productIcon}><Video size={20} /></span>
+              <span>
+                <b>Online Video Maker</b>
+                <small>Edit short videos with social formats, text overlays, timeline tools, and export.</small>
+              </span>
+            </Link>
           </div>
         </div>
       </section>

@@ -3,15 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./Header.module.css";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
-  { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
-  { href: "/video-maker", label: "Video Maker" },
   { href: "/templates", label: "Templates" },
   { href: "/remove-background", label: "Remove BG" },
   { href: "/image-upscaler", label: "Upscaler" },
@@ -19,6 +17,11 @@ const navItems = [
   { href: "/watermark-image", label: "Watermark" },
   { href: "/blog", label: "Blog" },
   { href: "/faq", label: "FAQ" },
+];
+
+const downloadItems = [
+  { href: "/youtube-thumbnail-maker", label: "Thumbnail Creator" },
+  { href: "/video-maker", label: "Pixores Video Maker" },
 ];
 
 export default function Header() {
@@ -77,7 +80,25 @@ export default function Header() {
         </Link>
 
         <nav className={styles.desktopNav} aria-label="Main navigation">
-          {navItems.map((item) => (
+          <Link href="/tools" className={styles.navLink}>
+            Tools
+          </Link>
+
+          <div className={styles.downloadDropdown}>
+            <button type="button" className={styles.downloadButton} aria-haspopup="true">
+              <span>Download</span>
+              <ChevronDown size={15} strokeWidth={2.5} aria-hidden="true" />
+            </button>
+            <div className={styles.downloadMenu} role="menu" aria-label="Download editors">
+              {downloadItems.map((item) => (
+                <Link key={item.href} href={item.href} className={styles.downloadMenuItem} role="menuitem">
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {navItems.slice(1).map((item) => (
             <Link key={item.href} href={item.href} className={styles.navLink}>
               {item.label}
             </Link>
@@ -109,7 +130,16 @@ export default function Header() {
         <nav className={styles.mobileNav} aria-label="Mobile navigation">
           {isAdmin && <Link href="/admin" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>}
           <Link href="/" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Home</Link>
-          {navItems.map((item) => (
+          <Link href="/tools" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Tools</Link>
+          <div className={styles.mobileDownloadGroup}>
+            <span className={styles.mobileDownloadTitle}>Download</span>
+            {downloadItems.map((item) => (
+              <Link key={item.href} href={item.href} className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+          {navItems.slice(1).map((item) => (
             <Link key={item.href} href={item.href} className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
               {item.label}
             </Link>

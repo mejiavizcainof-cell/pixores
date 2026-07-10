@@ -2,6 +2,7 @@
 
 import { ChangeEvent, DragEvent as ReactDragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import Link from "next/link";
 import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Baseline, Bold, Camera, CaseSensitive, ClipboardPaste, Download, Eye, EyeOff, Film, FolderOpen, GripVertical, ImagePlus, Italic, Layers3, List, Lock, Maximize2, Minus, Monitor, Music, PaintRoller, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Redo2, Scissors, Search, Settings, Shapes, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Square, Strikethrough, Trash2, Type, Underline, Undo2, Unlock, Volume2, VolumeX } from "lucide-react";
 import { buildPixoresProject } from "@/src/video-render/build-project";
 import {
@@ -948,6 +949,10 @@ function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
 
+function isCompactVideoMakerViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 980px)").matches;
+}
+
 export default function VideoMaker() {
   const adapters = useMemo(() => getVideoMakerAdapters(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -970,6 +975,7 @@ export default function VideoMaker() {
   const [selectedImportId, setSelectedImportId] = useState("");
   const [mediaPreviewTime, setMediaPreviewTime] = useState(0);
   const [mediaPreviewDuration, setMediaPreviewDuration] = useState(0);
+  const [mediaLoadTick, setMediaLoadTick] = useState(0);
   const [isMediaPreviewPlaying, setIsMediaPreviewPlaying] = useState(false);
   const [mediaPreviewVolume, setMediaPreviewVolume] = useState(1);
   const [isMediaPreviewMuted, setIsMediaPreviewMuted] = useState(false);
@@ -1404,7 +1410,7 @@ export default function VideoMaker() {
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
     drawScene(context, currentTime);
-  }, [currentTime, drawScene]);
+  }, [currentTime, drawScene, mediaLoadTick]);
 
   useEffect(() => {
     if (!serverRenderId || !isPreparingServerRender) return;
@@ -2252,7 +2258,7 @@ export default function VideoMaker() {
     setSelectedLayerId(primaryLayer.id);
     setSelectedTrackId(primaryLayer.trackId || primaryLayer.id);
     setActivePanel("settings");
-    setIsSidebarOpen(true);
+    setIsSidebarOpen(!isCompactVideoMakerViewport());
   }
 
   function insertLayerAfterSelection(layer: VideoLayer) {
@@ -2905,6 +2911,7 @@ export default function VideoMaker() {
       video.muted = true;
       video.playsInline = true;
       video.loop = true;
+      video.preload = "auto";
       video.crossOrigin = "anonymous";
       video.onloadedmetadata = () => {
         if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -2923,7 +2930,9 @@ export default function VideoMaker() {
           setTimelineDuration((current) => Math.max(current, Math.ceil(video.duration)));
         }
       };
-      void video.play().catch(() => undefined);
+      video.onloadeddata = () => setMediaLoadTick((value) => value + 1);
+      video.oncanplay = () => setMediaLoadTick((value) => value + 1);
+      video.load();
       asset.video = video;
     } else if (isAudio) {
       const audio = document.createElement("audio");
@@ -4443,6 +4452,10 @@ export default function VideoMaker() {
               <button type="button" onClick={undo} disabled={!canUndo} className={styles.topIconButton} aria-label="Undo"><Undo2 size={17} /></button>
               <button type="button" onClick={redo} disabled={!canRedo} className={styles.topIconButton} aria-label="Redo"><Redo2 size={17} /></button>
               <button type="button" onClick={() => void pasteFromClipboard()} className={styles.topIconButton} aria-label="Paste"><ClipboardPaste size={17} /></button>
+              <Link href="/desktop" className={styles.desktopDownloadButton}>
+                <Monitor size={17} />
+                <span>Desktop Beta</span>
+              </Link>
               <button type="button" onClick={isRecording ? stopExport : exportVideo} className={styles.exportButton}>
                 {isRecording ? <Square size={17} /> : <Download size={17} />}
                 {isRecording ? "Stop" : "Export"}
