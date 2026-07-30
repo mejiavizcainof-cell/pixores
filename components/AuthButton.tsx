@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getAuthRedirectUrl } from "@/lib/authRedirect";
 
 export default function AuthButton() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,6 +74,9 @@ export default function AuthButton() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl("/account?confirmed=1"),
+      },
     });
 
     setLoading(false);
@@ -132,7 +136,7 @@ export default function AuthButton() {
   const { error } = await supabase.auth.resetPasswordForEmail(
     email,
     {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getAuthRedirectUrl("/reset-password"),
     }
   );
 
