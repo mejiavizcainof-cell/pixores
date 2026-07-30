@@ -21,7 +21,8 @@ const navItems = [
 
 const downloadItems = [
   { href: "/youtube-thumbnail-maker", label: "Thumbnail Creator" },
-  { href: "/video-maker", label: "Pixores Video Maker" },
+  { href: "/video-maker", label: "Video Maker Online" },
+  { href: "/desktop", label: "Pixores Video Maker Desktop" },
 ];
 
 export default function Header() {

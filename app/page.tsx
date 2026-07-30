@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Layers3, Video } from "lucide-react";
+import { ArrowRight, Check, Layers3, MonitorDown, Video } from "lucide-react";
 import HomeToolsShowcase from "@/components/HomeToolsShowcase";
 import SiteIdentitySchema from "@/components/SiteIdentitySchema";
 import { blogPosts } from "@/lib/blogPosts";
@@ -33,11 +33,11 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <p className={styles.eyebrow}>Create with confidence</p>
-          <h1>Thumbnail Maker and Video Maker</h1>
-          <p className={styles.heroText}>Create professional YouTube thumbnails, social graphics, and short videos with templates, flexible text, layers, media tools, and browser-friendly exports.</p>
+          <h1>Thumbnail Maker and Pixores Video Maker</h1>
+          <p className={styles.heroText}>Create professional YouTube thumbnails, social graphics and complete videos with flexible text, layers, local GPU rendering, audio tools and direct publishing workflows.</p>
           <div className={styles.heroActions}>
             <Link href="/youtube-thumbnail-maker" className={styles.primaryButton}>Open Thumbnail Maker <ArrowRight size={17} /></Link>
-            <Link href="/video-maker" className={styles.secondaryButton}>Open Video Maker</Link>
+            <Link href="/desktop" className={styles.secondaryButton}>Download Video Maker</Link>
           </div>
           <div className={styles.heroProducts} aria-label="Pixores creator tools">
             <Link href="/youtube-thumbnail-maker" className={styles.heroProductCard}>
@@ -52,6 +52,13 @@ export default function Home() {
               <span>
                 <b>Online Video Maker</b>
                 <small>Edit short videos with social formats, text overlays, timeline tools, and export.</small>
+              </span>
+            </Link>
+            <Link href="/desktop" className={styles.heroProductCard}>
+              <span className={styles.productIcon}><MonitorDown size={20} /></span>
+              <span>
+                <b>Pixores Video Maker Desktop</b>
+                <small>Edit locally on Windows with hybrid GPU rendering, Smart Clips, captions and YouTube publishing.</small>
               </span>
             </Link>
           </div>
