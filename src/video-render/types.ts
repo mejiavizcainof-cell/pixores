@@ -5,7 +5,10 @@
  * consume the same project without depending on React editor state.
  */
 
-export type PixoresLayerType = "media" | "text" | "shape" | "audio" | "transition";
+import type { LowerThirdConfig } from "./lower-thirds";
+import type { LayerAnimationType } from "./layer-animations";
+
+export type PixoresLayerType = "media" | "text" | "shape" | "audio" | "transition" | "lower-third";
 
 export type PixoresMediaKind = "image" | "video" | "audio";
 
@@ -14,6 +17,29 @@ export type PixoresAssetUploadStatus = "local" | "uploading" | "ready" | "error"
 export type PixoresTextAlign = "left" | "center" | "right";
 
 export type PixoresBlendMode = "normal" | "multiply" | "screen" | "darken" | "lighten";
+
+export type PixoresAudioReverbPreset = "none" | "studio" | "room" | "hall" | "stage";
+
+/** One portable audio chain shared by the editor, autosave and exporters. */
+export type PixoresAudioEffectChain = {
+  enabled?: boolean;
+  gainDb?: number;
+  pan?: number;
+  normalize?: boolean;
+  highPassHz?: number;
+  humRemovalHz?: 0 | 50 | 60;
+  noiseReduction?: number;
+  deEsser?: number;
+  lowGainDb?: number;
+  midGainDb?: number;
+  highGainDb?: number;
+  compressor?: number;
+  limiter?: boolean;
+  echoEnabled?: boolean;
+  echoDelayMs?: number;
+  echoDecay?: number;
+  reverb?: PixoresAudioReverbPreset;
+};
 
 export type PixoresMediaMetadata = {
   analyzer: "ffprobe" | "sharp" | "browser" | "fallback";
@@ -25,6 +51,7 @@ export type PixoresMediaMetadata = {
   bitrate?: number;
   width?: number;
   height?: number;
+  rotation?: number;
   fps?: number;
   codec?: string;
   pixelFormat?: string;
@@ -45,9 +72,29 @@ export type PixoresTransitionType =
   | "fadeWhite"
   | "wipeLeft"
   | "wipeRight"
+  | "wipeUp"
+  | "wipeDown"
   | "slideLeft"
   | "slideRight"
-  | "zoomFlash";
+  | "slideUp"
+  | "slideDown"
+  | "zoomFlash"
+  | "zoomIn"
+  | "zoomOut"
+  | "rotateClockwise"
+  | "blurDissolve"
+  | "radialReveal"
+  | "diagonalWipe"
+  | "splitReveal"
+  | "glitch"
+  | "cubeLeft"
+  | "cubeRight"
+  | "flipHorizontal"
+  | "flipVertical"
+  | "pageTurnLeft"
+  | "pageTurnRight"
+  | "doorOpen"
+  | "zoomTunnel";
 
 export type PixoresTransition = {
   id: string;
@@ -61,22 +108,15 @@ export type PixoresTransition = {
   easing?: "linear" | "easeIn" | "easeOut" | "easeInOut";
 };
 
-export type PixoresLayerAnimationType =
-  | "fadeIn"
-  | "fadeOut"
-  | "slideInLeft"
-  | "slideInRight"
-  | "slideInUp"
-  | "slideInDown"
-  | "zoomIn"
-  | "zoomOut"
-  | "pop";
+export type PixoresLayerAnimationType = LayerAnimationType;
 
 export type PixoresLayerAnimation = {
   id: string;
   type: PixoresLayerAnimationType;
   start: number;
   duration: number;
+  phase?: "in" | "out";
+  endOffset?: number;
 };
 
 export type PixoresKeyframeProperty = "x" | "y" | "width" | "height" | "opacity" | "angle" | "scale";
@@ -103,6 +143,11 @@ export type PixoresShapeType =
   | "roundedFrame"
   | "circleFrame"
   | "triangleFrame"
+  | "neonFrame"
+  | "neonPulseFrame"
+  | "rgbLightsFrame"
+  | "lightSweepFrame"
+  | "cinemaFrame"
   | "paperFrame"
   | "paperPortraitFrame"
   | "paperSquareFrame"
@@ -125,8 +170,42 @@ export type PixoresShapeType =
   | "gridHeroTop"
   | "gradient";
 
+export type PixoresVideoEffectPreset =
+  | "none"
+  | "chromaKey"
+  | "cinematic"
+  | "vivid"
+  | "warm"
+  | "cool"
+  | "noir"
+  | "vintage"
+  | "dream"
+  | "vignette"
+  | "bodyGlow"
+  | "neonOutline"
+  | "silhouette"
+  | "ghostBody"
+  | "objectPop"
+  | "bodyHeat";
+
+export type PixoresLayerEffect = {
+  preset: PixoresVideoEffectPreset;
+  intensity: number;
+  chromaKey?: {
+    color: string;
+    similarity: number;
+    smoothness: number;
+    spill: number;
+  };
+};
+
+export type PixoresShadowPreset = "none" | "glow" | "drop" | "outline" | "curved" | "pageLift" | "angled" | "backdrop";
+export type PixoresStrokePreset = "none" | "thin" | "medium" | "bold" | "light" | "dark";
+export type PixoresTextEffectPreset = "none" | "drop" | "glow" | "echo" | "outline" | "background" | "splice" | "hollow" | "neon" | "glitch" | "curve" | "shadow" | "lift";
+
 export type PixoresVideoLayer = {
   id: string;
+  groupId?: string;
   trackId: string;
   type: PixoresLayerType;
   name: string;
@@ -150,13 +229,19 @@ export type PixoresVideoLayer = {
   isFlippedV?: boolean;
   strokeColor?: string;
   strokeWidth?: number;
+  strokeOpacity?: number;
+  strokePreset?: PixoresStrokePreset;
   shadowColor?: string;
   shadowBlur?: number;
   shadowOffsetX?: number;
   shadowOffsetY?: number;
+  shadowOpacity?: number;
+  shadowPreset?: PixoresShadowPreset;
   textBgColor?: string;
   hasTextBg?: boolean;
   textBgPadding?: number;
+  textBgRadius?: number;
+  textCurve?: number;
   isBold?: boolean;
   isItalic?: boolean;
   isUnderline?: boolean;
@@ -168,18 +253,41 @@ export type PixoresVideoLayer = {
   lineHeight?: number;
   glowColor?: string;
   glowRadius?: number;
+  textEffectPreset?: PixoresTextEffectPreset;
   blendMode?: PixoresBlendMode;
   objectFit?: "cover" | "contain";
   src?: string;
   mediaKind?: PixoresMediaKind;
   assetKey?: string;
+  trackOrder?: number;
+  trackName?: string;
+  trackMuted?: boolean;
+  zIndex?: number;
   sourceStart?: number;
   sourceEnd?: number;
   trimStart?: number;
   trimEnd?: number;
+  sourceDuration?: number;
+  renderProxy?: boolean;
+  crop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    unit: "percent";
+  };
+  transform?: {
+    scale: number;
+    x: number;
+    y: number;
+  };
   linkedVideoLayerId?: string;
   audioDetached?: boolean;
   volume?: number;
+  muted?: boolean;
+  audioFadeIn?: number;
+  audioFadeOut?: number;
+  audioEffects?: PixoresAudioEffectChain;
   transitionKind?: PixoresTransitionType;
   fromLayerId?: string;
   toLayerId?: string;
@@ -190,6 +298,9 @@ export type PixoresVideoLayer = {
   shapeType?: PixoresShapeType;
   gradientColor1?: string;
   gradientColor2?: string;
+  frameMediaLayerIds?: string[];
+  effect?: PixoresLayerEffect;
+  lowerThird?: LowerThirdConfig;
 };
 
 export type PixoresVideoAsset = {

@@ -11,8 +11,8 @@ export function isPixoresDesktop() {
   return typeof window !== "undefined" && Boolean((window as Window & { pixoresDesktop?: unknown }).pixoresDesktop);
 }
 
-export function getPixoresDesktopBridge() {
+export function getPixoresDesktopBridge(): PixoresDesktopBridge | undefined {
   return typeof window !== "undefined"
-    ? (window as Window & { pixoresDesktop?: PixoresDesktopBridge }).pixoresDesktop
+    ? (window as unknown as { pixoresDesktop?: PixoresDesktopBridge }).pixoresDesktop
     : undefined;
 }

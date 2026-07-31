@@ -30,4 +30,13 @@ export const desktopRenderAdapter: VideoRenderAdapter = {
 
     return bridge.getRenderStatus(renderId);
   },
+
+  async cancelRender(renderId: string): Promise<PixoresRenderJobState> {
+    const bridge = getPixoresDesktopBridge();
+    if (!bridge?.cancelRender) {
+      throw new Error("Desktop render cancel bridge is not available.");
+    }
+
+    return bridge.cancelRender(renderId);
+  },
 };

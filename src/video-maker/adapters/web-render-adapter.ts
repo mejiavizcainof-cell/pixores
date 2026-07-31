@@ -23,6 +23,11 @@ type RenderStatusResponse = {
   outputUrl?: string;
   error?: string;
   warnings?: string[];
+  renderedFrames?: number;
+  totalFrames?: number;
+  renderFps?: number;
+  speed?: number;
+  encoder?: string;
 };
 
 export const webRenderAdapter: VideoRenderAdapter = {
@@ -34,6 +39,7 @@ export const webRenderAdapter: VideoRenderAdapter = {
       body: JSON.stringify({
         project,
         outputFormatId: options.outputFormatId,
+        exportSettings: options.exportSettings,
       }),
     });
     const payload = await response.json().catch(() => null) as RenderPostResponse | null;
@@ -65,6 +71,34 @@ export const webRenderAdapter: VideoRenderAdapter = {
       outputUrl: payload.outputUrl,
       error: payload.error,
       warnings: payload.warnings || [],
+      renderedFrames: payload.renderedFrames,
+      totalFrames: payload.totalFrames,
+      renderFps: payload.renderFps,
+      speed: payload.speed,
+      encoder: payload.encoder,
+    };
+  },
+
+  async cancelRender(renderId: string): Promise<PixoresRenderJobState> {
+    const response = await fetch(`/api/render-video/${encodeURIComponent(renderId)}`, { method: "DELETE" });
+    const payload = await response.json().catch(() => null) as RenderStatusResponse | null;
+
+    if (!response.ok || !payload?.status) {
+      throw new Error(payload?.error || `Render cancel failed with ${response.status}`);
+    }
+
+    return {
+      renderId,
+      status: payload.status,
+      progress: payload.progress || 0,
+      outputUrl: payload.outputUrl,
+      error: payload.error,
+      warnings: payload.warnings || [],
+      renderedFrames: payload.renderedFrames,
+      totalFrames: payload.totalFrames,
+      renderFps: payload.renderFps,
+      speed: payload.speed,
+      encoder: payload.encoder,
     };
   },
 };

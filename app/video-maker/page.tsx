@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import VideoMaker from "@/components/VideoMaker";
+import DesktopAuthGate from "@/components/DesktopAuthGate";
 
 export const metadata: Metadata = {
   title: "Free Video Maker",
   description:
-    "Create and edit videos online with Pixores Video Maker. Use a timeline, transitions, media analysis, social formats, and desktop beta export.",
+    "Create and edit videos online with Pixores Video Maker. Use the professional timeline, text styles, transitions, audio tools, Smart Clips and browser export.",
   alternates: { canonical: "https://www.pixores.com/video-maker" },
   keywords: [
     "video maker",
@@ -52,10 +53,10 @@ export default async function VideoMakerPage({ searchParams }: VideoMakerPagePro
           >
             <div>
               <strong style={{ display: "block", color: "#0F172A", fontSize: "16px" }}>
-                Download Pixores Video Maker beta for PC
+                Get Pixores Video Maker for Windows
               </strong>
               <span style={{ color: "#475569", fontSize: "14px", lineHeight: 1.5 }}>
-                Use the desktop beta with local render, native project files, FFprobe media analysis, and Windows file dialogs.
+                Continue larger projects with local GPU render, native project files, media analysis and Windows file dialogs.
               </span>
             </div>
             <Link
@@ -73,13 +74,15 @@ export default async function VideoMakerPage({ searchParams }: VideoMakerPagePro
                 whiteSpace: "nowrap",
               }}
             >
-              Download Desktop Beta
+              Download Desktop
             </Link>
           </div>
         </section>
       )}
 
-      <VideoMaker />
+      <DesktopAuthGate required={isDesktopMode} showAccountDock={false}>
+        <VideoMaker />
+      </DesktopAuthGate>
     </>
   );
 }

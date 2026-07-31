@@ -10,6 +10,9 @@ import type { PixoresVideoFormat, PixoresVideoProject } from "@/src/video-render
 
 export const PIXORES_VIDEO_START_FORMAT_KEY = "pixores-video-maker-start-format";
 export const PIXORES_VIDEO_START_PROJECT_KEY = "pixores-video-maker-start-project";
+export const PIXORES_VIDEO_START_TOOL_KEY = "pixores-video-maker-start-tool";
+
+export type PixoresVideoStartTool = "smart-clips" | "video-editor" | "social-resizer";
 
 export type PixoresVideoStartFormatPayload = {
   format: PixoresVideoFormat;

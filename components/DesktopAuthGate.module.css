@@ -1,0 +1,172 @@
+.screen {
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 32px;
+  color: #f7fbff;
+  background: #070b13;
+}
+
+.ambientOne,
+.ambientTwo {
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  border-radius: 999px;
+  filter: blur(110px);
+  opacity: 0.18;
+}
+
+.ambientOne { top: -220px; left: -120px; background: #21d4d4; }
+.ambientTwo { right: -180px; bottom: -260px; background: #7c5cff; }
+
+.authLayout {
+  width: min(1080px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.78fr);
+  gap: 70px;
+  align-items: center;
+}
+
+.pitchPanel { padding: 30px 0; }
+
+.brand,
+.secureLabel,
+.inputShell,
+.signInButton,
+.createButton,
+.accountDock {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand { gap: 11px; font-size: 21px; font-weight: 950; letter-spacing: -0.03em; }
+
+.brandIcon {
+  width: 44px;
+  height: 44px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 12px;
+  overflow: hidden;
+  color: #061013;
+  background: #172234;
+  box-shadow: 0 12px 38px rgba(33, 212, 212, 0.25);
+}
+
+.brandIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.eyebrow {
+  display: block;
+  margin-top: 68px;
+  color: #28d8d0;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.pitchPanel h1 { margin: 14px 0 18px; font-size: clamp(48px, 6vw, 78px); line-height: 0.94; letter-spacing: -0.055em; }
+.pitchPanel > p { max-width: 600px; margin: 0; color: #9aa8bc; font-size: 17px; line-height: 1.65; }
+.pitchPanel ul { margin: 34px 0 0; padding: 0; display: grid; gap: 14px; list-style: none; color: #c5d0df; font-size: 14px; font-weight: 700; }
+.pitchPanel li { display: flex; gap: 10px; align-items: center; }
+.pitchPanel li svg { color: #28d8d0; flex: 0 0 auto; }
+
+.loginCard,
+.checkingCard {
+  border: 1px solid #253044;
+  border-radius: 18px;
+  background: rgba(15, 22, 36, 0.94);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+}
+
+.loginCard { padding: 34px; }
+.secureLabel { gap: 7px; color: #28d8d0; font-size: 11px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.loginCard h2 { margin: 13px 0 7px; font-size: 31px; letter-spacing: -0.035em; }
+.loginCard > p { margin: 0 0 24px; color: #8f9db1; font-size: 14px; line-height: 1.5; }
+.loginCard label { display: grid; gap: 7px; margin-top: 14px; color: #cbd5e1; font-size: 12px; font-weight: 850; }
+
+.inputShell {
+  min-height: 48px;
+  gap: 10px;
+  padding: 0 13px;
+  border: 1px solid #2a3548;
+  border-radius: 10px;
+  color: #6f8097;
+  background: #0b111d;
+}
+
+.inputShell:focus-within { border-color: #2bd5ce; box-shadow: 0 0 0 3px rgba(43, 213, 206, 0.12); }
+.inputShell input { min-width: 0; flex: 1; border: 0; outline: 0; color: #f8fafc; background: transparent; font: inherit; font-size: 14px; }
+.inputShell button,
+.loginMeta button { border: 0; color: #8da0b7; background: transparent; cursor: pointer; }
+.inputShell button { display: grid; place-items: center; padding: 4px; }
+.loginMeta { display: flex; justify-content: flex-end; margin: 11px 0 18px; }
+.loginMeta button { color: #2bd5ce; font-size: 12px; font-weight: 850; }
+
+.signInButton,
+.createButton {
+  width: 100%;
+  min-height: 46px;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.signInButton { border: 0; color: #061014; background: linear-gradient(135deg, #25dcd3, #4bb2ff); }
+.signInButton:disabled { cursor: wait; opacity: 0.65; }
+.message { min-height: 20px; margin: 11px 0 0 !important; color: #9eacc0 !important; font-size: 12px !important; text-align: center; }
+.divider { margin: 20px 0; display: flex; align-items: center; gap: 12px; color: #718096; font-size: 11px; font-weight: 800; }
+.divider::before,
+.divider::after { height: 1px; flex: 1; content: ""; background: #273246; }
+.createButton { border: 1px solid #344158; color: #d9e3ef; background: #131c2b; }
+
+.checkingCard { width: min(420px, 100%); padding: 36px; text-align: center; }
+.checkingCard .brandIcon { margin-bottom: 20px; }
+.checkingCard h1 { margin: 18px 0 8px; font-size: 26px; }
+.checkingCard p { margin: 0; color: #91a0b5; }
+.loadingRing { width: 34px; height: 34px; margin: 0 auto; border: 3px solid #273246; border-top-color: #26d9d1; border-radius: 999px; animation: spin 800ms linear infinite; }
+
+.accountDock {
+  position: fixed;
+  z-index: 2500;
+  right: 18px;
+  top: 8px;
+  max-width: 320px;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid #2c3a50;
+  border-radius: 12px;
+  color: #e7eef8;
+  background: rgba(10, 16, 27, 0.92);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(14px);
+}
+
+.accountDock > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #061012; background: #28d8d0; font-size: 12px; font-weight: 950; }
+.accountDock div { min-width: 0; display: grid; }
+.accountDock small { color: #7f91a8; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.accountDock strong { overflow: hidden; color: #dbe6f3; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.accountDock button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: #91a1b6; background: transparent; cursor: pointer; }
+.accountDock button:hover { color: #fff; background: #263247; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 820px) {
+  .screen { padding: 20px; }
+  .authLayout { grid-template-columns: 1fr; gap: 24px; }
+  .pitchPanel { display: none; }
+  .loginCard { width: min(440px, 100%); margin: auto; padding: 26px; }
+}
