@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Download, Film, Gauge, MonitorDown, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { Check, Cloud, Download, Film, Gauge, MonitorDown, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import styles from "./DesktopPage.module.css";
 
 export const metadata: Metadata = {
-  title: "Download Pixores Video Maker for Windows",
+  title: "Download Pixores Video Maker Pro for Windows",
   description:
-    "Download Pixores Video Maker Desktop 0.1.3-beta.51 for Windows. Edit locally, render with GPU acceleration, create Smart Clips, captions and publish to YouTube.",
+    "Compare Pixores Quick Video Maker and Pixores Video Maker Pro. Download the free Windows editor for long projects, local media, GPU rendering, Smart Clips and YouTube publishing.",
   alternates: { canonical: "https://www.pixores.com/desktop" },
   openGraph: {
-    title: "Pixores Video Maker Desktop",
+    title: "Pixores Video Maker Pro",
     description: "Professional local video editing for Windows with GPU rendering and direct YouTube publishing.",
     url: "https://www.pixores.com/desktop",
     siteName: "Pixores",
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   },
 };
 
-const version = "0.1.3-beta.51";
-const installerName = `Pixores.Desktop.Setup.${version}.exe`;
+const version = "0.1.3-beta.54";
+const installerName = `Pixores.Video.Maker.Pro.Setup.${version}.exe`;
 const defaultDesktopDownloadUrl =
   `https://github.com/mejiavizcainof-cell/pixores/releases/download/pixores-video-maker-v${version}/${encodeURIComponent(installerName)}`;
 const desktopDownloadUrl = process.env.NEXT_PUBLIC_DESKTOP_DOWNLOAD_URL || defaultDesktopDownloadUrl;
@@ -31,13 +31,39 @@ const features = [
   { icon: ShieldCheck, title: "Local-first workflow", copy: "Projects, imported media and renders remain on your computer while you edit." },
 ];
 
+const comparisonRows = [
+  { feature: "Best for", quick: "Short, simple projects", pro: "Long-form and advanced projects" },
+  { feature: "Where it runs", quick: "In your web browser", pro: "Installed locally on Windows" },
+  { feature: "Rendering", quick: "Browser export", pro: "Local hybrid rendering with NVIDIA support" },
+  { feature: "Media and projects", quick: "Browser workspace", pro: "Persistent local media, autosave and project packages" },
+  { feature: "Advanced workflow", quick: "Essential timeline tools", pro: "Smart Clips, captions, silence removal, audio tools and YouTube publishing" },
+  { feature: "Price", quick: "Free", pro: "Free during beta" },
+];
+
 export default function DesktopPage() {
+  const softwareSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Pixores Video Maker Pro",
+    applicationCategory: "MultimediaApplication",
+    operatingSystem: "Windows 10, Windows 11",
+    softwareVersion: version,
+    description: "A local-first Windows video editor with timeline editing, audio tools, captions, Smart Clips and hybrid GPU rendering.",
+    downloadUrl: desktopDownloadUrl,
+    publisher: { "@type": "Organization", name: "Pixores", url: "https://www.pixores.com" },
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" },
+  };
+
   return (
     <main className={styles.page}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema).replace(/</g, "\\u003c") }}
+      />
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <Image className={styles.wordmark} src="/pixores-logo-dark.png" alt="Pixores" width={445} height={120} priority />
-          <div className={styles.productLabel}><Film size={17} /> Pixores Video Maker</div>
+          <div className={styles.productLabel}><Film size={17} /> Pixores Video Maker Pro</div>
           <h1>Professional video editing, built for your desktop.</h1>
           <p className={styles.lead}>
             Edit, organize and render complete video projects on Windows with a magnetic timeline,
@@ -47,7 +73,7 @@ export default function DesktopPage() {
             <a href={desktopDownloadUrl} className={styles.primaryAction}>
               <Download size={19} /> Download for Windows
             </a>
-            <Link href="/video-maker" className={styles.secondaryAction}>Open the web editor</Link>
+            <Link href="/video-maker" className={styles.secondaryAction}>Open Pixores Quick Video Maker</Link>
           </div>
           <div className={styles.releaseMeta}>
             <span>Version {version}</span><span>Windows 10/11 · 64-bit</span><span>Beta release</span>
@@ -55,7 +81,7 @@ export default function DesktopPage() {
         </div>
 
         <div className={styles.productPreview} aria-label="Pixores Video Maker desktop preview">
-          <div className={styles.windowBar}><i /><i /><i /><span>Pixores Video Maker</span></div>
+          <div className={styles.windowBar}><i /><i /><i /><span>Pixores Video Maker Pro</span></div>
           <div className={styles.previewCanvas}>
             <div className={styles.previewStage}><span>PREVIEW</span><strong>Create without limits.</strong></div>
             <div className={styles.previewTimeline}>
@@ -69,7 +95,7 @@ export default function DesktopPage() {
 
       <section className={styles.featureSection} aria-labelledby="desktop-features">
         <div className={styles.sectionHeading}>
-          <span>PIXORES VIDEO MAKER</span>
+          <span>PIXORES VIDEO MAKER PRO</span>
           <h2 id="desktop-features">From first cut to published video</h2>
           <p>One focused workspace for editing, audio, motion graphics, social formats and delivery.</p>
         </div>
@@ -84,10 +110,50 @@ export default function DesktopPage() {
         </div>
       </section>
 
+      <section className={styles.comparisonSection} aria-labelledby="compare-editors">
+        <div className={styles.sectionHeadingLight}>
+          <span>CHOOSE THE RIGHT WORKSPACE</span>
+          <h2 id="compare-editors">Quick Video Maker or Video Maker Pro?</h2>
+          <p>
+            Both editors use the same Pixores approach, but they are designed for different jobs.
+            Start online for speed; move to Pro when the project needs more media, control or rendering power.
+          </p>
+        </div>
+
+        <div className={styles.comparisonCards}>
+          <article className={styles.productCard}>
+            <div className={styles.productCardIcon}><Cloud size={22} /></div>
+            <span>WEB EDITOR</span>
+            <h3>Pixores Quick Video Maker</h3>
+            <p>Ideal for reels, shorts, announcements and quick edits from any modern browser.</p>
+            <Link href="/video-maker" className={styles.secondaryAction}>Open Quick Video Maker</Link>
+          </article>
+          <article className={`${styles.productCard} ${styles.productCardPro}`}>
+            <div className={styles.productCardIcon}><MonitorDown size={22} /></div>
+            <span>WINDOWS EDITOR</span>
+            <h3>Pixores Video Maker Pro</h3>
+            <p>Recommended for longer projects, reusable assets, advanced audio and faster local rendering.</p>
+            <a href={desktopDownloadUrl} className={styles.primaryAction}><Download size={18} /> Download Pro</a>
+          </article>
+        </div>
+
+        <div className={styles.comparisonTableWrap}>
+          <table className={styles.comparisonTable}>
+            <thead><tr><th>Capability</th><th>Quick Video Maker</th><th>Video Maker Pro</th></tr></thead>
+            <tbody>
+              {comparisonRows.map((row) => (
+                <tr key={row.feature}><th scope="row">{row.feature}</th><td>{row.quick}</td><td>{row.pro}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={styles.betaNote}>Video Maker Pro is Windows-only and currently in beta. Features may change as stability and performance improve.</p>
+      </section>
+
       <section className={styles.downloadSection}>
         <div>
           <span>AVAILABLE NOW</span>
-          <h2>Download Pixores Video Maker</h2>
+          <h2>Download Pixores Video Maker Pro</h2>
           <p>The installer includes the desktop editor and the local media and rendering components.</p>
           <ul>
             <li><Check size={16} /> Automatic saving and reusable project packages</li>

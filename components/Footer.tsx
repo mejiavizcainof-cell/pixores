@@ -1,159 +1,91 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { ArrowRight, MonitorDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isPixoresDesktopMode } from "@/components/DesktopModeHost";
+import styles from "./Footer.module.css";
 
-const footerLinkStyle: CSSProperties = {
-  color: "#F8FAFC",
-  textDecoration: "none",
-  fontWeight: 600,
-};
+const footerGroups = [
+  {
+    title: "Create",
+    links: [
+      { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
+      { href: "/video-maker", label: "Quick Video Maker" },
+      { href: "/desktop", label: "Video Maker Pro" },
+      { href: "/templates", label: "Design Templates" },
+    ],
+  },
+  {
+    title: "Image tools",
+    links: [
+      { href: "/remove-background", label: "Remove Background" },
+      { href: "/image-upscaler", label: "Image Upscaler" },
+      { href: "/crop-image", label: "Crop Image" },
+      { href: "/watermark-image", label: "Add Watermark" },
+      { href: "/tools", label: "View all tools" },
+    ],
+  },
+  {
+    title: "Pixores",
+    links: [
+      { href: "/about", label: "About" },
+      { href: "/blog", label: "Guides & Blog" },
+      { href: "/faq", label: "Help Center" },
+      { href: "/contact", label: "Contact" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { href: "/privacy-policy", label: "Privacy Policy" },
+      { href: "/terms-of-service", label: "Terms of Service" },
+      { href: "/cookie-policy", label: "Cookie Policy" },
+    ],
+  },
+];
 
 export default function Footer() {
   const [isDesktopMode, setIsDesktopMode] = useState(false);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setIsDesktopMode(isPixoresDesktopMode());
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
+    const frame = window.requestAnimationFrame(() => setIsDesktopMode(isPixoresDesktopMode()));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   if (isDesktopMode) return null;
 
   return (
-    <footer
-      style={{
-        marginTop: "80px",
-        padding: "40px 20px",
-        borderTop: "1px solid #334155",
-        backgroundColor: "#1F2937",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "20px",
-          flexWrap: "wrap",
-          marginBottom: "20px",
-        }}
-      >
-        <a
-          href="/about"
-          style={footerLinkStyle}
-        >
-          About Us
-        </a>
+    <footer className={styles.footer}>
+      <div className={styles.top}>
+        <div className={styles.brandColumn}>
+          <Link href="/" className={styles.brand} aria-label="Pixores home">
+            <Image src="/logo.png" alt="" width={42} height={42} />
+            <span>PIXORES</span>
+          </Link>
+          <p>Create thumbnails, edit videos and prepare images with practical tools for the web and Windows.</p>
+          <Link href="/desktop" className={styles.proLink}>
+            <MonitorDown size={18} />
+            <span><strong>Video Maker Pro</strong><small>Free Windows beta</small></span>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
 
-        <a
-          href="/tools"
-          style={footerLinkStyle}
-        >
-          Tools
-        </a>
-
-        <a
-          href="/remove-background"
-          style={footerLinkStyle}
-        >
-          Remove Background
-        </a>
-
-        <a
-          href="/image-upscaler"
-          style={footerLinkStyle}
-        >
-          Image Upscaler
-        </a>
-
-        <a
-          href="/crop-image"
-          style={footerLinkStyle}
-        >
-          Crop Image
-        </a>
-
-        <a
-          href="/watermark-image"
-          style={footerLinkStyle}
-        >
-          Add Watermark
-        </a>
-
-        <a
-          href="/youtube-thumbnail-maker"
-          style={footerLinkStyle}
-        >
-          Thumbnail Maker
-        </a>
-
-        <a
-          href="/templates"
-          style={footerLinkStyle}
-        >
-          Templates
-        </a>
-
-        <Link
-          href="/blog"
-          style={footerLinkStyle}
-        >
-          Blog
-        </Link>
-
-        <a
-          href="/faq"
-          style={footerLinkStyle}
-        >
-          FAQ
-        </a>
-
-        <a
-          href="/privacy-policy"
-          style={footerLinkStyle}
-        >
-          Privacy Policy
-        </a>
-
-        <a
-          href="/terms-of-service"
-          style={footerLinkStyle}
-        >
-          Terms of Service
-        </a>
-
-        <a
-          href="/cookie-policy"
-          style={footerLinkStyle}
-        >
-          Cookie Policy
-        </a>
-
-        <a
-          href="/contact"
-          style={footerLinkStyle}
-        >
-          Contact
-        </a>
+        <nav className={styles.linkGrid} aria-label="Footer navigation">
+          {footerGroups.map((group) => (
+            <div key={group.title} className={styles.linkGroup}>
+              <h2>{group.title}</h2>
+              {group.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+            </div>
+          ))}
+        </nav>
       </div>
 
-      <p
-        style={{
-          color: "#CBD5E1",
-          fontSize: "14px",
-          margin: 0,
-        }}
-      >
-        &copy; {new Date().getFullYear()} Pixores.
-        All rights reserved.
-      </p>
+      <div className={styles.bottom}>
+        <p>&copy; {new Date().getFullYear()} Pixores. All rights reserved.</p>
+        <p>Web tools for quick work. Local Pro editing for larger projects.</p>
+      </div>
     </footer>
   );
 }

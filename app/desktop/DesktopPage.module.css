@@ -40,6 +40,25 @@
 .featureCard > svg { padding: 10px; width: 43px; height: 43px; border-radius: 11px; background: rgba(31, 209, 201, .12); color: #37e1d8; }
 .featureCard h3 { margin: 22px 0 8px; font-size: 17px; }
 .featureCard p { margin: 0; color: #91a3bc; font-size: 13px; line-height: 1.62; }
+.comparisonSection { max-width: 1184px; margin: 0 auto; padding: 82px 24px 28px; }
+.sectionHeadingLight { max-width: 760px; margin-bottom: 32px; }
+.sectionHeadingLight > span { color: #096fec; font-size: 11px; font-weight: 950; letter-spacing: .16em; }
+.sectionHeadingLight h2 { margin: 9px 0 10px; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.04em; }
+.sectionHeadingLight p { margin: 0; color: #61718a; font-size: 16px; line-height: 1.7; }
+.comparisonCards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.productCard { padding: 26px; border: 1px solid #d7e1ee; border-radius: 20px; background: #fff; box-shadow: 0 18px 45px rgba(28, 58, 103, .08); }
+.productCardPro { border-color: #9bc8ff; background: linear-gradient(145deg, #f8fbff, #eaf4ff); }
+.productCardIcon { width: 46px; height: 46px; margin-bottom: 18px; display: grid; place-items: center; border-radius: 13px; background: #e8f2ff; color: #076de9; }
+.productCard > span { color: #0b77e8; font-size: 10px; font-weight: 950; letter-spacing: .15em; }
+.productCard h3 { margin: 8px 0 9px; font-size: 23px; }
+.productCard p { min-height: 52px; margin: 0 0 21px; color: #64748b; font-size: 14px; line-height: 1.65; }
+.comparisonTableWrap { margin-top: 22px; overflow-x: auto; border: 1px solid #d7e1ee; border-radius: 18px; background: #fff; }
+.comparisonTable { width: 100%; border-collapse: collapse; min-width: 720px; }
+.comparisonTable th, .comparisonTable td { padding: 16px 18px; border-bottom: 1px solid #e5ebf3; color: #52627a; font-size: 13px; line-height: 1.5; text-align: left; }
+.comparisonTable thead th { background: #f0f6ff; color: #132541; font-size: 12px; }
+.comparisonTable tbody th { width: 22%; color: #132541; font-weight: 850; }
+.comparisonTable tbody tr:last-child th, .comparisonTable tbody tr:last-child td { border-bottom: 0; }
+.betaNote { margin: 14px 2px 0; color: #7b8798; font-size: 12px; line-height: 1.6; }
 .downloadSection { max-width: 1184px; margin: 0 auto; padding: 82px 24px 94px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 440px); align-items: center; gap: 70px; }
 .downloadSection > div > span { color: #096fec; }
 .downloadSection > div > p { color: #61718a; }
@@ -53,4 +72,4 @@
 .downloadCard .primaryAction { width: 100%; }
 .downloadCard p { margin: 8px 0 0; color: #8a97a9; font-size: 10px; text-align: center; }
 @media (max-width: 980px) { .hero { grid-template-columns: 1fr; padding-top: 56px; gap: 52px; } .productPreview { max-width: 680px; } .featureGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 700px) { .hero { padding: 42px 18px 60px; } .hero h1 { font-size: 42px; } .lead { font-size: 16px; } .wordmark { width: min(390px, 94%); } .productPreview { transform: none; } .previewCanvas { min-height: 310px; padding: 14px; } .versionBadge { right: 10px; } .featureSection { padding: 58px 18px; } .featureGrid { grid-template-columns: 1fr; } .featureCard { min-height: 170px; } .downloadSection { padding: 60px 18px 72px; grid-template-columns: 1fr; gap: 32px; } }
+@media (max-width: 700px) { .hero { padding: 42px 18px 60px; } .hero h1 { font-size: 42px; } .lead { font-size: 16px; } .wordmark { width: min(390px, 94%); } .productPreview { transform: none; } .previewCanvas { min-height: 310px; padding: 14px; } .versionBadge { right: 10px; } .featureSection { padding: 58px 18px; } .featureGrid, .comparisonCards { grid-template-columns: 1fr; } .featureCard { min-height: 170px; } .comparisonSection { padding: 58px 18px 16px; } .productCard p { min-height: 0; } .downloadSection { padding: 60px 18px 72px; grid-template-columns: 1fr; gap: 32px; } }

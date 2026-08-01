@@ -19,10 +19,10 @@ const navItems = [
   { href: "/faq", label: "FAQ" },
 ];
 
-const downloadItems = [
+const creatorItems = [
   { href: "/youtube-thumbnail-maker", label: "Thumbnail Creator" },
-  { href: "/video-maker", label: "Video Maker Online" },
-  { href: "/desktop", label: "Pixores Video Maker Desktop" },
+  { href: "/video-maker", label: "Quick Video Maker" },
+  { href: "/desktop", label: "Video Maker Pro" },
 ];
 
 export default function Header() {
@@ -87,11 +87,11 @@ export default function Header() {
 
           <div className={styles.downloadDropdown}>
             <button type="button" className={styles.downloadButton} aria-haspopup="true">
-              <span>Download</span>
+              <span>Create</span>
               <ChevronDown size={15} strokeWidth={2.5} aria-hidden="true" />
             </button>
-            <div className={styles.downloadMenu} role="menu" aria-label="Download editors">
-              {downloadItems.map((item) => (
+            <div className={styles.downloadMenu} role="menu" aria-label="Pixores creator tools">
+              {creatorItems.map((item) => (
                 <Link key={item.href} href={item.href} className={styles.downloadMenuItem} role="menuitem">
                   {item.label}
                 </Link>
@@ -133,8 +133,8 @@ export default function Header() {
           <Link href="/" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Home</Link>
           <Link href="/tools" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Tools</Link>
           <div className={styles.mobileDownloadGroup}>
-            <span className={styles.mobileDownloadTitle}>Download</span>
-            {downloadItems.map((item) => (
+            <span className={styles.mobileDownloadTitle}>Create</span>
+            {creatorItems.map((item) => (
               <Link key={item.href} href={item.href} className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
                 {item.label}
               </Link>

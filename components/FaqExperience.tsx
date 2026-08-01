@@ -16,6 +16,10 @@ const faqItems = [
   { category: "Privacy", question: "How does Pixores protect my files?", answer: "We minimize retention, use secure connections, and process files only for the requested operation. You should still avoid uploading confidential material to any online service unless necessary." },
   { category: "Thumbnail Maker", question: "Can I save designs and templates?", answer: "Signed-in users can save projects. Administrators can also publish and update public templates through Pixores Thumbnail Maker." },
   { category: "Thumbnail Maker", question: "Can I download transparent images?", answer: "Yes. Pixores Thumbnail Maker supports transparent PNG export, and the Background Remover lets you download images without a background." },
+  { category: "Video Maker", question: "What is the difference between Quick Video Maker and Video Maker Pro?", answer: "Quick Video Maker runs in the browser and is designed for short, straightforward edits. Video Maker Pro is a Windows application for longer projects, persistent local media, advanced audio, Smart Clips, captions and local GPU-assisted rendering." },
+  { category: "Video Maker", question: "Is Pixores Video Maker Pro free?", answer: "Yes. Pixores Video Maker Pro is currently free during its Windows beta. The download page always shows the current release status and system requirements." },
+  { category: "Video Maker", question: "Which editor should I use for long videos?", answer: "Use Video Maker Pro for long videos or projects with many clips and effects. Local files, autosave and GPU-assisted rendering provide a more dependable workflow than a browser for larger timelines." },
+  { category: "Video Maker", question: "Does Video Maker Pro upload my media to Pixores?", answer: "The Pro editor is local-first: imported media, project files and renders stay on your computer while you edit. Optional connected features, such as YouTube publishing, only send data when you choose to use them." },
   { category: "Support", question: "How can I contact Pixores?", answer: "Email support@pixores.com or use the Contact page. Include the tool name, browser, device, and a short description of the issue." },
 ];
 
@@ -38,7 +42,7 @@ export default function FaqExperience() {
         <div className={styles.heroInner}>
           <span className={styles.eyebrow}><HelpCircle size={17} /> Help center</span>
           <h1>Frequently Asked Questions</h1>
-          <p className={styles.heroDescription}>Clear answers about files, privacy, accounts, mobile tools, and Pixores Thumbnail Maker.</p>
+          <p className={styles.heroDescription}>Clear answers about files, privacy, accounts, Thumbnail Maker, Quick Video Maker and Video Maker Pro.</p>
         </div>
       </header>
 

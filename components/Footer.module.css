@@ -1,0 +1,20 @@
+.footer { margin-top: 80px; border-top: 1px solid #24334a; background: #071326; color: #eef6ff; }
+.top { max-width: 1200px; margin: 0 auto; padding: 58px 24px 44px; display: grid; grid-template-columns: minmax(250px, 1.05fr) minmax(0, 1.95fr); gap: 72px; }
+.brandColumn { max-width: 360px; }
+.brand { width: fit-content; display: inline-flex; align-items: center; gap: 11px; color: #fff; font-size: 24px; font-weight: 950; letter-spacing: .03em; text-decoration: none; }
+.brand img { width: 42px; height: 42px; object-fit: contain; }
+.brandColumn > p { margin: 18px 0 24px; color: #9dafc6; font-size: 14px; line-height: 1.75; }
+.proLink { padding: 13px 14px; display: flex; align-items: center; gap: 11px; border: 1px solid #294361; border-radius: 13px; background: #0d1d32; color: #40ded6; text-decoration: none; transition: border-color 160ms ease, transform 160ms ease; }
+.proLink:hover { border-color: #39cfc8; transform: translateY(-2px); }
+.proLink > span { flex: 1; display: grid; }
+.proLink strong { color: #eef6ff; font-size: 13px; }
+.proLink small { margin-top: 2px; color: #8ea3bd; font-size: 10px; }
+.linkGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 30px; }
+.linkGroup { display: flex; flex-direction: column; align-items: flex-start; gap: 11px; }
+.linkGroup h2 { margin: 0 0 7px; color: #fff; font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.linkGroup a { color: #aabbd0; font-size: 13px; line-height: 1.35; text-decoration: none; }
+.linkGroup a:hover { color: #43e2da; }
+.bottom { max-width: 1200px; margin: 0 auto; padding: 21px 24px 25px; border-top: 1px solid #1c2d43; display: flex; justify-content: space-between; gap: 18px; color: #7f93ad; font-size: 11px; }
+.bottom p { margin: 0; }
+@media (max-width: 900px) { .top { grid-template-columns: 1fr; gap: 42px; } .brandColumn { max-width: 520px; } .linkGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .footer { margin-top: 58px; } .top { padding: 42px 18px 32px; } .linkGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 20px; } .bottom { padding-inline: 18px; flex-direction: column; } }
