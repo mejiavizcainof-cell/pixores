@@ -46,6 +46,19 @@ const footerGroups = [
   },
 ];
 
+const socialLinks = [
+  {
+    href: "https://www.instagram.com/pixorescreator/",
+    label: "Instagram",
+    icon: "/template-assets/social/instagram.svg",
+  },
+  {
+    href: "https://www.facebook.com/profile.php?id=61591209140548",
+    label: "Facebook",
+    icon: "/template-assets/social/facebook.svg",
+  },
+];
+
 export default function Footer() {
   const [isDesktopMode, setIsDesktopMode] = useState(false);
 
@@ -65,6 +78,14 @@ export default function Footer() {
             <span>PIXORES</span>
           </Link>
           <p>Create thumbnails, edit videos and prepare images with practical tools for the web and Windows.</p>
+          <div className={styles.socialLinks} aria-label="Pixores social media">
+            {socialLinks.map(({ href, label, icon }) => (
+              <a key={href} href={href} target="_blank" rel="noreferrer">
+                <Image src={icon} alt="" width={17} height={17} aria-hidden="true" />
+                <span>{label}</span>
+              </a>
+            ))}
+          </div>
           <Link href="/desktop" className={styles.proLink}>
             <MonitorDown size={18} />
             <span><strong>Video Maker Pro</strong><small>Free Windows beta</small></span>

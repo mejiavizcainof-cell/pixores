@@ -64,6 +64,9 @@ export default function RootLayout({
   className={`${geistSans.variable} ${geistMono.variable}`}
   suppressHydrationWarning
 >
+      <head>
+        <GoogleAdSense />
+      </head>
       <body
         suppressHydrationWarning
         style={{
@@ -75,7 +78,6 @@ export default function RootLayout({
         }}
       >
         <GoogleAnalytics />
-        <GoogleAdSense />
         <ConversionProgressHost />
         <script
           dangerouslySetInnerHTML={{

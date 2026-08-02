@@ -14,6 +14,10 @@ const siteIdentity = {
         width: 1024,
         height: 1024,
       },
+      sameAs: [
+        "https://www.instagram.com/pixorescreator/",
+        "https://www.facebook.com/profile.php?id=61591209140548",
+      ],
     },
     {
       "@type": "WebSite",

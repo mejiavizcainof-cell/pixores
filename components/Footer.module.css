@@ -4,6 +4,10 @@
 .brand { width: fit-content; display: inline-flex; align-items: center; gap: 11px; color: #fff; font-size: 24px; font-weight: 950; letter-spacing: .03em; text-decoration: none; }
 .brand img { width: 42px; height: 42px; object-fit: contain; }
 .brandColumn > p { margin: 18px 0 24px; color: #9dafc6; font-size: 14px; line-height: 1.75; }
+.socialLinks { margin: -8px 0 22px; display: flex; flex-wrap: wrap; gap: 9px; }
+.socialLinks a { min-height: 38px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #294361; border-radius: 999px; background: #0d1d32; color: #c8d8ea; font-size: 12px; font-weight: 800; text-decoration: none; transition: border-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.socialLinks a:hover { border-color: #39cfc8; color: #43e2da; transform: translateY(-2px); }
+.socialLinks img { flex: 0 0 auto; }
 .proLink { padding: 13px 14px; display: flex; align-items: center; gap: 11px; border: 1px solid #294361; border-radius: 13px; background: #0d1d32; color: #40ded6; text-decoration: none; transition: border-color 160ms ease, transform 160ms ease; }
 .proLink:hover { border-color: #39cfc8; transform: translateY(-2px); }
 .proLink > span { flex: 1; display: grid; }

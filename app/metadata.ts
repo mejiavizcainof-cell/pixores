@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { googleAdSenseClientId } from "@/lib/adsense";
 
 export const siteMetadata: Metadata = {
   metadataBase: new URL("https://www.pixores.com"),
@@ -114,4 +115,8 @@ export const siteMetadata: Metadata = {
   },
 
   manifest: "/site.webmanifest",
+
+  other: googleAdSenseClientId
+    ? { "google-adsense-account": googleAdSenseClientId }
+    : undefined,
 };
