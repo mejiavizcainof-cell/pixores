@@ -8,7 +8,7 @@ import styles from "./blog.module.css";
 export const metadata: Metadata = {
   title: "Pixores Blog",
   description:
-    "Guides and tips for image conversion, YouTube thumbnails, compression, resizing, and online image tools.",
+    "Practical guides about Codex workflows, programming, content automation, video creation, thumbnails, and image optimization.",
   alternates: { canonical: "https://www.pixores.com/blog" },
 };
 
@@ -51,8 +51,8 @@ export default async function BlogPage() {
         </h1>
 
         <p className={styles.description}>
-          Practical guides for creators who work with images, thumbnails, and
-          online file tools.
+          Practical guides for creators and developers working with Codex,
+          content automation, video, thumbnails, and image tools.
         </p>
       </section>
 

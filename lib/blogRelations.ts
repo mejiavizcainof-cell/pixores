@@ -1,4 +1,28 @@
 export const blogRelations: Record<string, string[]> = {
+  "how-to-automate-content-creation-with-codex": [
+    "codex-content-calendar-automation",
+    "codex-exec-content-pipeline",
+    "program-faster-with-codex",
+    "social-media-image-sizes-2026",
+  ],
+  "codex-content-calendar-automation": [
+    "how-to-automate-content-creation-with-codex",
+    "codex-exec-content-pipeline",
+    "program-faster-with-codex",
+    "best-image-format-for-social-media",
+  ],
+  "codex-exec-content-pipeline": [
+    "how-to-automate-content-creation-with-codex",
+    "codex-content-calendar-automation",
+    "program-faster-with-codex",
+    "compress-images-for-website-seo",
+  ],
+  "program-faster-with-codex": [
+    "codex-exec-content-pipeline",
+    "how-to-automate-content-creation-with-codex",
+    "codex-content-calendar-automation",
+    "youtube-thumbnail-ab-testing",
+  ],
   "history-of-png": [
     "history-of-gif",
     "history-of-jpeg",
