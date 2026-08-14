@@ -43,7 +43,6 @@ const tools = [
   { title: "WebP to PNG", href: "/webp-to-png", description: "Convert WebP images to PNG format.", category: "Convert", icon: Download },
   { title: "HEIC to JPG", href: "/heic-to-jpg", description: "Convert iPhone HEIC photos to compatible JPG files.", category: "Convert", icon: FileImage },
   { title: "JPG to PDF", href: "/jpg-to-pdf", description: "Combine JPG images into a downloadable PDF document.", category: "Convert", icon: FileOutput },
-  { title: "Instagram Reel Saver Guide", href: "/instagram-reel-downloader", description: "Learn safe options for saving Reels you own or have permission to use.", category: "Other", icon: Video },
 ];
 
 const categories = ["All", "Creator", "AI", "Edit", "Optimize", "Convert", "Other"];

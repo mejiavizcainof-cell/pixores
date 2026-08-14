@@ -31,6 +31,7 @@ const footerGroups = [
     title: "Pixores",
     links: [
       { href: "/about", label: "About" },
+      { href: "/editorial-policy", label: "Editorial Policy" },
       { href: "/blog", label: "Guides & Blog" },
       { href: "/faq", label: "Help Center" },
       { href: "/contact", label: "Contact" },

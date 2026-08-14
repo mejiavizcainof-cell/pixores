@@ -4,6 +4,11 @@ import AccountPortal from "@/components/AccountPortal";
 export const metadata: Metadata = {
   title: "Pixores Account",
   description: "Create or access your Pixores account for Pixores web and desktop tools.",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
 };
 
 type AccountPageProps = {

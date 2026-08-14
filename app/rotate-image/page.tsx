@@ -77,7 +77,7 @@ export default function RotateImagePage() {
         </section>
       )}
 
-      <ToolSeo title="Fix Image Orientation Online" description="Rotate JPG, PNG, and WebP photos by 90, 180, or 270 degrees. You can also mirror images horizontally or vertically while preserving high visual quality." benefits={["Automatically respects camera orientation", "Rotate left or right", "Horizontal and vertical image flip", "High-quality output", "Works on mobile and desktop"]} />
+      <ToolSeo tool="rotate-image" title="Fix Image Orientation Online" description="Rotate JPG, PNG, and WebP photos by 90, 180, or 270 degrees. You can also mirror images horizontally or vertically while preserving high visual quality." benefits={["Automatically respects camera orientation", "Rotate left or right", "Horizontal and vertical image flip", "High-quality output", "Works on mobile and desktop"]} />
     </main>
   );
 }

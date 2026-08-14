@@ -246,6 +246,7 @@ export default function ResizeImagePage() {
       )}
 
       <ToolSeo
+        tool="resize-image"
         title="How to Resize Images Online"
         description="
           Upload your image, enter the desired width

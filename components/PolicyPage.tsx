@@ -18,6 +18,7 @@ type PolicyPageProps = {
 };
 
 const legalLinks = [
+  { href: "/editorial-policy", label: "Editorial" },
   { href: "/privacy-policy", label: "Privacy" },
   { href: "/terms-of-service", label: "Terms" },
   { href: "/cookie-policy", label: "Cookies" },

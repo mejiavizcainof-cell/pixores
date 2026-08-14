@@ -101,6 +101,7 @@ export default function PngToWebpPage() {
       )}
 
       <ToolSeo
+        tool="png-to-webp"
         title="How to Convert PNG to WebP"
         description="
           Upload your PNG image, click Convert to WebP

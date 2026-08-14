@@ -177,6 +177,7 @@ export default function FaviconGeneratorPage() {
       </section>
 
       <ToolSeo
+        tool="favicon-generator"
         title="How to Generate Favicons Online"
         description="
           Upload your logo or image and generate

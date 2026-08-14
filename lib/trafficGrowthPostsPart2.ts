@@ -41,7 +41,7 @@ These are starting points. Test them against your subject, channel style, and au
 When comparing concepts, change one major variable at a time: background color, subject crop, accent color, or text treatment. If every element changes, you learn less from the result. The guide to [LINK: thumbnail A/B testing|/blog/youtube-thumbnail-ab-testing] explains how to plan useful variations.
 
 [H2: Final recommendation]
-Use color to clarify hierarchy, not to manufacture emotion. Start with a strong idea, limit the palette, verify readability at small size, and keep the visual promise honest. For broader composition advice, read [LINK: what makes a thumbnail more clickable|/blog/what-makes-thumbnail-go-viral].
+Use color to clarify hierarchy, not to manufacture emotion. Start with a strong idea, limit the palette, verify readability at small size, and keep the visual promise honest. For broader composition advice, read [LINK: the practical thumbnail design guide|/blog/how-to-create-youtube-thumbnail].
 `,
   },
   {
@@ -55,7 +55,7 @@ Use color to clarify hierarchy, not to manufacture emotion. Start with a strong 
 [H2: What a thumbnail test can answer]
 A thumbnail test compares alternative visual approaches for the same video. It can help you learn whether viewers respond better to a tighter subject crop, clearer contrast, a different focal object, or a simpler composition. It cannot prove why every person made a choice, and one video's result may not generalize to an entire channel.
 
-Use YouTube Studio's available testing features when your account has access, or compare carefully planned changes over time. Follow the current instructions inside Studio because product availability and reporting can change.
+Use YouTube Studio's available testing features when your account has access, or compare carefully planned changes over time. YouTube's current [LINK: Test & Compare documentation|https://support.google.com/youtube/answer/13861714] explains eligibility, how to upload up to three variants, and how results use watch-time share. Follow the current instructions inside Studio because product availability and reporting can change.
 
 [H2: Start with a hypothesis]
 Do not create three random designs and hope the winner teaches you something. Write a simple hypothesis such as: a close crop will make the subject easier to recognize on mobile, or removing small text will improve clarity.
@@ -73,7 +73,7 @@ Useful test variables include:
 Minor changes such as moving an icon a few pixels may produce little practical insight. Completely unrelated concepts can produce a winner, but they make the reason harder to understand.
 
 [H2: Create consistent variants]
-Use [LINK: Pixores Thumbnail Maker|/youtube-thumbnail-maker] to duplicate a design and modify the intended variable while keeping dimensions, export settings, and overall quality consistent. Start with the recommended [LINK: YouTube thumbnail dimensions|/blog/best-youtube-thumbnail-size] so each version is evaluated on equal technical footing.
+Use [LINK: Pixores Thumbnail Maker|/youtube-thumbnail-maker] to duplicate a design and modify the intended variable while keeping dimensions, export settings, and overall quality consistent. Start with the recommended [LINK: YouTube thumbnail dimensions and design workflow|/blog/how-to-create-youtube-thumbnail] so each version is evaluated on equal technical footing.
 
 [H2: Give the test enough opportunity]
 Small samples can fluctuate. Avoid making a confident decision from a handful of impressions or a short unusual traffic spike. Consider traffic sources, audience familiarity, topic, and publication timing. A thumbnail shown to loyal subscribers may behave differently from one shown to new viewers.
@@ -235,7 +235,7 @@ Your framework may generate icon links from metadata configuration. In plain HTM
 Inspect the 16 × 16 version directly. If it turns into an indistinct blur, simplify the master or create a small-size variant with fewer details. Transparency can help a symbol adapt to different browser themes, but check the icon on light and dark backgrounds.
 
 [H2: Help search engines recognize the icon]
-Keep the favicon crawlable, stable, and representative of the website. Search engines choose whether and when to display it, so a correct file does not guarantee immediate appearance. Maintain consistent branding across the favicon, header logo, structured data, and site name.
+Keep the favicon crawlable, stable, and representative of the website. Google's current guidance requires a square favicon, supports files of at least 8 × 8 pixels, and recommends a size greater than 48 × 48 pixels. Search engines choose whether and when to display it, so a correct file does not guarantee immediate appearance. Verify implementation details in [LINK: Google's favicon documentation|https://developers.google.com/search/docs/appearance/favicon-in-search] and maintain consistent branding across the favicon, header logo, structured data, and site name.
 
 [H2: Account for browser themes and masks]
 Test the icon on white, dark gray, and colored backgrounds. A transparent dark symbol may disappear in a dark browser theme, while a white symbol can vanish on a pale surface. A contained shape with an intentional background often behaves more predictably.

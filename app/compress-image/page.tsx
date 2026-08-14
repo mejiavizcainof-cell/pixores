@@ -95,6 +95,7 @@ export default function CompressImagePage() {
       )}
 
       <ToolSeo
+        tool="compress-image"
         title="How to Compress Images Online"
         description="
           Upload your image, click Compress Image and

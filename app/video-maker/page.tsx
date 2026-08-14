@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import VideoMaker from "@/components/VideoMaker";
 import DesktopAuthGate from "@/components/DesktopAuthGate";
+import ToolSeo from "@/components/ToolSeo";
 
 export const metadata: Metadata = {
   title: "Free Video Maker",
@@ -83,6 +84,14 @@ export default async function VideoMakerPage({ searchParams }: VideoMakerPagePro
       <DesktopAuthGate required={isDesktopMode} showAccountDock={false}>
         <VideoMaker />
       </DesktopAuthGate>
+
+      {!isDesktopMode && (
+        <ToolSeo
+          tool="video-maker"
+          title="How to Prepare and Verify a Browser Video Project"
+          description="Choose the delivery format, organize source media, build a timeline, review audio and captions, and play the complete exported file before publishing."
+        />
+      )}
     </>
   );
 }

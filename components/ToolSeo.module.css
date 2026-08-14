@@ -1,0 +1,27 @@
+.guide { width: min(100% - 32px, 1040px); margin: 72px auto 56px; color: #334155; line-height: 1.75; }
+.intro { max-width: 820px; }
+.intro > span { color: #2563eb; font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.intro h2 { margin: 8px 0 14px; color: #0f172a; font-size: clamp(29px, 4vw, 40px); line-height: 1.15; }
+.intro p { margin: 0 0 14px; font-size: 17px; }
+.intro small { display: block; margin-top: 18px; color: #64748b; }
+.facts { margin: 30px 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.facts div { padding: 16px; border: 1px solid #dbe3ee; border-radius: 10px; background: #fff; }
+.facts dt { color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.facts dd { margin: 5px 0 0; color: #0f172a; font-size: 14px; font-weight: 750; }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.columns section, .privacy, .faq { padding: 24px; border: 1px solid #dbe3ee; border-radius: 12px; background: #fff; }
+.guide h3 { margin: 0 0 12px; color: #0f172a; font-size: 21px; }
+.guide ol, .guide ul { margin: 0; padding-left: 22px; }
+.guide li { margin: 7px 0; }
+.caution { margin-top: 18px; padding: 22px 24px; border: 1px solid #fed7aa; border-radius: 12px; background: #fff7ed; }
+.privacy, .faq { margin-top: 18px; }
+.privacy p { margin: 0; }
+.faq details { padding: 14px 0; border-top: 1px solid #e2e8f0; }
+.faq details:first-of-type { border-top: 0; }
+.faq summary { color: #0f172a; cursor: pointer; font-weight: 800; }
+.faq p { margin: 9px 0 0; }
+.related { margin-top: 18px; padding: 18px 20px; border-radius: 12px; background: #0f172a; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: #fff; }
+.related a { padding: 7px 10px; border-radius: 7px; background: #fff; color: #1d4ed8; font-size: 13px; font-weight: 800; text-decoration: none; }
+.simpleList { padding: 22px 22px 22px 42px; border: 1px solid #dbe3ee; border-radius: 12px; background: #fff; }
+@media (max-width: 760px) { .facts { grid-template-columns: repeat(2, 1fr); } .columns { grid-template-columns: 1fr; } }
+@media (max-width: 460px) { .guide { width: min(100% - 24px, 1040px); margin-top: 48px; } .facts { grid-template-columns: 1fr; } .columns section, .privacy, .faq { padding: 19px; } }
