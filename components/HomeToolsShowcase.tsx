@@ -11,6 +11,7 @@ import {
   Layers3,
   Maximize2,
   Palette,
+  Presentation,
   Search,
   Sparkles,
   Video,
@@ -20,6 +21,7 @@ import styles from "./DiscoveryPages.module.css";
 
 const featuredTools = [
   { title: "Pixores Thumbnail Maker", href: "/youtube-thumbnail-maker", description: "Design YouTube thumbnails and social graphics with editable layers.", category: "Create", badge: "Featured", icon: Layers3 },
+  { title: "Presentation Maker", href: "/presentation-maker", description: "Build editable presentations with modern templates and PowerPoint export.", category: "Create", badge: "New", icon: Presentation },
   { title: "Pixores Video Maker", href: "/video-maker", description: "Make short videos with social formats, text overlays, and browser export.", category: "Create", badge: "New", icon: Video },
   { title: "Design Templates", href: "/templates", description: "Customize ready-made layouts for popular social formats.", category: "Create", badge: "Featured", icon: Palette },
   { title: "AI Background Remover", href: "/remove-background", description: "Remove backgrounds and download a transparent PNG.", category: "AI", badge: "AI", icon: WandSparkles },

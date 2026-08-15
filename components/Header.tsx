@@ -17,6 +17,7 @@ const navItems = [
 
 const creatorItems = [
   { href: "/youtube-thumbnail-maker", label: "Thumbnail Creator" },
+  { href: "/presentation-maker", label: "Presentation Maker" },
   { href: "/video-maker", label: "Quick Video Maker" },
   { href: "/desktop", label: "Video Maker Pro" },
 ];

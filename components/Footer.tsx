@@ -8,6 +8,7 @@ const footerGroups = [
     title: "Create",
     links: [
       { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
+      { href: "/presentation-maker", label: "Presentation Maker" },
       { href: "/video-maker", label: "Quick Video Maker" },
       { href: "/desktop", label: "Video Maker Pro" },
       { href: "/templates", label: "Design Templates" },
