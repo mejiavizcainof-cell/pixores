@@ -1,0 +1,7 @@
+year,format,organization,compression,transparency,animation,typical_strength,primary_source
+1987,GIF87a,CompuServe,"lossless indexed","single transparent palette entry","multiple images; looping popularized later","simple limited-color graphics",https://www.w3.org/Graphics/GIF/spec-gif87.txt
+1989,GIF89a,CompuServe,"lossless indexed","single transparent palette entry","timing and application extensions","simple limited-color loops",https://www.w3.org/Graphics/GIF/spec-gif89a.txt
+1992,JPEG,"ISO/IEC and ITU-T",lossy,no,no,"photographs and continuous tone",https://jpeg.org/jpeg/
+1996,PNG 1.0,W3C,lossless,"full alpha",no,"screenshots diagrams and cutouts",https://www.w3.org/TR/PNG-History.html
+2010,WebP,Google,"lossy or lossless",alpha,yes,"general modern web delivery",https://developers.google.com/speed/webp/docs/riff_container
+2019,AVIF,"Alliance for Open Media","lossy or lossless",alpha,"image sequences","efficient photos HDR and wide color",https://aomediacodec.github.io/av1-avif/

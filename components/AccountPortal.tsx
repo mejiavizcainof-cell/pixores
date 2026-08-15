@@ -75,6 +75,18 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
     setMessage("Signed in successfully. You can return to Pixores Desktop.");
   }
 
+  async function signOut() {
+    setLoading(true);
+    const { error } = await supabase.auth.signOut();
+    setLoading(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setSignedInEmail("");
+    setMessage("Signed out successfully.");
+  }
+
   return (
     <main className={styles.page}>
       <section className={styles.card}>
@@ -84,7 +96,12 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
             <CheckCircle2 size={42} />
             <h1>Your Pixores account is ready</h1>
             <p>Signed in as <strong>{signedInEmail}</strong>. Return to Pixores Desktop to continue.</p>
-            <Link href="/tools">Explore Pixores tools <ArrowRight size={17} /></Link>
+            <div className={styles.successActions}>
+              <Link href="/tools">Explore Pixores tools <ArrowRight size={17} /></Link>
+              <button type="button" onClick={() => void signOut()} disabled={loading}>
+                {loading ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
           </div>
         ) : (
           <>

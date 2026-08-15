@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import { SITE_URL } from "@/lib/seo";
 import { blogPosts } from "@/lib/blogPosts";
 import { blogRelations } from "@/lib/blogRelations";
 import { resolveBlogSlug, retiredBlogSlugs } from "@/lib/blogRedirects";
 import { formatBlogContent, formatStoredBlogContent } from "@/lib/formatBlogContent";
+import { historyArticleGuides } from "@/lib/historyArticleGuides";
 import styles from "./blogPost.module.css";
 
 type BlogPostPageProps = {
@@ -29,10 +32,23 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabaseServer = createClient(supabaseUrl, supabaseAnonKey);
 
-async function getPost(slug: string): Promise<BlogPost | null> {
+const getPost = cache(async (slug: string): Promise<BlogPost | null> => {
   if (retiredBlogSlugs.has(slug)) return null;
 
   const localPost = blogPosts.find((post) => post.slug === slug);
+  if (localPost) {
+    return {
+      id: `local-${localPost.slug}`,
+      title: localPost.title,
+      slug: localPost.slug,
+      description: localPost.description,
+      cover_image: localPost.image,
+      content: formatBlogContent(localPost.content, localPost.title),
+      published: true,
+      created_at: localPost.date,
+    };
+  }
+
   const { data, error } = await supabaseServer
     .from("blog_posts")
     .select(
@@ -45,25 +61,15 @@ async function getPost(slug: string): Promise<BlogPost | null> {
   if (!error && data) {
     return {
       ...data,
-      content:
-        localPost && !/<h[23][\s>]/i.test(data.content)
-          ? formatBlogContent(localPost.content, localPost.title)
-          : formatStoredBlogContent(data.content),
+      content: formatStoredBlogContent(data.content),
     };
   }
 
-  if (!localPost) return null;
+  return null;
+});
 
-  return {
-    id: `local-${localPost.slug}`,
-    title: localPost.title,
-    slug: localPost.slug,
-    description: localPost.description,
-    cover_image: localPost.image,
-    content: formatBlogContent(localPost.content, localPost.title),
-    published: true,
-    created_at: localPost.date,
-  };
+export function generateStaticParams() {
+  return blogPosts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -82,6 +88,7 @@ export async function generateMetadata({
   const image = new URL(post.cover_image || "/og-image.png", SITE_URL).toString();
   const localPost = blogPosts.find((item) => item.slug === slug);
   const publishedTime = localPost?.date || post.created_at;
+  const modifiedTime = historyArticleGuides[slug]?.updatedAt || publishedTime;
 
   return {
     title: post.title,
@@ -96,7 +103,7 @@ export async function generateMetadata({
       url,
       type: "article",
       publishedTime,
-      modifiedTime: publishedTime,
+      modifiedTime,
       authors: [`${SITE_URL}/editorial-policy`],
       images: [
         {
@@ -125,6 +132,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const localPost = blogPosts.find((item) => item.slug === slug);
   const publishedAt = localPost?.date || post.created_at;
   const publishedDate = new Date(publishedAt.includes("T") ? publishedAt : `${publishedAt}T12:00:00Z`);
+  const historyGuide = historyArticleGuides[slug];
+  const modifiedAt = historyGuide?.updatedAt || publishedAt;
   const relatedPosts = (blogRelations[slug] || [])
     .map((relatedSlug) => resolveBlogSlug(relatedSlug))
     .filter((relatedSlug, index, slugs) => slugs.indexOf(relatedSlug) === index)
@@ -139,7 +148,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     description: post.description,
     image: imageUrl,
     datePublished: publishedAt,
-    dateModified: publishedAt,
+    dateModified: modifiedAt,
     mainEntityOfPage: canonicalUrl,
     author: {
       "@type": "Organization",
@@ -155,13 +164,25 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       },
     },
   };
+  const structuredData = [
+    articleSchema,
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name: "Blog", item: `${SITE_URL}/blog` },
+        { "@type": "ListItem", position: 3, name: post.title, item: canonicalUrl },
+      ],
+    },
+  ];
 
   return (
     <main className={styles.page}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(articleSchema).replace(/</g, "\\u003c"),
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
         }}
       />
       <Link
@@ -192,23 +213,78 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           })}
         </time>
 
+        {historyGuide && (
+          <time dateTime={historyGuide.updatedAt} className={styles.updatedDate}>
+            Substantially updated August 15, 2026
+          </time>
+        )}
+
         <div className={styles.byline}>
           <span>Written and reviewed by <Link href="/editorial-policy">Pixores Editorial Team</Link></span>
           <span>Practical guidance reviewed against the current Pixores tools and primary documentation.</span>
         </div>
 
-        {post.cover_image && (
-          <img
-            src={post.cover_image}
-            alt={post.title}
-            className={styles.cover}
-          />
+        {post.cover_image &&
+          (post.cover_image.startsWith("/") ? (
+            <Image
+              src={post.cover_image}
+              alt={post.title}
+              width={1200}
+              height={675}
+              sizes="(max-width: 640px) calc(100vw - 32px), 872px"
+              preload
+              className={styles.cover}
+            />
+          ) : (
+            <Image
+              src={post.cover_image}
+              alt={post.title}
+              width={1200}
+              height={675}
+              sizes="(max-width: 640px) calc(100vw - 32px), 872px"
+              unoptimized
+              className={styles.cover}
+            />
+          ))}
+
+        {historyGuide && (
+          <aside className={styles.quickAnswer} aria-labelledby="history-quick-answer">
+            <p className={styles.quickAnswerEyebrow}>{historyGuide.eyebrow}</p>
+            <h2 id="history-quick-answer">{historyGuide.answerTitle}</h2>
+            <p>{historyGuide.answer}</p>
+            <dl className={styles.factGrid}>
+              {historyGuide.facts.map((fact) => (
+                <div key={fact.label}>
+                  <dt>{fact.label}</dt>
+                  <dd>{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </aside>
         )}
 
         <div
           className={styles.content}
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
+
+        {historyGuide && (
+          <section className={styles.nextSteps} aria-labelledby="history-next-steps">
+            <div>
+              <p className={styles.quickAnswerEyebrow}>Continue the research or try the workflow</p>
+              <h2 id="history-next-steps">Use what you learned</h2>
+            </div>
+            <div className={styles.nextStepGrid}>
+              {historyGuide.nextSteps.map((item) => (
+                <Link key={item.href} href={item.href} className={styles.nextStepCard}>
+                  <strong>{item.label}</strong>
+                  <span>{item.description}</span>
+                  <small>Open resource →</small>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {relatedPosts.length > 0 && (
           <section className={styles.related}>
@@ -222,10 +298,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                   href={`/blog/${relatedPost.slug}`}
                   className={styles.relatedCard}
                 >
-                  <img
+                  <Image
                     src={relatedPost.image}
                     alt=""
-                    loading="lazy"
+                    width={600}
+                    height={338}
+                    sizes="(max-width: 640px) calc(100vw - 32px), 420px"
                     className={styles.relatedImage}
                   />
                   <span className={styles.relatedCardTitle}>

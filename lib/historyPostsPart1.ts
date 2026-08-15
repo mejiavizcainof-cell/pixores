@@ -1,12 +1,14 @@
 export const historyPostsPart1 = [
   {
     slug: "history-of-png",
-    title: "The History of PNG: Why the Web Needed a New Image Format",
-    description: "Discover why PNG was created, how its lossless compression and transparency work, and when this open web format remains the right choice.",
+    title: "When Was PNG Invented? PNG History, Origin, and Creators",
+    description: "PNG began in 1994 and became a W3C standard in 1996. Learn who created PNG, why it replaced GIF for many web graphics, and how it works.",
     date: "2026-06-23",
     image: "/blog/history-of-png.webp",
     content: `
 [H2: Introduction]
+PNG was invented as a community project beginning in late 1994. Thomas Boutell coordinated the initial specification, and PNG 1.0 became a W3C Recommendation in October 1996. Its immediate purpose was to give the web an openly specified, lossless alternative to GIF without the same LZW patent uncertainty.
+
 PNG is so familiar that it is easy to mistake it for a format that simply appeared with the web. Its real history is more revealing. Portable Network Graphics emerged from a practical conflict involving software patents, licensing uncertainty, and the need for a dependable, openly specified image format. Developers wanted an alternative to GIF that could preserve exact pixels, support more colors, travel safely between computers, and remain available without a per-program licensing cloud.
 
 That origin still explains PNG's character today. It is not designed to make every photograph as small as possible. It is designed to reproduce decoded pixels exactly, preserve hard edges, and carry transparency reliably. Screenshots, diagrams, interface elements, logos, and cutout graphics benefit from those priorities. Understanding the history makes modern format decisions less arbitrary: PNG is not simply “higher quality JPG,” but a tool built for a different job.
@@ -143,12 +145,14 @@ JPEG made digital photographs affordable to store, practical to transmit, and ea
   },
   {
     slug: "history-of-gif",
-    title: "The History of GIF: From Online Service Format to Internet Culture",
-    description: "Trace GIF from CompuServe's 1987 specification through patent controversy, browser animation, and its lasting role in online expression.",
+    title: "When Was GIF Invented? GIF87a, GIF89a, and GIF History",
+    description: "CompuServe introduced GIF in 1987. Learn who created GIF, what changed in GIF89a, how animation emerged, and why the format survived.",
     date: "2026-06-23",
     image: "/blog/history-of-gif.webp",
     content: `
 [H2: Introduction]
+GIF was invented at CompuServe in 1987 by an engineering team led by Steve Wilhite. The original specification is known as GIF87a. GIF89a followed in 1989 and added control information used for timing, transparency, comments, and application extensions.
+
 Few file formats have lived as many lives as GIF. It began as an efficient way for an online service to exchange color graphics across incompatible computers. It later became a source of patent controversy, an early-web design staple, a home for blinking banners, and eventually a shorthand for short looping reactions. People often call every silent loop a GIF even when the file delivered is actually an MP4 or WebM video.
 
 That cultural reach can obscure the engineering. GIF uses indexed color, LZW lossless compression, and a container structure that can hold multiple images and timing instructions. Its limits—especially 256 colors per frame and simple transparency—are severe by modern standards. Yet predictable support and a self-playing loop made it unusually resilient.

@@ -17,3 +17,7 @@
 .success > svg { color: #2bd8d0; }
 .success p { color: #9aa9bc; line-height: 1.55; }
 .success a { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; color: #071014; background: #2bd8d0; padding: 11px 15px; border-radius: 10px; font-weight: 900; text-decoration: none; }
+.successActions { margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; }
+.successActions a { margin-top: 0; }
+.successActions button { padding: 11px 15px; border: 1px solid #3a4960; border-radius: 10px; color: #dbe7f5; background: #151f2f; font: inherit; font-weight: 850; cursor: pointer; }
+.successActions button:disabled { opacity: .62; cursor: wait; }
