@@ -11,6 +11,7 @@ const publicPages = [
   { path: "/crop-image", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/watermark-image", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/youtube-thumbnail-maker", changeFrequency: "weekly" as const, priority: 0.95 },
+  { path: "/presentation-maker", changeFrequency: "weekly" as const, priority: 0.9 },
   { path: "/video-maker", changeFrequency: "weekly" as const, priority: 0.95 },
   { path: "/desktop", changeFrequency: "weekly" as const, priority: 0.9 },
   { path: "/templates", changeFrequency: "weekly" as const, priority: 0.75 },
