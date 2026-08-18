@@ -13,7 +13,7 @@ An image can look sharp in your editor and still appear soft, awkwardly cropped,
 Dimensions change occasionally as platforms redesign their interfaces. Treat the sizes below as reliable working canvases, then preview the final upload before publishing. A platform may accept a larger file while displaying it at a smaller size.
 
 [H2: Practical working sizes]
-- YouTube thumbnail: 1280 × 720 pixels, 16:9
+- YouTube thumbnail: YouTube currently recommends 3840 × 2160 pixels at 16:9; 1280 × 720 remains a practical 720p working canvas. Confirm the latest limits in [LINK: YouTube's official thumbnail help|https://support.google.com/youtube/answer/72431].
 - Instagram square post: 1080 × 1080 pixels, 1:1
 - Instagram portrait post: 1080 × 1350 pixels, 4:5
 - Reels, Stories, and TikTok: 1080 × 1920 pixels, 9:16
@@ -56,7 +56,7 @@ Do not chase every possible display size. Create strong masters in four common r
 [H2: The short answer]
 Use JPEG when broad compatibility and a simple photo workflow matter most. Use WebP when you want a strong balance of smaller files, good visual quality, transparency, and mature browser support. Consider AVIF when the smallest practical web delivery size is a priority and your publishing stack can generate and test fallbacks reliably.
 
-No format wins every comparison. The right choice depends on the image, the audience, the software that must open it, and what happens after download.
+No format wins every comparison. The right choice depends on the image, the audience, the software that must open it, and what happens after download. [LINK: MDN's image file type guide|https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Image_types] documents the capabilities and compatibility considerations behind these formats.
 
 [H2: JPEG remains useful]
 JPEG is still one of the easiest formats to share. Cameras, phones, editors, content management systems, and social platforms understand it. It works especially well for photographs with continuous color and does not support transparency. Repeatedly editing and saving a JPEG can introduce visible artifacts, so keep an original master.
@@ -84,7 +84,7 @@ For production websites, test AVIF on representative images rather than assuming
 A quality value of 80 in one encoder is not equivalent to 80 in another. Compare actual output, not the number in the interface. Zoom in to detect halos, banding, block artifacts, color shifts, and damaged text. Then check the file at its real display size, where minor differences may be invisible.
 
 [H2: Use a master-and-derivative workflow]
-Keep one high-quality original, preferably in a lossless or minimally processed form. Generate delivery copies for each destination. This prevents a small social image or heavily compressed website file from becoming the source for future work. Learn more in [LINK: how to reduce image size without losing useful quality|/blog/reduce-image-size-without-losing-quality].
+Keep one high-quality original, preferably in a lossless or minimally processed form. Generate delivery copies for each destination. This prevents a small social image or heavily compressed website file from becoming the source for future work. Learn more in [LINK: how to compress delivery images without losing useful quality|/blog/compress-images-for-website-seo].
 
 [H2: Final recommendation]
 For most Pixores users, WebP is the easiest modern web format, JPEG is the safest universal photo format, and AVIF is worth testing for carefully managed websites. Choose based on the full workflow rather than file size alone.
@@ -223,7 +223,7 @@ Only remove and reuse images you created or have permission to edit. A technical
 Save the full-resolution transparent PNG before adding text, outlines, or a new background. That master can be reused in [LINK: Pixores Thumbnail Maker|/youtube-thumbnail-maker], social posts, and future designs without repeating the removal process.
 
 [H2: Final checklist]
-Use a sharp source, review difficult edges, test the cutout on multiple colors, export to a transparency-capable format, and keep the master. For more background-removal advice, read [LINK: How to Remove Image Backgrounds for Free|/blog/remove-image-background-free].
+Use a sharp source, review difficult edges, test the cutout on multiple colors, export to a transparency-capable format, and keep the master. Create the cutout with the [LINK: Pixores background remover|/remove-background], then reuse the master in future designs.
 `,
   },
 ];

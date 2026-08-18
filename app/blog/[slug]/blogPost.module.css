@@ -47,11 +47,34 @@
 
 .date {
   display: block;
-  margin: 0 0 32px;
+  margin: 0 0 14px;
   color: #64748b;
   font-size: 14px;
   font-weight: 650;
   letter-spacing: 0.02em;
+}
+
+.byline {
+  margin: 0 0 32px;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f8fbff;
+  display: grid;
+  gap: 4px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.byline a {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.byline span:last-child {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .cover {

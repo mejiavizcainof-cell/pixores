@@ -42,7 +42,7 @@ export async function requireAiCredit(request: Request): Promise<AiCreditSession
     throw new AiCreditError("Credits could not be verified.", 500, "CREDIT_CHECK_FAILED");
   }
 
-  let credits = creditRow?.credits ?? 5;
+  const credits = creditRow?.credits ?? 5;
 
   if (!creditRow) {
     const { error: insertError } = await supabase.from("user_credits").insert({

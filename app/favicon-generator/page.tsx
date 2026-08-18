@@ -157,7 +157,7 @@ export default function FaviconGeneratorPage() {
         }}
       >
         <h2>
-          What's Included?
+          What&apos;s Included?
         </h2>
 
         <p>
@@ -177,6 +177,7 @@ export default function FaviconGeneratorPage() {
       </section>
 
       <ToolSeo
+        tool="favicon-generator"
         title="How to Generate Favicons Online"
         description="
           Upload your logo or image and generate

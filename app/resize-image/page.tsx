@@ -246,6 +246,7 @@ export default function ResizeImagePage() {
       )}
 
       <ToolSeo
+        tool="resize-image"
         title="How to Resize Images Online"
         description="
           Upload your image, enter the desired width
@@ -303,7 +304,7 @@ export default function ResizeImagePage() {
         <h3>Best Image Sizes for Social Media</h3>
 
         <p>
-          Whether you're creating content for Instagram,
+          Whether you&apos;re creating content for Instagram,
           Facebook, YouTube, LinkedIn, Pinterest, X or
           TikTok, these recommended image dimensions help
           ensure the best appearance across desktop and

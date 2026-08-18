@@ -129,9 +129,25 @@ function cleanRecentProject(project) {
   };
 }
 
-export function createDesktopProjectHandlers({ app, dialog, state }) {
+export function createDesktopProjectHandlers({ app, dialog, state, getMainWindow }) {
   const projectsDir = path.join(app.getPath("documents"), "Pixores Video Projects");
   const recentsPath = path.join(app.getPath("userData"), "video-maker-recent-projects.json");
+
+  function getDialogParent() {
+    const candidate = typeof getMainWindow === "function" ? getMainWindow() : null;
+    if (!candidate || candidate.isDestroyed?.()) return null;
+    return candidate;
+  }
+
+  function showSaveProjectDialog(options) {
+    const parent = getDialogParent();
+    return parent ? dialog.showSaveDialog(parent, options) : dialog.showSaveDialog(options);
+  }
+
+  function showOpenProjectDialog(options) {
+    const parent = getDialogParent();
+    return parent ? dialog.showOpenDialog(parent, options) : dialog.showOpenDialog(options);
+  }
 
   async function readRecentProjects() {
     try {
@@ -271,7 +287,7 @@ export function createDesktopProjectHandlers({ app, dialog, state }) {
       await fs.mkdir(projectsDir, { recursive: true });
 
       const defaultPath = path.join(projectsDir, safePackageName(payload.title));
-      const result = await dialog.showSaveDialog({
+      const result = await showSaveProjectDialog({
         title: "Save Pixores video project",
         defaultPath,
         filters: [
@@ -299,7 +315,7 @@ export function createDesktopProjectHandlers({ app, dialog, state }) {
     },
 
     async openProjectPackage() {
-      const result = await dialog.showOpenDialog({
+      const result = await showOpenProjectDialog({
         title: "Open Pixores video project",
         properties: ["openFile"],
         filters: [

@@ -3,18 +3,21 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AudioLines,
   ArrowRight,
   Crop,
   Download,
   Eraser,
   FileImage,
   FileOutput,
+  FileText,
   Gauge,
   ImageDown,
   ImagePlus,
   Images,
   Maximize2,
   Palette,
+  Presentation,
   RefreshCw,
   Search,
   Sparkles,
@@ -24,8 +27,10 @@ import {
 import styles from "./DiscoveryPages.module.css";
 
 const tools = [
+  { title: "Pixores Audio Studio", href: "/audio-studio", description: "Convert audio formats locally and manage authorized downloads by URL in Video Maker Pro.", category: "Convert", badge: "New", icon: AudioLines },
   { title: "Pixores Thumbnail Maker", href: "/youtube-thumbnail-maker", description: "Build YouTube thumbnails with layers, text, frames, and templates.", category: "Creator", badge: "Featured", icon: Palette },
-  { title: "Pixores Video Maker", href: "/video-maker", description: "Create short social videos with media, text overlays, social formats, and WebM export.", category: "Creator", badge: "New", icon: Video },
+  { title: "Pixores Presentation Maker", href: "/presentation-maker", description: "Create, present, and export editable widescreen decks with modern templates.", category: "Creator", badge: "New", icon: Presentation },
+  { title: "Pixores Quick Video Maker", href: "/video-maker", description: "Create short social videos online with media, text overlays, social formats, and browser export.", category: "Creator", badge: "New", icon: Video },
   { title: "Design Templates", href: "/templates", description: "Start with editable designs for YouTube, Instagram, Facebook, sports, gaming, and business.", category: "Creator", badge: "Featured", icon: Images },
   { title: "AI Background Remover", href: "/remove-background", description: "Remove an image background and download a transparent PNG.", category: "AI", badge: "AI", icon: WandSparkles },
   { title: "AI Image Upscaler", href: "/image-upscaler", description: "Increase image resolution by 2x or 4x while preserving important details.", category: "AI", badge: "AI", icon: Sparkles },
@@ -43,7 +48,7 @@ const tools = [
   { title: "WebP to PNG", href: "/webp-to-png", description: "Convert WebP images to PNG format.", category: "Convert", icon: Download },
   { title: "HEIC to JPG", href: "/heic-to-jpg", description: "Convert iPhone HEIC photos to compatible JPG files.", category: "Convert", icon: FileImage },
   { title: "JPG to PDF", href: "/jpg-to-pdf", description: "Combine JPG images into a downloadable PDF document.", category: "Convert", icon: FileOutput },
-  { title: "Instagram Reel Saver Guide", href: "/instagram-reel-downloader", description: "Learn safe options for saving Reels you own or have permission to use.", category: "Other", icon: Video },
+  { title: "Word & PDF Converter", href: "/document-converter", description: "Convert DOCX to PDF or rebuild a PDF as an editable Word document.", category: "Convert", badge: "New", icon: FileText },
 ];
 
 const categories = ["All", "Creator", "AI", "Edit", "Optimize", "Convert", "Other"];

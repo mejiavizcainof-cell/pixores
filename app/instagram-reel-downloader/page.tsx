@@ -9,8 +9,9 @@ export const metadata: Metadata = {
     canonical: "https://www.pixores.com/instagram-reel-downloader",
   },
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
   },
 };
 
@@ -160,7 +161,7 @@ export default function InstagramReelDownloaderPage() {
             Recommended method
           </h2>
           <p style={{ color: "#475569", lineHeight: 1.8 }}>
-            For AdSense-safe usage, use Instagram's own export and saving tools
+            For AdSense-safe usage, use Instagram&apos;s own export and saving tools
             when possible. If you need to edit a Reel, save your original video
             from your phone, drafts, camera roll, or Instagram account export,
             then upload it to Pixores tools for editing or thumbnails.
@@ -181,7 +182,7 @@ export default function InstagramReelDownloaderPage() {
           <p style={{ color: "#7F1D1D", lineHeight: 1.8 }}>
             Pixores does not provide tools to scrape Instagram, download reels
             from private profiles, remove watermarks, bypass logins, or copy
-            someone else's copyrighted video without permission.
+            someone else&apos;s copyrighted video without permission.
           </p>
         </article>
       </section>

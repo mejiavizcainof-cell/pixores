@@ -73,6 +73,7 @@ export default function HeicToJpgPage() {
       </button>
 
       <ToolSeo
+        tool="heic-to-jpg"
         title="How to Convert HEIC to JPG"
         description="
           Upload your HEIC image, click Convert to JPG

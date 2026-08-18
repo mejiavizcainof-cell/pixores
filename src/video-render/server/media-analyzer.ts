@@ -24,6 +24,8 @@ type FfprobeStream = {
   r_frame_rate?: string;
   sample_rate?: string;
   channels?: number;
+  tags?: { rotate?: string };
+  side_data_list?: Array<{ rotation?: number }>;
 };
 
 type FfprobeOutput = {
@@ -47,6 +49,13 @@ function parseFps(value?: string) {
   if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return undefined;
   const fps = num / den;
   return Number.isFinite(fps) && fps > 0 ? Number(fps.toFixed(3)) : undefined;
+}
+
+function parseDisplayRotation(stream?: FfprobeStream) {
+  const sideDataRotation = stream?.side_data_list?.find((item) => Number.isFinite(Number(item.rotation)))?.rotation;
+  const value = parseNumber(sideDataRotation ?? stream?.tags?.rotate);
+  if (value === undefined) return undefined;
+  return ((Math.round(value / 90) * 90) % 360 + 360) % 360;
 }
 
 async function findFfprobePath() {
@@ -95,6 +104,7 @@ function normalizeFfprobeMetadata(output: FfprobeOutput, options: AnalyzeOptions
     bitrate,
     width: videoStream?.width,
     height: videoStream?.height,
+    rotation: parseDisplayRotation(videoStream),
     fps: parseFps(videoStream?.avg_frame_rate || videoStream?.r_frame_rate),
     codec: videoStream?.codec_name,
     pixelFormat: videoStream?.pix_fmt,

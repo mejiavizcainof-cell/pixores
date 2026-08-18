@@ -12,6 +12,7 @@ import {
   Type,
   Upload,
 } from "lucide-react";
+import ToolSeo from "@/components/ToolSeo";
 import styles from "./WatermarkTool.module.css";
 
 type WatermarkMode = "text" | "logo";
@@ -383,6 +384,12 @@ export default function WatermarkTool() {
       )}
 
       <section className={styles.details}><h2>Protect and identify your images</h2><p>Add a discreet signature, brand logo, or repeated watermark without uploading your private files to a server.</p></section>
+
+      <ToolSeo
+        tool="watermark-image"
+        title="How to Add a Watermark Without Hiding the Image"
+        description="Apply a text or logo watermark locally, check placement and opacity, and export one image or a consistent batch without uploading the source files."
+      />
 
       {isProcessing && <div className={styles.processingOverlay}><div><span className={styles.spinner} /><strong>Adding watermark...</strong><div className={styles.progressTrack}><i style={{ width: `${progress}%` }} /></div><b>{progress}%</b></div></div>}
     </main>

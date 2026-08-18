@@ -2,19 +2,19 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { analyzeMediaFile } from "@/src/video-render/server/media-analyzer";
+import { getVideoMakerUploadDirectory } from "@/src/video-render/server/upload-storage";
 
 /**
  * Local persistent upload endpoint for Video Maker assets.
  *
  * This is the first storage adapter before moving to Supabase Storage or R2.
- * Files are saved under public/uploads/video-maker so Remotion can read them
- * through stable project URLs instead of temporary blob URLs.
+ * Files are saved outside the application source/public tree so local media
+ * cannot be traced into a Next.js build or desktop installer.
  */
 
 export const runtime = "nodejs";
 
-const uploadDir = path.join(process.cwd(), "public", "uploads", "video-maker");
-const publicUploadPath = "/uploads/video-maker";
+const publicUploadPath = "/api/video-maker/assets";
 
 function safeFilename(name: string) {
   const extension = path.extname(name).toLowerCase().replace(/[^a-z0-9.]/g, "");
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, error: "Missing file" }, { status: 400 });
     }
 
+    const uploadDir = getVideoMakerUploadDirectory();
     await fs.mkdir(uploadDir, { recursive: true });
 
     const filename = safeFilename(file.name);
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
 
     return Response.json({
       ok: true,
-      assetUrl: `${publicUploadPath}/${filename}`,
+      assetUrl: `${publicUploadPath}/${encodeURIComponent(filename)}`,
       filename,
       mimeType: file.type || "application/octet-stream",
       size: file.size,

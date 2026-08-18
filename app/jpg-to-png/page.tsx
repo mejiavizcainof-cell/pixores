@@ -96,6 +96,7 @@ export default function JpgToPngPage() {
       )}
 
       <ToolSeo
+        tool="jpg-to-png"
         title="How to Convert JPG to PNG"
         description="
           Upload your JPG image, click Convert to PNG

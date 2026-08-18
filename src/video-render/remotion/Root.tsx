@@ -1,6 +1,7 @@
 import { Composition } from "remotion";
 import PixoresComposition from "./PixoresComposition";
 import type { PixoresVideoProject } from "../types";
+import { calculateDurationInFrames, calculateProjectDuration } from "../timeline";
 
 /**
  * Remotion root for Pixores server renders.
@@ -32,12 +33,12 @@ export default function Root() {
       fps={fps}
       width={defaultProject.canvas.width}
       height={defaultProject.canvas.height}
-      durationInFrames={Math.ceil(defaultProject.duration * fps)}
+      durationInFrames={calculateDurationInFrames(defaultProject.duration, fps)}
       defaultProps={{ project: defaultProject }}
       calculateMetadata={({ props }) => {
         const project = props.project as PixoresVideoProject;
         return {
-          durationInFrames: Math.max(1, Math.ceil(project.duration * fps)),
+          durationInFrames: calculateDurationInFrames(calculateProjectDuration(project.layers), fps),
           width: Math.max(1, Math.round(project.canvas.width)),
           height: Math.max(1, Math.round(project.canvas.height)),
         };

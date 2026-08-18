@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SITE_URL } from "@/lib/seo";
 import { blogPosts } from "@/lib/blogPosts";
 import { blogRelations } from "@/lib/blogRelations";
+import { resolveBlogSlug, retiredBlogSlugs } from "@/lib/blogRedirects";
 import { formatBlogContent, formatStoredBlogContent } from "@/lib/formatBlogContent";
 import styles from "./blogPost.module.css";
 
@@ -29,6 +30,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServer = createClient(supabaseUrl, supabaseAnonKey);
 
 async function getPost(slug: string): Promise<BlogPost | null> {
+  if (retiredBlogSlugs.has(slug)) return null;
+
   const localPost = blogPosts.find((post) => post.slug === slug);
   const { data, error } = await supabaseServer
     .from("blog_posts")
@@ -83,7 +86,7 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.description,
-    authors: [{ name: "Pixores", url: SITE_URL }],
+    authors: [{ name: "Pixores Editorial Team", url: `${SITE_URL}/editorial-policy` }],
     alternates: {
       canonical: url,
     },
@@ -94,7 +97,7 @@ export async function generateMetadata({
       type: "article",
       publishedTime,
       modifiedTime: publishedTime,
-      authors: [SITE_URL],
+      authors: [`${SITE_URL}/editorial-policy`],
       images: [
         {
           url: image,
@@ -123,6 +126,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const publishedAt = localPost?.date || post.created_at;
   const publishedDate = new Date(publishedAt.includes("T") ? publishedAt : `${publishedAt}T12:00:00Z`);
   const relatedPosts = (blogRelations[slug] || [])
+    .map((relatedSlug) => resolveBlogSlug(relatedSlug))
+    .filter((relatedSlug, index, slugs) => slugs.indexOf(relatedSlug) === index)
     .map((relatedSlug) => blogPosts.find((item) => item.slug === relatedSlug))
     .filter((item): item is (typeof blogPosts)[number] => Boolean(item));
   const canonicalUrl = `${SITE_URL}/blog/${post.slug}`;
@@ -138,8 +143,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     mainEntityOfPage: canonicalUrl,
     author: {
       "@type": "Organization",
-      name: "Pixores",
-      url: SITE_URL,
+      name: "Pixores Editorial Team",
+      url: `${SITE_URL}/editorial-policy`,
     },
     publisher: {
       "@type": "Organization",
@@ -186,6 +191,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             timeZone: "UTC",
           })}
         </time>
+
+        <div className={styles.byline}>
+          <span>Written and reviewed by <Link href="/editorial-policy">Pixores Editorial Team</Link></span>
+          <span>Practical guidance reviewed against the current Pixores tools and primary documentation.</span>
+        </div>
 
         {post.cover_image && (
           <img

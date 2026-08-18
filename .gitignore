@@ -20,6 +20,24 @@
 # production
 /build
 
+# local desktop packages and release artifacts
+/release*/
+/output/
+
+# local render, smoke-test, and extracted application workspaces
+/.tmp-*
+/tmp-*/
+/.runtime-data/
+
+# generated browser runtime assets and manifests
+/public/pdf.worker.min.mjs
+/public/video-maker-assets/library.json
+/public/video-maker-assets/mediapipe/wasm/
+
+# desktop-only bundled media (kept in local release builds, not web deploys)
+/public/video-maker-assets/sound-effects/
+/public/video-maker-assets/video-backgrounds/
+
 # misc
 .DS_Store
 *.pem

@@ -12,7 +12,9 @@ const footerGroups = [
     title: "Create",
     links: [
       { href: "/youtube-thumbnail-maker", label: "Thumbnail Maker" },
+      { href: "/presentation-maker", label: "Presentation Maker" },
       { href: "/video-maker", label: "Quick Video Maker" },
+      { href: "/audio-studio", label: "Audio Studio" },
       { href: "/desktop", label: "Video Maker Pro" },
       { href: "/templates", label: "Design Templates" },
     ],
@@ -24,6 +26,7 @@ const footerGroups = [
       { href: "/image-upscaler", label: "Image Upscaler" },
       { href: "/crop-image", label: "Crop Image" },
       { href: "/watermark-image", label: "Add Watermark" },
+      { href: "/document-converter", label: "Word & PDF Converter" },
       { href: "/tools", label: "View all tools" },
     ],
   },
@@ -31,6 +34,7 @@ const footerGroups = [
     title: "Pixores",
     links: [
       { href: "/about", label: "About" },
+      { href: "/editorial-policy", label: "Editorial Policy" },
       { href: "/blog", label: "Guides & Blog" },
       { href: "/faq", label: "Help Center" },
       { href: "/contact", label: "Contact" },

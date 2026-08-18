@@ -156,7 +156,7 @@ export default function AiImageTool({ mode }: AiImageToolProps) {
         {status && <p className={styles.status} role="alert">{status}</p>}
       </section>
 
-      <ToolSeo title={copy.seoTitle} description={copy.seoDescription} benefits={[...copy.benefits]} />
+      <ToolSeo tool={mode === "remove-background" ? "remove-background" : "image-upscaler"} title={copy.seoTitle} description={copy.seoDescription} benefits={[...copy.benefits]} />
     </main>
   );
 }

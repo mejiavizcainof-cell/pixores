@@ -96,6 +96,7 @@ export default function WebPToJpgPage() {
       )}
 
       <ToolSeo
+        tool="webp-to-jpg"
         title="How to Convert WebP to JPG"
         description="
           Upload your WebP image, click Convert to JPG

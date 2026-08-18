@@ -546,3 +546,218 @@
     flex: 1;
   }
 }
+
+/* Pixores Desktop home */
+.shell {
+  min-height: 100vh;
+  padding: 26px 30px 74px;
+  color: #eef5ff;
+  background:
+    radial-gradient(circle at 12% -10%, rgba(31, 214, 204, 0.13), transparent 34%),
+    radial-gradient(circle at 92% 12%, rgba(124, 92, 255, 0.1), transparent 31%),
+    #090e17;
+}
+
+.hero,
+.grid,
+.statusBar { max-width: 1480px; }
+
+.hero {
+  min-height: 116px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 4px 2px 18px;
+  border-bottom: 1px solid #202a3a;
+}
+
+.brandMark { display: flex; align-items: center; gap: 17px; color: #25d9d1; font-size: 14px; letter-spacing: 0.01em; }
+.brandLogo {
+  width: min(360px, 68vw);
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.22));
+}
+.productName { padding-left: 17px; border-left: 1px solid #304057; color: #b7c7da; font-size: 13px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.hero h1 { margin: 12px 0 7px; color: #f8fbff; font-size: clamp(34px, 4vw, 54px); letter-spacing: -0.05em; }
+.hero p { max-width: 760px; color: #8f9db1; font-size: 15px; }
+
+.settingsButton,
+.primaryAction,
+.secondaryAction,
+.editorAction,
+.formatButton,
+.openAction,
+.iconAction,
+.toolCard {
+  border-color: #2a3548;
+}
+
+.settingsButton { color: #c9d5e3; background: #121a28; box-shadow: none; }
+.grid { grid-template-columns: minmax(0, 1fr) minmax(350px, 420px); gap: 20px; }
+.primaryPanel,
+.sidePanel { border-color: #202b3d; border-radius: 12px; background: rgba(15, 22, 35, 0.92); box-shadow: 0 25px 70px rgba(0, 0, 0, 0.22); }
+.primaryPanel { padding: 24px; }
+.sidePanel { padding: 20px; }
+.panelHeader { margin-bottom: 16px; }
+.panelHeader span { color: #25d9d1; }
+.panelHeader h2 { color: #edf4fc; font-size: 21px; }
+.panelHeader svg { color: #61738d; }
+
+.formatGrid { grid-template-columns: repeat(5, minmax(112px, 1fr)); }
+.formatButton { min-height: 166px; border-radius: 10px; color: #dfe8f3; background: #111a29; }
+.formatButton:hover { border-color: #26d8d0; background: #142131; }
+.selectedFormat { border-color: #28d8d0; box-shadow: 0 0 0 3px rgba(40, 216, 208, 0.11); }
+.formatPreview {
+  min-height: 88px;
+  max-height: none;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #3a4960;
+  background: #0b121e;
+  isolation: isolate;
+}
+.formatPreviewImage {
+  z-index: -2;
+  object-fit: cover;
+  transition: transform 220ms ease, filter 220ms ease;
+}
+.formatPreviewShade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(4, 9, 16, 0.04), rgba(4, 9, 16, 0.56));
+}
+.formatSafeFrame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  height: 68%;
+  width: auto;
+  max-width: 82%;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px rgba(4, 13, 25, 0.5), 0 8px 20px rgba(0, 0, 0, 0.25);
+  transform: translate(-50%, -50%);
+}
+.formatButton:hover .formatPreviewImage,
+.selectedFormat .formatPreviewImage { transform: scale(1.055); filter: saturate(1.12); }
+.formatButton small,
+.recentItem small { color: #7f8fa5; }
+.customInputs label,
+.licenseGrid label { color: #8d9cb0; }
+.customInputs input,
+.licenseGrid input,
+.renameField input { border-color: #2b374b; color: #eaf1f9; background: #0b121e; }
+
+.primaryAction { border-color: #27d9d1; color: #061013; background: linear-gradient(135deg, #28dcd3, #54a9ff); }
+.secondaryAction,
+.editorAction { color: #d7e2ee; background: #151f2f; }
+.secondaryAction:hover,
+.editorAction:hover { border-color: #2bd8d0; }
+
+.toolsSection { margin-top: 30px; padding-top: 22px; border-top: 1px solid #212c3e; }
+.toolGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.toolCard {
+  min-height: 228px;
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 11px;
+  color: #e5edf7;
+  background: linear-gradient(145deg, #151f2f, #101825);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.toolCard:hover:not(:disabled) { transform: translateY(-2px); border-color: #2ad9d1; background: linear-gradient(145deg, #192739, #111c2b); }
+.toolCard:disabled { cursor: default; opacity: 0.62; }
+.toolCard strong { margin: 4px 4px 0; font-size: 15px; }
+.toolCard small { color: #8494aa; font-size: 11px; font-weight: 700; line-height: 1.45; }
+.toolCard small { margin-inline: 4px; }
+.toolCard em { position: absolute; top: 12px; right: 12px; padding: 4px 7px; border-radius: 999px; color: #061013; background: #2bd8d0; font-size: 9px; font-style: normal; font-weight: 950; text-transform: uppercase; }
+.toolThumbnail {
+  height: 108px;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 1px solid #2b3b51;
+  border-radius: 9px;
+  background: #0a111c;
+}
+.toolThumbnail > img {
+  object-fit: cover;
+  transition: transform 220ms ease, filter 220ms ease;
+}
+.toolThumbnail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 34%, rgba(4, 10, 18, 0.72));
+}
+.toolCard:hover:not(:disabled) .toolThumbnail > img { transform: scale(1.045); filter: saturate(1.1); }
+.toolIcon {
+  width: 38px;
+  height: 38px;
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(83, 235, 227, 0.28);
+  border-radius: 9px;
+  color: #42e4dc;
+  background: rgba(7, 24, 34, 0.84);
+  backdrop-filter: blur(8px);
+}
+.featuredTool { border-color: rgba(40, 216, 208, 0.42); background: linear-gradient(145deg, rgba(31, 117, 124, 0.28), #111a28 65%); }
+
+.accountPanel,
+.updatePanel { border-color: #243044; }
+.licenseSummary span { border-color: #2a3548; color: #8e9db1; background: #111925; }
+.licenseSummary .activeLicensePill { border-color: #2bd8d0; color: #2bd8d0; background: rgba(43, 216, 208, 0.08); }
+.accountStatusCard,
+.updateStatusCard,
+.settingsPanel { border-color: #29364a; background: #111a28; }
+.accountStatusCard strong,
+.updateStatusCard strong { color: #e4edf7; }
+.accountStatusCard small,
+.updateStatusCard small,
+.settingsPanel p { color: #8191a7; }
+
+.recentList { max-height: 620px; overflow: auto; padding-right: 3px; }
+.recentItem { grid-template-columns: 72px minmax(0, 1fr); border-color: #283549; border-radius: 10px; background: #111a28; }
+.recentItem:hover { border-color: #376075; background: #142032; }
+.recentItem strong { color: #eaf1fa; }
+.recentIcon { width: 72px; height: 52px; position: relative; overflow: hidden; border: 1px solid #314157; border-radius: 8px; color: #2bd8d0; background: linear-gradient(145deg, #263751, #111a29); }
+.recentIcon::after { content: ""; position: absolute; inset: 0; background: rgba(5, 13, 24, 0.42); }
+.recentIcon > img { object-fit: cover; }
+.recentIcon > svg { position: relative; z-index: 1; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.recentMeta span { border-color: #2c394d; color: #a9b7c8; background: #0d1522; }
+.recentPath { color: #64758b; }
+.openAction,
+.iconAction { border-color: #2c394d; color: #cdd8e5; background: #182334; }
+.openAction { border-color: #2bd8d0; color: #2bd8d0; }
+.emptyRecent { border-color: #344158; color: #718299; background: rgba(9, 14, 23, 0.35); }
+.statusBar { border-color: #202c3e; color: #7f90a7; background: rgba(12, 18, 29, 0.86); }
+
+@media (max-width: 1120px) {
+  .formatGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .toolGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; }
+  .sidePanel { order: -1; }
+  .recentList { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }
+}
+
+@media (max-width: 620px) {
+  .brandMark { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .productName { padding-left: 0; border-left: 0; }
+  .toolGrid,
+  .recentList,
+  .formatGrid { grid-template-columns: 1fr; }
+}

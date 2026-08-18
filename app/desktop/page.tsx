@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Cloud, Download, Film, Gauge, MonitorDown, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { AudioLines, Check, Cloud, Download, Film, Gauge, MonitorDown, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import packageInfo from "../../package.json";
 import styles from "./DesktopPage.module.css";
 
 export const metadata: Metadata = {
   title: "Download Pixores Video Maker Pro for Windows",
   description:
-    "Compare Pixores Quick Video Maker and Pixores Video Maker Pro. Download the free Windows editor for long projects, local media, GPU rendering, Smart Clips and YouTube publishing.",
+    "Download Pixores Video Maker Pro for Windows with Audio Studio, Smart Clips, local media, GPU rendering, captions and YouTube publishing.",
   alternates: { canonical: "https://www.pixores.com/desktop" },
   openGraph: {
     title: "Pixores Video Maker Pro",
-    description: "Professional local video editing for Windows with GPU rendering and direct YouTube publishing.",
+    description: "Professional local video and audio creation for Windows with Audio Studio, Smart Clips, GPU rendering and direct YouTube publishing.",
     url: "https://www.pixores.com/desktop",
     siteName: "Pixores",
     type: "website",
   },
 };
 
-const version = "0.1.3-beta.54";
+const version = packageInfo.version;
 const installerName = `Pixores.Video.Maker.Pro.Setup.${version}.exe`;
 const defaultDesktopDownloadUrl =
   `https://github.com/mejiavizcainof-cell/pixores/releases/download/pixores-video-maker-v${version}/${encodeURIComponent(installerName)}`;
@@ -27,6 +28,7 @@ const desktopDownloadUrl = process.env.NEXT_PUBLIC_DESKTOP_DOWNLOAD_URL || defau
 const features = [
   { icon: Gauge, title: "Hybrid GPU rendering", copy: "Uses NVIDIA acceleration when available and preserves the full compositor for complex layers." },
   { icon: Sparkles, title: "Smart creative tools", copy: "Generate captions, remove silences, build Smart Clips and create automatic thumbnails." },
+  { icon: AudioLines, title: "Pixores Audio Studio", copy: "Convert audio in batches, manage authorized link downloads and send finished files directly to video projects." },
   { icon: Upload, title: "Publish to YouTube", copy: "Upload large videos with resumable transfers, metadata, privacy controls and custom thumbnails." },
   { icon: ShieldCheck, title: "Local-first workflow", copy: "Projects, imported media and renders remain on your computer while you edit." },
 ];
@@ -36,7 +38,7 @@ const comparisonRows = [
   { feature: "Where it runs", quick: "In your web browser", pro: "Installed locally on Windows" },
   { feature: "Rendering", quick: "Browser export", pro: "Local hybrid rendering with NVIDIA support" },
   { feature: "Media and projects", quick: "Browser workspace", pro: "Persistent local media, autosave and project packages" },
-  { feature: "Advanced workflow", quick: "Essential timeline tools", pro: "Smart Clips, captions, silence removal, audio tools and YouTube publishing" },
+  { feature: "Advanced workflow", quick: "Essential timeline tools", pro: "Smart Clips, captions, Audio Studio, silence removal and YouTube publishing" },
   { feature: "Price", quick: "Free", pro: "Free during beta" },
 ];
 
@@ -67,7 +69,7 @@ export default function DesktopPage() {
           <h1>Professional video editing, built for your desktop.</h1>
           <p className={styles.lead}>
             Edit, organize and render complete video projects on Windows with a magnetic timeline,
-            audio tools, captions, Smart Clips and direct YouTube publishing.
+            Audio Studio, captions, Smart Clips and direct YouTube publishing.
           </p>
           <div className={styles.actions}>
             <a href={desktopDownloadUrl} className={styles.primaryAction}>
@@ -97,7 +99,7 @@ export default function DesktopPage() {
         <div className={styles.sectionHeading}>
           <span>PIXORES VIDEO MAKER PRO</span>
           <h2 id="desktop-features">From first cut to published video</h2>
-          <p>One focused workspace for editing, audio, motion graphics, social formats and delivery.</p>
+          <p>One focused workspace for editing, Audio Studio, motion graphics, social formats and delivery.</p>
         </div>
         <div className={styles.featureGrid}>
           {features.map(({ icon: Icon, title, copy }) => (
@@ -158,6 +160,7 @@ export default function DesktopPage() {
           <ul>
             <li><Check size={16} /> Automatic saving and reusable project packages</li>
             <li><Check size={16} /> NVIDIA GPU support with compatible hardware</li>
+            <li><Check size={16} /> Local Audio Studio conversion and concurrent download queues</li>
             <li><Check size={16} /> Secure Google OAuth connection for YouTube publishing</li>
           </ul>
         </div>

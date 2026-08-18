@@ -1,0 +1,81 @@
+.notice {
+  position: fixed;
+  z-index: 11000;
+  right: 20px;
+  bottom: 20px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 12px;
+  width: min(390px, calc(100vw - 28px));
+  padding: 16px;
+  border: 1px solid rgba(45, 212, 191, .46);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(8, 20, 38, .98), rgba(15, 36, 54, .98));
+  color: #ecfeff;
+  box-shadow: 0 20px 64px rgba(2, 8, 23, .46);
+  backdrop-filter: blur(16px);
+  animation: noticeEnter .28s ease-out both;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(45, 212, 191, .42);
+  border-radius: 12px;
+  background: rgba(20, 184, 166, .14);
+  color: #5eead4;
+}
+
+.copy { min-width: 0; padding-right: 22px; }
+.copy span { display: block; margin-bottom: 3px; color: #5eead4; font-size: 9px; font-weight: 900; letter-spacing: .12em; }
+.copy strong { display: block; color: #f8fafc; font-size: 15px; line-height: 1.25; }
+.copy p { margin: 6px 0 0; color: #a9bbcf; font-size: 11px; line-height: 1.5; }
+
+.downloadButton {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2dd4bf, #38bdf8);
+  color: #06202a;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.downloadButton:hover { filter: brightness(1.06); }
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, .1);
+  color: #b8c7d9;
+  cursor: pointer;
+}
+
+.closeButton:hover { background: rgba(148, 163, 184, .2); color: #fff; }
+
+@keyframes noticeEnter {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 640px) {
+  .notice { right: 14px; bottom: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice { animation: none; }
+}

@@ -73,6 +73,7 @@ export default function JpgToPdfPage() {
       </button>
 
       <ToolSeo
+        tool="jpg-to-pdf"
         title="How to Convert JPG to PDF"
         description="
           Upload your JPG image, click Convert to PDF

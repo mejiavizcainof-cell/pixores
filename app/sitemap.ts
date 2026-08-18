@@ -11,9 +11,11 @@ const publicPages = [
   { path: "/crop-image", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/watermark-image", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/youtube-thumbnail-maker", changeFrequency: "weekly" as const, priority: 0.95 },
+  { path: "/presentation-maker", changeFrequency: "weekly" as const, priority: 0.9 },
+  { path: "/document-converter", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/video-maker", changeFrequency: "weekly" as const, priority: 0.95 },
+  { path: "/audio-studio", changeFrequency: "weekly" as const, priority: 0.9 },
   { path: "/desktop", changeFrequency: "weekly" as const, priority: 0.9 },
-  { path: "/instagram-reel-downloader", changeFrequency: "monthly" as const, priority: 0.75 },
   { path: "/templates", changeFrequency: "weekly" as const, priority: 0.75 },
   { path: "/blog", changeFrequency: "weekly" as const, priority: 0.8 },
   { path: "/jpg-to-png", changeFrequency: "monthly" as const, priority: 0.9 },
@@ -29,12 +31,12 @@ const publicPages = [
   { path: "/rotate-image", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/favicon-generator", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/about", changeFrequency: "monthly" as const, priority: 0.65 },
+  { path: "/editorial-policy", changeFrequency: "yearly" as const, priority: 0.45 },
   { path: "/faq", changeFrequency: "yearly" as const, priority: 0.45 },
   { path: "/contact", changeFrequency: "yearly" as const, priority: 0.35 },
   { path: "/privacy-policy", changeFrequency: "yearly" as const, priority: 0.25 },
   { path: "/terms-of-service", changeFrequency: "yearly" as const, priority: 0.25 },
   { path: "/cookie-policy", changeFrequency: "yearly" as const, priority: 0.2 },
-  { path: "/es", changeFrequency: "monthly" as const, priority: 0.65 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

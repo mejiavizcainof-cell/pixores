@@ -11,6 +11,7 @@ type DesktopAuthGateProps = {
   children: ReactNode;
   required?: boolean;
   showAccountDock?: boolean;
+  experience?: "desktop" | "online";
 };
 
 type DesktopAuthContextValue = {
@@ -27,9 +28,9 @@ export function useDesktopAuth() {
   return useContext(DesktopAuthContext);
 }
 
-export default function DesktopAuthGate({ children, required = true, showAccountDock = true }: DesktopAuthGateProps) {
+export default function DesktopAuthGate({ children, required = true, showAccountDock = true, experience = "desktop" }: DesktopAuthGateProps) {
   const [mustAuthenticate, setMustAuthenticate] = useState(required);
-  const [authState, setAuthState] = useState<AuthState>(required && !cachedSignedInEmail ? "checking" : "signed-in");
+  const [authState, setAuthState] = useState<AuthState>(required ? "checking" : "signed-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +45,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
     queueMicrotask(() => {
       if (!active) return;
       setMustAuthenticate(nextMustAuthenticate);
-      setAuthState(nextMustAuthenticate && !cachedSignedInEmail ? "checking" : "signed-in");
+      setAuthState(nextMustAuthenticate ? "checking" : "signed-in");
     });
 
     if (!nextMustAuthenticate) {
@@ -62,8 +63,9 @@ export default function DesktopAuthGate({ children, required = true, showAccount
       if (error) setMessage("Your session expired. Sign in again to continue.");
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      if (!session && event !== "INITIAL_SESSION" && event !== "SIGNED_OUT") return;
       cachedSignedInEmail = session?.user.email || "";
       setUserEmail(cachedSignedInEmail);
       setAuthState(session?.user ? "signed-in" : "signed-out");
@@ -130,7 +132,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
     cachedSignedInEmail = "";
     setUserEmail("");
     setAuthState("signed-out");
-    setMessage("You signed out. Sign in to use Pixores Desktop.");
+    setMessage(`You signed out. Sign in to use Pixores ${experience === "desktop" ? "Video Maker Pro" : "creator tools"}.`);
   }
 
   if (!mustAuthenticate) return children;
@@ -169,7 +171,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
           <form className={styles.loginCard} onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
             <span className={styles.secureLabel}><LockKeyhole size={15} /> Secure account access</span>
             <h2>Welcome back</h2>
-            <p>Sign in before entering Pixores Desktop.</p>
+            <p>Sign in before entering Pixores {experience === "desktop" ? "Video Maker Pro" : "creator tools"}.</p>
 
             <label>
               Email address

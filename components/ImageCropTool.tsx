@@ -9,6 +9,7 @@ import {
   type PixelCrop,
 } from "react-image-crop";
 import { Camera, Crop as CropIcon, Download, ImagePlus, RotateCcw, Upload } from "lucide-react";
+import ToolSeo from "@/components/ToolSeo";
 import "react-image-crop/dist/ReactCrop.css";
 import styles from "./ImageCropTool.module.css";
 
@@ -303,6 +304,12 @@ export default function ImageCropTool() {
         <h2>Fast, precise image cropping</h2>
         <p>Adjust the crop visually or enter exact pixel values. Pixores keeps the original image resolution and processes the file directly in your browser.</p>
       </section>
+
+      <ToolSeo
+        tool="crop-image"
+        title="How to Crop an Image Without Stretching It"
+        description="Choose a visual crop or exact pixel region, preserve the source proportions, and export the selected area as PNG, JPG, or WebP directly in your browser."
+      />
     </main>
   );
 }

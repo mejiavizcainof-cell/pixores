@@ -58,6 +58,13 @@ export default function AboutPage() {
         <div className={styles.valueGrid}>{values.map(({ icon: Icon, title, description }) => <article key={title} className={styles.valueCard}><div className={styles.valueIcon}><Icon size={20} /></div><h3>{title}</h3><p>{description}</p></article>)}</div>
       </section>
 
+      <section className={styles.missionBand}>
+        <div className={styles.missionInner}>
+          <h2>How we publish guidance</h2>
+          <p>Pixores guides are maintained by the Pixores Editorial Team. We review product behavior against the current implementation, link to primary platform documentation when requirements can change, disclose meaningful limitations, and consolidate pages that do not offer a distinct useful answer. Read our <Link href="/editorial-policy">editorial policy and correction standards</Link>.</p>
+        </div>
+      </section>
+
       <section className={styles.section}>
         <div className={styles.sectionHeader}><span>What Pixores offers</span><h2>From quick fixes to published videos</h2><p>Focused utilities work alongside the Thumbnail Maker and two distinct video editors, so users can choose the workflow that matches the job and their device.</p></div>
         <div className={styles.pillarGrid}>{pillars.map(({ icon: Icon, title, description, href, link }) => <article key={title} className={styles.pillarCard}><div className={styles.pillarIcon}><Icon size={20} /></div><h3>{title}</h3><p>{description}</p><Link href={href}>{link} <ArrowRight size={13} /></Link></article>)}</div>

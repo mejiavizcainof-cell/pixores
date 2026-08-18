@@ -3,20 +3,25 @@ import path from "node:path";
 import sharp from "sharp";
 
 const outDir = path.join(process.cwd(), "desktop", "assets");
+const sourcePath = path.join(outDir, "pixores-icon-source.png");
 const pngPath = path.join(outDir, "icon.png");
 const icoPath = path.join(outDir, "icon.ico");
+const publicDir = path.join(process.cwd(), "public");
+const appDir = path.join(process.cwd(), "app");
 
 await fs.mkdir(outDir, { recursive: true });
+await fs.mkdir(publicDir, { recursive: true });
 
-const svg = `
-<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-  <rect width="256" height="256" rx="56" fill="#2563eb"/>
-  <path d="M72 196V56h70c29 0 51 21 51 49 0 30-22 51-53 51h-31v40H72Zm37-72h29c12 0 20-8 20-19 0-10-8-18-20-18h-29v37Z" fill="#ffffff"/>
-  <circle cx="190" cy="190" r="26" fill="#38bdf8"/>
-</svg>`;
-
-const pngBuffer = await sharp(Buffer.from(svg)).png().resize(256, 256).toBuffer();
+const source = sharp(sourcePath).rotate();
+const pngBuffer = await source.clone().resize(512, 512, { fit: "cover" }).png({ compressionLevel: 9 }).toBuffer();
+const icoPngBuffer = await source.clone().resize(256, 256, { fit: "cover" }).png({ compressionLevel: 9 }).toBuffer();
 await fs.writeFile(pngPath, pngBuffer);
+await fs.writeFile(path.join(publicDir, "logo.png"), pngBuffer);
+await fs.writeFile(path.join(publicDir, "favicon-16x16.png"), await source.clone().resize(16, 16, { fit: "cover" }).png().toBuffer());
+await fs.writeFile(path.join(publicDir, "favicon-32x32.png"), await source.clone().resize(32, 32, { fit: "cover" }).png().toBuffer());
+await fs.writeFile(path.join(publicDir, "apple-touch-icon.png"), await source.clone().resize(180, 180, { fit: "cover" }).png().toBuffer());
+await fs.writeFile(path.join(publicDir, "android-chrome-192x192.png"), await source.clone().resize(192, 192, { fit: "cover" }).png().toBuffer());
+await fs.writeFile(path.join(publicDir, "android-chrome-512x512.png"), pngBuffer);
 
 const header = Buffer.alloc(6);
 header.writeUInt16LE(0, 0);
@@ -30,9 +35,12 @@ directory.writeUInt8(0, 2);
 directory.writeUInt8(0, 3);
 directory.writeUInt16LE(1, 4);
 directory.writeUInt16LE(32, 6);
-directory.writeUInt32LE(pngBuffer.length, 8);
+directory.writeUInt32LE(icoPngBuffer.length, 8);
 directory.writeUInt32LE(header.length + directory.length, 12);
 
-await fs.writeFile(icoPath, Buffer.concat([header, directory, pngBuffer]));
+const icoBuffer = Buffer.concat([header, directory, icoPngBuffer]);
+await fs.writeFile(icoPath, icoBuffer);
+await fs.writeFile(path.join(publicDir, "favicon.ico"), icoBuffer);
+await fs.writeFile(path.join(appDir, "favicon.ico"), icoBuffer);
 
 console.log(`Created ${icoPath}`);

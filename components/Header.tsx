@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
-import AuthButton from "@/components/AuthButton";
+import HeaderAccount from "@/components/HeaderAccount";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./Header.module.css";
 
@@ -21,7 +21,9 @@ const navItems = [
 
 const creatorItems = [
   { href: "/youtube-thumbnail-maker", label: "Thumbnail Creator" },
+  { href: "/presentation-maker", label: "Presentation Maker" },
   { href: "/video-maker", label: "Quick Video Maker" },
+  { href: "/audio-studio", label: "Audio Studio" },
   { href: "/desktop", label: "Video Maker Pro" },
 ];
 
@@ -113,7 +115,7 @@ export default function Header() {
             </Link>
           )}
 
-          <AuthButton />
+          <HeaderAccount />
 
           <button
             type="button"
@@ -146,7 +148,6 @@ export default function Header() {
             </Link>
           ))}
           <Link href="/contact" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Contact</Link>
-          <Link href="/es" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Spanish</Link>
         </nav>
       )}
     </header>

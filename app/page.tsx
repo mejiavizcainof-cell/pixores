@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Layers3, MonitorDown, Video } from "lucide-react";
+import { ArrowRight, AudioLines, Check, Layers3, MonitorDown, Video } from "lucide-react";
 import HomeToolsShowcase from "@/components/HomeToolsShowcase";
 import SiteIdentitySchema from "@/components/SiteIdentitySchema";
 import { blogPosts } from "@/lib/blogPosts";
@@ -13,7 +13,6 @@ export const metadata: Metadata = {
     canonical: "https://www.pixores.com",
     languages: {
       en: "https://www.pixores.com",
-      es: "https://www.pixores.com/es",
     },
   },
 };
@@ -33,8 +32,8 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <p className={styles.eyebrow}>Create with confidence</p>
-          <h1>Thumbnail Maker and Pixores Video Maker</h1>
-          <p className={styles.heroText}>Create professional YouTube thumbnails, social graphics and complete videos with flexible text, layers, local GPU rendering, audio tools and direct publishing workflows.</p>
+          <h1>Create images, video and audio with Pixores</h1>
+          <p className={styles.heroText}>Design thumbnails, edit complete videos and prepare audio with flexible text, local GPU rendering, Smart Clips, batch conversion and direct publishing workflows.</p>
           <div className={styles.heroActions}>
             <Link href="/youtube-thumbnail-maker" className={styles.primaryButton}>Open Thumbnail Maker <ArrowRight size={17} /></Link>
             <Link href="/desktop" className={styles.secondaryButton}>Download Video Maker</Link>
@@ -57,8 +56,15 @@ export default function Home() {
             <Link href="/desktop" className={styles.heroProductCard}>
               <span className={styles.productIcon}><MonitorDown size={20} /></span>
               <span>
-                <b>Pixores Video Maker Desktop</b>
+                <b>Pixores Video Maker Pro</b>
                 <small>Edit locally on Windows with hybrid GPU rendering, Smart Clips, captions and YouTube publishing.</small>
+              </span>
+            </Link>
+            <Link href="/audio-studio" className={styles.heroProductCard}>
+              <span className={styles.productIcon}><AudioLines size={20} /></span>
+              <span>
+                <b>Pixores Audio Studio</b>
+                <small>Convert audio locally, manage authorized links and process several files in one queue.</small>
               </span>
             </Link>
           </div>

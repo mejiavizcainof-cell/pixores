@@ -30,6 +30,7 @@ export function createDesktopUpdateHandlers({ app }) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowPrerelease = true;
+  autoUpdater.channel = "beta";
 
   autoUpdater.on("update-available", (info) => {
     lastUpdateInfo = info;
@@ -64,7 +65,7 @@ export function createDesktopUpdateHandlers({ app }) {
 
         return createIdleState({
           status: available ? "available" : "not_available",
-          message: available ? "Update available." : "Pixores Video Maker is up to date.",
+          message: available ? "Update available." : "Pixores Video Maker Pro is up to date.",
           currentVersion: app.getVersion(),
           updateAvailable: available,
           ...getVersionInfo(updateInfo),

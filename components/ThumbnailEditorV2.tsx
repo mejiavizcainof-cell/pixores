@@ -1,7 +1,7 @@
 "use client";
 import { supabase } from "@/lib/supabaseClient";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, TouchEvent as ReactTouchEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import html2canvas from "html2canvas";
@@ -16,6 +16,10 @@ import {
   type SavedStudioProject,
   type StudioProjectData,
 } from "@/lib/studioProject";
+import {
+  PIXORES_FONT_GROUPS as FONT_GROUPS,
+} from "@/src/fonts/pixores-fonts";
+import { ensurePixoresFontLoaded, PIXORES_LOCAL_FONT_STYLESHEET } from "@/src/fonts/pixores-font-loader";
 
 
 
@@ -143,6 +147,8 @@ type Layer = {
   angle?: number; 
   isLocked?: boolean;
 };
+
+type TemplateCanvasElement = Partial<Layer> & Pick<Layer, "type" | "x" | "y">;
 
 type DrawingPoint = {
   x: number;
@@ -552,65 +558,8 @@ const getAdminTemplateSourceId = (asset?: AdminAsset | null) => {
   return typeof sourceTemplateId === "string" ? sourceTemplateId : null;
 };
 
-const FONT_GROUPS = [
-  {
-    label: "Popular",
-    fonts: ["Inter", "Montserrat", "Poppins", "Roboto", "Open Sans", "Lato", "Oswald", "Bebas Neue"],
-  },
-  {
-    label: "Bold & Display",
-    fonts: [
-      "Anton", "Archivo Black", "Alfa Slab One", "Black Ops One", "Bowlby One SC", "Bungee",
-      "Fjalla One", "League Spartan", "Luckiest Guy", "Passion One", "Permanent Marker", "Russo One",
-      "Staatliches", "Teko", "Titan One", "Ultra",
-    ],
-  },
-  {
-    label: "Modern Sans Serif",
-    fonts: [
-      "Archivo", "Barlow", "Cabin", "DM Sans", "Exo 2", "Figtree", "Josefin Sans", "Kanit",
-      "Manrope", "Mulish", "Nunito Sans", "Outfit", "Plus Jakarta Sans", "Quicksand", "Raleway",
-      "Roboto Condensed", "Rubik", "Space Grotesk", "Ubuntu", "Work Sans",
-    ],
-  },
-  {
-    label: "Serif & Editorial",
-    fonts: [
-      "Abril Fatface", "Bitter", "Bodoni Moda", "Cinzel", "Cormorant Garamond", "DM Serif Display",
-      "Libre Baskerville", "Lora", "Merriweather", "Noto Serif", "Playfair Display", "Roboto Slab",
-      "Source Serif 4", "Spectral",
-    ],
-  },
-  {
-    label: "Script & Handwritten",
-    fonts: [
-      "Caveat", "Courgette", "Dancing Script", "Great Vibes", "Kaushan Script", "Lobster",
-      "Pacifico", "Patrick Hand", "Sacramento", "Satisfy", "Shadows Into Light", "Yellowtail",
-    ],
-  },
-  {
-    label: "System Fonts",
-    fonts: [
-      "Arial", "Arial Black", "Comic Sans MS", "Courier New", "Georgia", "Impact", "Tahoma",
-      "Times New Roman", "Trebuchet MS", "Verdana",
-    ],
-  },
-] as const;
-
-const SYSTEM_FONT_NAMES = new Set(FONT_GROUPS.find((group) => group.label === "System Fonts")?.fonts || []);
-const PRELOADED_GOOGLE_FONTS = new Set(["Anton", "Bebas Neue", "Inter", "Montserrat", "Poppins"]);
-
 const ensureEditorFontLoaded = (fontFamily?: string) => {
-  if (!fontFamily || typeof document === "undefined" || SYSTEM_FONT_NAMES.has(fontFamily as never) || PRELOADED_GOOGLE_FONTS.has(fontFamily)) return;
-
-  const linkId = `pixores-font-${fontFamily.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-  if (document.getElementById(linkId)) return;
-
-  const link = document.createElement("link");
-  link.id = linkId;
-  link.rel = "stylesheet";
-  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily).replace(/%20/g, "+")}&display=swap`;
-  document.head.appendChild(link);
+  void ensurePixoresFontLoaded(fontFamily);
 };
 
 const TEXT_PRESETS = [
@@ -1135,13 +1084,14 @@ export default function ThumbnailEditorV2() {
     setCanvasHeight(template.height);
     setCanvasBgColor(template.canvas.background || "#FFFFFF");
 
-    const templateBackground = template.canvas.elements.find(
-      (element: any) => element.type === "image" && element.isLocked && /background/i.test(element.name || ""),
-    ) as any;
+    const templateElements = template.canvas.elements as unknown as TemplateCanvasElement[];
+    const templateBackground = templateElements.find(
+      (element) => element.type === "image" && element.isLocked && /background/i.test(element.name || ""),
+    );
     setPreview(templateBackground?.src || null);
 
-    const editableTemplateElements = template.canvas.elements.filter((element: any) => element !== templateBackground);
-    const loadedLayers: Layer[] = editableTemplateElements.map((element: any, index: number) => {
+    const editableTemplateElements = templateElements.filter((element) => element !== templateBackground);
+    const loadedLayers: Layer[] = editableTemplateElements.map((element, index: number) => {
       const baseLayer = {
         id: `template-${index}`,
         type: element.type,
@@ -1594,7 +1544,7 @@ const res = await fetch("/api/ai-background-remover", {
       const rawText = await res.text();
 console.log("REMOVE BG RAW RESPONSE:", rawText);
 
-let data: any = null;
+let data: { success?: boolean; error?: string; image?: string; creditsRemaining?: number } | null = null;
 
 try {
   data = rawText ? JSON.parse(rawText) : null;
@@ -1604,9 +1554,9 @@ try {
 }
         console.log("REMOVE BG RESPONSE:", data);
 
-        if (!res.ok || !data.success) {
+        if (!res.ok || !data?.success) {
 
-  if (data.error === "NO_CREDITS") {
+  if (data?.error === "NO_CREDITS") {
 
     setCredits(0);
     setShowCreditsModal(true);
@@ -1614,12 +1564,12 @@ try {
     return;
   }
 
-  alert(`Remove BG Error: ${data.error || "Unknown error"}`);
+  alert(`Remove BG Error: ${data?.error || "Unknown error"}`);
   return;
 }
 
         updateSelectedLayer({
-          src: data.image,
+          src: data.image || layer.src,
           name: `${layer.name} (No BG)`,
         });
 
@@ -1630,15 +1580,15 @@ try {
 }
 
         alert("Background removed successfully!");
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Remove BG client error:", error);
 
-        if (error.name === "AbortError") {
+        if (error instanceof Error && error.name === "AbortError") {
           alert("Remove BG took too long. Please try with a smaller image.");
           return;
         }
 
-        alert(error.message || "Remove BG failed.");
+        alert(error instanceof Error ? error.message : "Remove BG failed.");
       }
     };
 
@@ -1647,18 +1597,19 @@ try {
     };
 
     reader.readAsDataURL(blob);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Remove BG outer error:", error);
-    alert(error.message || "Could not process image.");
+    alert(error instanceof Error ? error.message : "Could not process image.");
   }
 };
 
 
-  const getCoords = (e: any) => {
-  if (e.touches && e.touches.length > 0) {
+  const getCoords = (e: MouseEvent | TouchEvent | ReactMouseEvent | ReactTouchEvent) => {
+  if ("touches" in e && e.touches.length > 0) {
     return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
   }
-  return { clientX: e.clientX, clientY: e.clientY };
+  const mouseEvent = e as MouseEvent | ReactMouseEvent;
+  return { clientX: mouseEvent.clientX, clientY: mouseEvent.clientY };
 };
 
   const handlePresetChange = (presetKey: keyof typeof PRESET_SIZES) => {
@@ -4085,7 +4036,7 @@ const dataUrlToFile = async (dataUrl: string, fileName: string) => {
 
         const savedAt = new Date();
         await saveAutosaveJson({
-          name: "Pixores Desktop Autosave",
+          name: "Pixores Video Maker Pro Autosave",
           project_data: buildProjectData(savedAt.toISOString()),
           local_project_path: localProjectPath,
           saved_from: "pixores-studio-desktop-autosave",
@@ -4323,7 +4274,7 @@ const projectStorageColor =
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", minHeight: isMobileLayout ? "100dvh" : "100vh", height: isMobileLayout ? "100dvh" : "100vh", fontFamily: "'Segoe UI', Roboto, sans-serif", background: "#F1F5F9", overflow: "hidden" }}>
       
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@700;900&family=Poppins:wght@600;900&family=Inter:wght@400;800&display=swap" />
+      <link rel="stylesheet" href={PIXORES_LOCAL_FONT_STYLESHEET} />
       <style>{`
         @keyframes pixoresTextPop {
           0%, 100% { transform: scale(1); }
@@ -4426,7 +4377,7 @@ const projectStorageColor =
       <header style={{ display: "none", minHeight: isMobileLayout ? "56px" : "68px", background: isMobileLayout ? "#0F172A" : "rgba(255,255,255,0.96)", color: isMobileLayout ? "#FFFFFF" : "#0F172A", alignItems: "center", justifyContent: "space-between", gap: isMobileLayout ? "12px" : "14px", padding: isMobileLayout ? "8px 14px" : "0 18px", borderBottom: isMobileLayout ? "none" : "1px solid #E2E8F0", boxShadow: isMobileLayout ? "0 2px 4px rgba(0,0,0,0.1)" : "0 8px 24px rgba(15,23,42,0.06)", zIndex: 10, flexWrap: "nowrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: isMobileLayout ? "1 1 180px" : "0 0 auto" }}>
           <span style={{ fontSize: "20px" }}>🎨</span>
-          <h1 style={{ fontSize: isMobileLayout ? "15px" : "17px", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Thumbnail Maker</h1>
+          <div style={{ fontSize: isMobileLayout ? "15px" : "17px", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Pixores Thumbnail Maker</div>
         </div>
 
         <div
@@ -4787,7 +4738,7 @@ const projectStorageColor =
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <select 
                 value={currentPreset} 
-                onChange={(e) => handlePresetChange(e.target.value as any)}
+                onChange={(e) => handlePresetChange(e.target.value as keyof typeof PRESET_SIZES)}
                 style={{ width: "100%", padding: "6px", borderRadius: "4px", border: "1px solid #CBD5E1", fontSize: "13px", background: "#FFF" }}
               >
                 <option value="youtube">YouTube Thumbnail (1280x720)</option>
@@ -5190,7 +5141,7 @@ const projectStorageColor =
         )}
         {brandAssets.length === 0 ? (
           <div style={{ border: "1px dashed #CBD5E1", borderRadius: "10px", padding: "14px", color: "#64748B", fontSize: "12px", lineHeight: 1.5, textAlign: "center" }}>
-            Import logos, images, or personal objects and enable "Save imported files to My Brand" to reuse them here.
+            Import logos, images, or personal objects and enable &quot;Save imported files to My Brand&quot; to reuse them here.
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
@@ -6681,18 +6632,18 @@ const buyCredits = async (packageId: string) => {
 {!isExporting && isSelected && !layer.isLocked && (
   <>
     {[
-      { corner: "topLeft", cursor: "nwse-resize" },
-      { corner: "topRight", cursor: "nesw-resize" },
-      { corner: "bottomLeft", cursor: "nesw-resize" },
-      { corner: "bottomRight", cursor: "nwse-resize" }
+      { corner: "topLeft" as const, cursor: "nwse-resize" },
+      { corner: "topRight" as const, cursor: "nesw-resize" },
+      { corner: "bottomLeft" as const, cursor: "nesw-resize" },
+      { corner: "bottomRight" as const, cursor: "nwse-resize" }
     ].map((item) => (
       <div
         key={item.corner}
-        onMouseDown={(e) => startResizing(e, layer, item.corner as any)}
+        onMouseDown={(e) => startResizing(e, layer, item.corner)}
         onTouchStart={(e) => {
           e.preventDefault(); // Evita que se dispare el evento de ratón después
           e.stopPropagation();
-          startResizing(e, layer, item.corner as any);
+          startResizing(e, layer, item.corner);
         }}
         style={{
           position: "absolute",
@@ -7289,7 +7240,7 @@ const buyCredits = async (packageId: string) => {
                   </button>
                   <div style={{ marginTop: "4px" }}>
                     <label style={{ fontSize: "10px", color: "#64748B", display: "block", marginBottom: "4px" }}>Alternative Manual Fusion:</label>
-                    <select value={selectedLayer.blendMode} onChange={(e) => updateSelectedLayer({ blendMode: e.target.value as any })} style={{ width: "100%", padding: "6px", borderRadius: "4px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFF" }}>
+                    <select value={selectedLayer.blendMode} onChange={(e) => updateSelectedLayer({ blendMode: e.target.value as NonNullable<Layer["blendMode"]> })} style={{ width: "100%", padding: "6px", borderRadius: "4px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFF" }}>
                       <option value="normal">Keep Original</option>
                       <option value="multiply">Drop White Background (Multiply)</option>
                       <option value="screen">Drop Black Background (Screen)</option>
