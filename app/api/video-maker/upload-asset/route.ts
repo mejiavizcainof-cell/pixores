@@ -38,12 +38,12 @@ export async function POST(request: Request) {
     }
 
     const uploadDir = getVideoMakerUploadDirectory();
-    await fs.mkdir(uploadDir, { recursive: true });
+    await fs.mkdir(/* turbopackIgnore: true */ uploadDir, { recursive: true });
 
     const filename = safeFilename(file.name);
     const bytes = Buffer.from(await file.arrayBuffer());
     const filePath = path.join(uploadDir, filename);
-    await fs.writeFile(filePath, bytes);
+    await fs.writeFile(/* turbopackIgnore: true */ filePath, bytes);
     const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("audio/") ? "audio" : "image";
     const metadata = await analyzeMediaFile(filePath, {
       kind,

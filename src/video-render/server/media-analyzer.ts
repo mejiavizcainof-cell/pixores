@@ -71,7 +71,7 @@ async function findFfprobePath() {
   for (const candidate of candidates) {
     if (candidate === "ffprobe") return candidate;
     try {
-      await fs.access(candidate);
+      await fs.access(/* turbopackIgnore: true */ candidate);
       return candidate;
     } catch {
       // Try the next bundled ffprobe candidate.
@@ -150,7 +150,7 @@ async function analyzeImageWithSharp(filePath: string, options: AnalyzeOptions):
 }
 
 export async function analyzeMediaFile(filePath: string, options: AnalyzeOptions = {}): Promise<PixoresMediaMetadata> {
-  const statSize = options.size ?? (await fs.stat(filePath).then((stat) => stat.size).catch(() => undefined));
+  const statSize = options.size ?? (await fs.stat(/* turbopackIgnore: true */ filePath).then((stat) => stat.size).catch(() => undefined));
   const nextOptions = { ...options, size: statSize };
 
   if (options.kind === "image" || options.mimeType?.startsWith("image/")) {
