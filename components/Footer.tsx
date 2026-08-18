@@ -1,10 +1,6 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MonitorDown } from "lucide-react";
-import { useEffect, useState } from "react";
-import { isPixoresDesktopMode } from "@/components/DesktopModeHost";
 import styles from "./Footer.module.css";
 
 const footerGroups = [
@@ -35,6 +31,7 @@ const footerGroups = [
     links: [
       { href: "/about", label: "About" },
       { href: "/editorial-policy", label: "Editorial Policy" },
+      { href: "/research/image-format-timeline", label: "Image Format Research" },
       { href: "/blog", label: "Guides & Blog" },
       { href: "/faq", label: "Help Center" },
       { href: "/contact", label: "Contact" },
@@ -64,15 +61,6 @@ const socialLinks = [
 ];
 
 export default function Footer() {
-  const [isDesktopMode, setIsDesktopMode] = useState(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setIsDesktopMode(isPixoresDesktopMode()));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  if (isDesktopMode) return null;
-
   return (
     <footer className={styles.footer}>
       <div className={styles.top}>

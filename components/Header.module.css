@@ -148,6 +148,23 @@
   gap: 10px;
 }
 
+.accountButton {
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.accountButton:hover,
+.accountButton:focus-visible {
+  background: #1d4ed8;
+  outline: none;
+}
+
 .adminButton {
   padding: 9px 12px;
   border-radius: 8px;
@@ -188,9 +205,16 @@
   }
 
   .mobileNav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 30;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
     padding: 10px 14px 16px;
     border-top: 1px solid #e2e8f0;
     background: #fff;

@@ -91,13 +91,13 @@ export default function RootLayout({
 
         <Header />
 
-        <main
+        <div
           style={{
             flex: 1,
           }}
         >
           {children}
-        </main>
+        </div>
 
         <Footer />
         <GoogleAdSense />

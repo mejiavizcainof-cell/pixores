@@ -30,6 +30,7 @@ const monetizablePages = new Set([
   "/remove-background",
   "/image-upscaler",
   "/document-converter",
+  "/research/image-format-timeline",
 ]);
 
 function isMonetizablePath(pathname: string) {

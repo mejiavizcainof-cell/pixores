@@ -1,12 +1,14 @@
 export const historyPostsPart2 = [
   {
     slug: "history-of-photoshop-image-editing",
-    title: "The History of Photoshop and the Rise of Professional Image Editing",
-    description: "Follow Photoshop from Thomas Knoll's Display experiment to layers, digital photography, subscriptions, and AI-assisted professional editing.",
+    title: "Who Created Photoshop? Its History from 1987 to AI Editing",
+    description: "Thomas and John Knoll created Photoshop from a 1987 experiment. Follow its history through Adobe, layers, digital photography, and AI editing.",
     date: "2026-06-23",
     image: "/blog/history-of-photoshop-image-editing.webp",
     content: `
 [H2: Introduction]
+Thomas and John Knoll created Photoshop. Thomas began writing a grayscale-display program called Display in 1987, John encouraged him to expand it into an image editor, Adobe licensed the software in 1988, and Photoshop 1.0 shipped for Macintosh in 1990.
+
 Photoshop became so influential that its name is often used as a verb for image manipulation. That cultural status can make its beginnings seem inevitable, but the program started as a focused experiment. In 1987, doctoral student Thomas Knoll wrote software called Display to show grayscale images on a black-and-white Macintosh screen. His brother John Knoll, who worked in visual effects, saw broader creative potential and encouraged the addition of editing features.
 
 The brothers developed the program through names including ImagePro before settling on Photoshop. Adobe licensed the distribution rights in 1988, and Photoshop 1.0 shipped for Macintosh in 1990. Over the following decades, it absorbed and popularized layers, color-management workflows, camera-raw processing, content-aware operations, and machine-learning assistance. Its story mirrors the movement of image editing from specialist production rooms into ordinary creative work.

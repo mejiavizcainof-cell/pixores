@@ -17,6 +17,7 @@ const publicPages = [
   { path: "/audio-studio", changeFrequency: "weekly" as const, priority: 0.9 },
   { path: "/desktop", changeFrequency: "weekly" as const, priority: 0.9 },
   { path: "/templates", changeFrequency: "weekly" as const, priority: 0.75 },
+  { path: "/research/image-format-timeline", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/blog", changeFrequency: "weekly" as const, priority: 0.8 },
   { path: "/jpg-to-png", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/png-to-jpg", changeFrequency: "monthly" as const, priority: 0.9 },
@@ -48,7 +49,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const posts = blogPosts.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: post.date ? new Date(post.date) : undefined,
+    lastModified: ["history-of-png", "history-of-gif", "history-of-photoshop-image-editing"].includes(post.slug)
+      ? new Date("2026-08-15")
+      : post.date
+        ? new Date(post.date)
+        : undefined,
     changeFrequency: "monthly" as const,
     priority: 0.7,
     images: post.image ? [`${baseUrl}${post.image}`] : undefined,
