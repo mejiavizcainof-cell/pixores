@@ -14,6 +14,8 @@
 .releaseMeta { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 7px 18px; color: #718099; font-size: 12px; font-weight: 700; }
 .releaseMeta span { position: relative; }
 .releaseMeta span + span::before { content: ""; position: absolute; width: 4px; height: 4px; left: -11px; top: 6px; border-radius: 50%; background: #a4b1c2; }
+.unsignedNotice { max-width: 650px; margin: 14px 0 0; padding: 11px 13px; border: 1px solid #f3c76c; border-radius: 10px; background: #fff8e7; color: #79510a; font-size: 12px; line-height: 1.55; }
+.unsignedNotice strong { color: #5c3b00; }
 .productPreview { padding: 10px; border: 1px solid rgba(173, 197, 230, .65); border-radius: 24px; background: rgba(255, 255, 255, .68); box-shadow: 0 35px 90px rgba(26, 58, 105, .2); transform: rotate(1deg); }
 .windowBar { height: 42px; padding: 0 14px; display: flex; align-items: center; gap: 7px; border-radius: 15px 15px 0 0; background: #0d1728; color: #aebbd0; font-size: 11px; font-weight: 700; }
 .windowBar i { width: 8px; height: 8px; border-radius: 50%; background: #2a3b55; }
