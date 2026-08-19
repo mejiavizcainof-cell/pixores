@@ -80,6 +80,10 @@ export default function DesktopPage() {
           <div className={styles.releaseMeta}>
             <span>Version {version}</span><span>Windows 10/11 · 64-bit</span><span>Beta release</span>
           </div>
+          <p className={styles.unsignedNotice} role="note">
+            <strong>Unsigned testing beta.</strong> Windows may display an Unknown publisher or SmartScreen warning.
+            Download this installer only from the official Pixores release.
+          </p>
         </div>
 
         <div className={styles.productPreview} aria-label="Pixores Video Maker desktop preview">
@@ -167,9 +171,9 @@ export default function DesktopPage() {
         <div className={styles.downloadCard}>
           <strong>Windows installer</strong>
           <span>{installerName}</span>
-          <small>Approximately 635 MB</small>
+          <small>Approximately 704 MB</small>
           <a href={desktopDownloadUrl} className={styles.primaryAction}><Download size={18} /> Download {version}</a>
-          <p>Beta software. Save your project before installing an update.</p>
+          <p>Unsigned beta software. Windows may show a security warning. Save your project before installing an update.</p>
         </div>
       </section>
     </main>
