@@ -53,4 +53,3 @@ export default function MobileMenu({ navItems, creatorItems }: MobileMenuProps) 
     </>
   );
 }
-

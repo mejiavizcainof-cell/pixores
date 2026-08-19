@@ -29,6 +29,7 @@ const monetizablePages = new Set([
   "/watermark-image",
   "/remove-background",
   "/image-upscaler",
+  "/document-converter",
   "/research/image-format-timeline",
 ]);
 

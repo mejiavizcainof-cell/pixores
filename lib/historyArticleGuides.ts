@@ -148,4 +148,3 @@ export const historyArticleGuides: Record<string, HistoryArticleGuide> = {
     ],
   },
 };
-

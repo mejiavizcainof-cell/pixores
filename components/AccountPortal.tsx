@@ -61,7 +61,7 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
         return;
       }
       if (data.session?.user) setSignedInEmail(data.session.user.email || cleanEmail);
-      setMessage(data.session ? "Your account is ready." : "Account created. Check your email to confirm it, then sign in to Pixores Desktop.");
+      setMessage(data.session ? "Your account is ready." : "Account created. Check your email to confirm it, then sign in to Pixores Video Maker Pro.");
       return;
     }
 
@@ -72,7 +72,21 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
       return;
     }
     setSignedInEmail(data.user.email || cleanEmail);
-    setMessage("Signed in successfully. You can return to Pixores Desktop.");
+    setMessage("Signed in successfully. You can return to Pixores Video Maker Pro.");
+  }
+
+  async function requestPasswordReset() {
+    const cleanEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setMessage("Enter your email address first, then choose Forgot password.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: getAuthRedirectUrl("/reset-password"),
+    });
+    setLoading(false);
+    setMessage(error ? error.message : "Password reset email sent. Check your inbox and spam folder.");
   }
 
   async function signOut() {
@@ -95,7 +109,7 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
           <div className={styles.success}>
             <CheckCircle2 size={42} />
             <h1>Your Pixores account is ready</h1>
-            <p>Signed in as <strong>{signedInEmail}</strong>. Return to Pixores Desktop to continue.</p>
+            <p>Signed in as <strong>{signedInEmail}</strong>. Return to Pixores Video Maker Pro to continue.</p>
             <div className={styles.successActions}>
               <Link href="/tools">Explore Pixores tools <ArrowRight size={17} /></Link>
               <button type="button" onClick={() => void signOut()} disabled={loading}>
@@ -107,12 +121,13 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
           <>
             <span className={styles.eyebrow}>One account · Web and desktop</span>
             <h1>{mode === "signup" ? "Create your Pixores account" : "Sign in to Pixores"}</h1>
-            <p>Use the same account for Video Maker, Thumbnail Maker, cloud projects, and Pixores Desktop.</p>
+            <p>Use the same account for Quick Video Maker, Thumbnail Maker, cloud projects, and Pixores Video Maker Pro.</p>
             <form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
               <label>Email address<span><Mail size={17} /><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></span></label>
               <label>Password<span><LockKeyhole size={17} /><input type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></span></label>
               {mode === "signup" && <label>Confirm password<span><LockKeyhole size={17} /><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></span></label>}
               <button className={styles.submit} type="submit" disabled={loading}>{loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}<ArrowRight size={17} /></button>
+              {mode === "login" && <button className={styles.forgot} type="button" disabled={loading} onClick={() => void requestPasswordReset()}>Forgot password?</button>}
             </form>
             <p className={styles.message} role="status">{message}</p>
             <button className={styles.switch} type="button" onClick={() => { setMode((current) => current === "login" ? "signup" : "login"); setMessage(""); }}>

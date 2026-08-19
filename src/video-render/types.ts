@@ -129,6 +129,22 @@ export type PixoresKeyframe = {
   easing?: "linear" | "easeIn" | "easeOut" | "easeInOut";
 };
 
+export type PixoresSmartReframeKeyframe = {
+  time: number;
+  centerX: number;
+  centerY: number;
+  zoom: number;
+  trackId?: string;
+  confidence?: number;
+};
+
+export type PixoresSmartReframe = {
+  mode: "static" | "dynamic";
+  speakerSelection: boolean;
+  source: "mediapipe-face-landmarker";
+  keyframes: PixoresSmartReframeKeyframe[];
+};
+
 export type PixoresShapeType =
   | "rectangle"
   | "circle"
@@ -281,6 +297,7 @@ export type PixoresVideoLayer = {
     x: number;
     y: number;
   };
+  smartReframe?: PixoresSmartReframe;
   linkedVideoLayerId?: string;
   audioDetached?: boolean;
   volume?: number;

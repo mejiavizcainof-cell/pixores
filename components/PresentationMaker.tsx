@@ -21,6 +21,32 @@ type Slide = {
   image?: string;
 };
 
+const supportedPresentationImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+function hasSupportedPresentationImageSignature(bytes: Uint8Array) {
+  const isPng = bytes.length >= 8
+    && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isWebp = bytes.length >= 12
+    && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF"
+    && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  return isPng || isJpeg || isWebp;
+}
+
+function hasSafePresentationImageData(image: unknown) {
+  if (image === undefined) return true;
+  if (typeof image !== "string") return false;
+  const match = image.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match || !supportedPresentationImageTypes.has(match[1])) return false;
+  try {
+    const decoded = window.atob(match[2].slice(0, 32));
+    return hasSupportedPresentationImageSignature(Uint8Array.from(decoded, (character) => character.charCodeAt(0)));
+  } catch {
+    return false;
+  }
+}
+
 const themes: Record<ThemeId, { name: string; background: string; foreground: string; muted: string; accent: string }> = {
   aurora: { name: "Aurora", background: "linear-gradient(135deg,#071a2c 0%,#123b4e 52%,#176b68 100%)", foreground: "#f8fafc", muted: "#bfe7e2", accent: "#5eead4" },
   midnight: { name: "Midnight", background: "radial-gradient(circle at 85% 18%,#4338ca 0%,#17113a 32%,#070711 72%)", foreground: "#ffffff", muted: "#c4b5fd", accent: "#a78bfa" },
@@ -79,7 +105,9 @@ export default function PresentationMaker() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as Slide[];
-          if (Array.isArray(parsed) && parsed.length) { setSlides(parsed); setSelectedId(parsed[0].id); }
+          if (Array.isArray(parsed) && parsed.length && parsed.every((slide) => hasSafePresentationImageData(slide.image))) {
+            setSlides(parsed); setSelectedId(parsed[0].id);
+          }
         } catch { /* Ignore invalid local drafts. */ }
       }
       draftLoadedRef.current = true;
@@ -120,8 +148,14 @@ export default function PresentationMaker() {
     const next = [...slides]; [next[selectedIndex], next[target]] = [next[target], next[selectedIndex]]; setSlides(next);
   };
 
-  const uploadImage = (file?: File) => {
-    if (!file || !file.type.startsWith("image/")) return;
+  const uploadImage = async (file?: File) => {
+    if (!file) return;
+    const signature = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    if (!supportedPresentationImageTypes.has(file.type.toLowerCase()) || !hasSupportedPresentationImageSignature(signature)) {
+      window.alert("Please choose a PNG, JPG, or WebP image.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     const reader = new FileReader(); reader.onload = () => updateSlide({ image: String(reader.result) }); reader.readAsDataURL(file);
   };
   const saveProject = () => {
@@ -132,7 +166,9 @@ export default function PresentationMaker() {
     if (!file) return;
     try {
       const parsed = JSON.parse(await file.text()) as { slides?: Slide[] };
-      if (!Array.isArray(parsed.slides) || !parsed.slides.length) throw new Error("Invalid project");
+      if (!Array.isArray(parsed.slides) || !parsed.slides.length || !parsed.slides.every((slide) => hasSafePresentationImageData(slide.image))) {
+        throw new Error("Invalid project");
+      }
       setSlides(parsed.slides); setSelectedId(parsed.slides[0].id);
     } catch { window.alert("This is not a valid Pixores presentation project."); }
   };
@@ -204,7 +240,7 @@ export default function PresentationMaker() {
           <label>Headline<textarea rows={3} value={selected?.title || ""} onChange={(event) => updateSlide({ title: event.target.value })} /></label>
           <label>Supporting text<textarea rows={4} value={selected?.subtitle || ""} onChange={(event) => updateSlide({ subtitle: event.target.value })} /></label>
           <label>Accent color<div className={styles.colorRow}><input type="color" value={selected?.accent || "#5eead4"} onChange={(event) => updateSlide({ accent: event.target.value })} /><code>{selected?.accent}</code></div></label>
-          <label>Image<input ref={fileInputRef} hidden type="file" accept="image/*" onChange={(event) => uploadImage(event.target.files?.[0])} /><button type="button" className={styles.imageButton} onClick={() => fileInputRef.current?.click()}><ImagePlus size={17} /> {selected?.image ? "Replace image" : "Add image"}</button>{selected?.image && <button type="button" className={styles.removeImage} onClick={() => updateSlide({ image: undefined })}><X size={15} /> Remove image</button>}</label>
+          <label>Image<input ref={fileInputRef} hidden type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onChange={(event) => void uploadImage(event.target.files?.[0])} /><button type="button" className={styles.imageButton} onClick={() => fileInputRef.current?.click()}><ImagePlus size={17} /> {selected?.image ? "Replace image" : "Add image"}</button>{selected?.image && <button type="button" className={styles.removeImage} onClick={() => updateSlide({ image: undefined })}><X size={15} /> Remove image</button>}</label>
         </aside>
       </div>
 

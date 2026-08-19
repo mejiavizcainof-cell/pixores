@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
-import MobileMenu from "@/components/MobileMenu";
+import { useEffect, useState } from "react";
+import { ChevronDown, Menu, X } from "lucide-react";
+import HeaderAccount from "@/components/HeaderAccount";
+import { supabase } from "@/lib/supabaseClient";
 import styles from "./Header.module.css";
 
 const navItems = [
@@ -19,18 +23,59 @@ const creatorItems = [
   { href: "/youtube-thumbnail-maker", label: "Thumbnail Creator" },
   { href: "/presentation-maker", label: "Presentation Maker" },
   { href: "/video-maker", label: "Quick Video Maker" },
+  { href: "/audio-studio", label: "Audio Studio" },
   { href: "/desktop", label: "Video Maker Pro" },
 ];
 
 export default function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkAdmin = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!active) return;
+
+      if (!userId) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (active) setIsAdmin(data?.role === "admin");
+    };
+
+    void checkAdmin();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      void checkAdmin();
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
   return (
     <header className={styles.header}>
       <div className={styles.bar}>
         <Link
           href="/"
           className={styles.brand}
+          onClick={() => setMenuOpen(false)}
         >
-          <Image className={styles.brandImage} src="/logo.png" alt="Pixores" width={38} height={38} loading="eager" />
+          <Image className={styles.brandImage} src="/logo.png" alt="Pixores" width={38} height={38} priority />
           <div>
             <div className={styles.brandName}>PIXORES</div>
             <div className={styles.brandTagline}>Convert. Compress. Create.</div>
@@ -64,12 +109,47 @@ export default function Header() {
         </nav>
 
         <div className={styles.actions}>
-          <Link href="/account" className={styles.accountButton}>
-            Account
-          </Link>
-          <MobileMenu navItems={navItems} creatorItems={creatorItems} />
+          {isAdmin && (
+            <Link href="/admin" className={styles.adminButton}>
+              Admin
+            </Link>
+          )}
+
+          <HeaderAccount />
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((current) => !current)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            className={styles.menuButton}
+          >
+            {menuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
+          </button>
         </div>
       </div>
+
+      {menuOpen && (
+        <nav className={styles.mobileNav} aria-label="Mobile navigation">
+          {isAdmin && <Link href="/admin" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>}
+          <Link href="/" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link href="/tools" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Tools</Link>
+          <div className={styles.mobileDownloadGroup}>
+            <span className={styles.mobileDownloadTitle}>Create</span>
+            {creatorItems.map((item) => (
+              <Link key={item.href} href={item.href} className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+          {navItems.slice(1).map((item) => (
+            <Link key={item.href} href={item.href} className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+              {item.label}
+            </Link>
+          ))}
+          <Link href="/contact" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Contact</Link>
+        </nav>
+      )}
     </header>
   );
 }

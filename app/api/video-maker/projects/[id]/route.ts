@@ -14,7 +14,7 @@ type VideoProjectRow = {
   updated_at: string;
 };
 
-async function getOptionalUserId(request: NextRequest) {
+async function getRequiredUserId(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "");
   if (!token) return null;
@@ -38,13 +38,12 @@ function validatePixoresProject(project: unknown): project is PixoresVideoProjec
     && Array.isArray(candidate.assets);
 }
 
-function scopeVideoProjectQuery<T>(query: T, userId: string | null) {
+function scopeVideoProjectQuery<T>(query: T, userId: string) {
   const scopedQuery = query as T & {
     eq: (column: string, value: string) => T;
-    is: (column: string, value: null) => T;
   };
 
-  return userId ? scopedQuery.eq("user_id", userId) : scopedQuery.is("user_id", null);
+  return scopedQuery.eq("user_id", userId);
 }
 
 export async function GET(
@@ -53,7 +52,8 @@ export async function GET(
 ) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const userId = await getOptionalUserId(request);
+    const userId = await getRequiredUserId(request);
+    if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const { id } = await context.params;
     const query = supabaseAdmin
       .from("video_projects")
@@ -78,7 +78,8 @@ export async function PUT(
 ) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const userId = await getOptionalUserId(request);
+    const userId = await getRequiredUserId(request);
+    if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const { id } = await context.params;
     const body = await request.json();
     const updates: Record<string, unknown> = {
@@ -129,7 +130,8 @@ export async function DELETE(
 ) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const userId = await getOptionalUserId(request);
+    const userId = await getRequiredUserId(request);
+    if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const { id } = await context.params;
     const query = supabaseAdmin
       .from("video_projects")

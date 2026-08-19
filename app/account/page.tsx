@@ -18,11 +18,16 @@ type AccountPageProps = {
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const values = await searchParams;
   const confirmed = values.confirmed === "1";
+  const passwordUpdated = values.password === "updated";
 
   return (
     <AccountPortal
       initialMode={values.mode === "signup" ? "signup" : "login"}
-      initialMessage={confirmed ? "Email confirmed. Sign in to continue with Pixores." : ""}
+      initialMessage={confirmed
+        ? "Email confirmed. Sign in to continue with Pixores."
+        : passwordUpdated
+          ? "Password updated. Sign in with your new password."
+          : ""}
     />
   );
 }

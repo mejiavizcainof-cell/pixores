@@ -138,7 +138,7 @@ export const toolGuides = {
     watchFor: ["The text inside the photo remains pixels.", "This route creates one page from one image.", "Private documents require careful handling and storage."],
     privacy: "The JPG is uploaded to the Pixores conversion endpoint and returned inside a generated PDF. Do not upload identity, medical, legal, or financial documents unless this processing is appropriate for you.",
     faq: [{ question: "Will text become selectable?", answer: "No. The image is embedded on the PDF page; OCR is not performed." }, { question: "Can I combine several JPG files?", answer: "This focused route creates a one-page PDF. Use a multi-page document workflow for several images." }, { question: "Does the page use Letter or A4?", answer: "The generated page follows the oriented image dimensions rather than forcing it into a standard paper size." }],
-    related: [{ href: "/blog/jpg-vs-png", label: "Choose an image format first" }, { href: "/crop-image", label: "Crop the scan before conversion" }],
+    related: [{ href: "/document-converter", label: "Document conversion options" }, { href: "/crop-image", label: "Crop the scan before conversion" }],
   },
   "compress-image": {
     summary: [
@@ -294,6 +294,6 @@ export const toolGuides = {
     watchFor: ["The current layouts are focused templates, not a full desktop publishing system.", "Installed fonts and PowerPoint versions can change line breaks.", "Local autosave is not a substitute for exporting a project backup."],
     privacy: "Presentation editing and project autosave occur on the device. Exported JSON and PPTX files are downloaded locally; uploaded slide images remain part of the in-browser project workflow.",
     faq: [{ question: "Is the PowerPoint file editable?", answer: "Yes. Titles, supporting text, shapes, and supported images are created as PowerPoint elements rather than one flattened screenshot." }, { question: "How do I back up a deck?", answer: "Use Save to download the Pixores JSON project in addition to relying on local autosave, then store that file with the exported PPTX." }, { question: "Why can a font move after export?", answer: "PowerPoint may substitute fonts that are unavailable on the viewing computer, which can change wrapping and spacing." }],
-    related: [{ href: "/jpg-to-pdf", label: "Turn a JPG into a PDF" }, { href: "/youtube-thumbnail-maker", label: "Create presentation graphics" }],
+    related: [{ href: "/document-converter", label: "Convert supporting documents" }, { href: "/youtube-thumbnail-maker", label: "Create presentation graphics" }],
   },
 } satisfies Record<string, ToolGuide>;

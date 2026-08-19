@@ -1,12 +1,6 @@
-export const blogRedirectMap: Record<string, string> = {
-  "best-youtube-thumbnail-size": "how-to-create-youtube-thumbnail",
-  "create-youtube-thumbnail-free": "how-to-create-youtube-thumbnail",
-  "what-makes-thumbnail-go-viral": "how-to-create-youtube-thumbnail",
-  "canva-vs-pixores": "how-to-create-youtube-thumbnail",
-  "remove-image-background-free": "make-transparent-background-png",
-  "improve-image-quality-online": "increase-image-resolution-ai",
-  "reduce-image-size-without-losing-quality": "compress-images-for-website-seo",
-};
+import blogRedirects from "./blogRedirects.json";
+
+export const blogRedirectMap: Record<string, string> = blogRedirects;
 
 export const removedBlogSlugs = [
   "how-to-automate-content-creation-with-codex",

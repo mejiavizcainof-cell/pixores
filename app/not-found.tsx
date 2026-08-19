@@ -42,7 +42,7 @@ export default function NotFound() {
           marginBottom: "35px",
         }}
       >
-        The page you are looking for doesn't exist or may
+        The page you are looking for doesn&apos;t exist or may
         have been moved. Use one of our free image tools
         below or return to the homepage.
       </p>

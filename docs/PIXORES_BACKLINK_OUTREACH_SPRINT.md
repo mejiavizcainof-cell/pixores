@@ -127,4 +127,3 @@ Subject: Primary-source image-format timeline for your [article/resource]
 - 12 highly relevant author/resource-page contacts.
 - 4 original social excerpts, not duplicate link drops.
 - Goal: the first 3 legitimate referring domains and at least one editorial citation.
-

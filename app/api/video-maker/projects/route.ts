@@ -14,7 +14,7 @@ type VideoProjectRow = {
   updated_at: string;
 };
 
-async function getOptionalUserId(request: NextRequest) {
+async function getRequiredUserId(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "");
   if (!token) return null;
@@ -38,19 +38,19 @@ function validatePixoresProject(project: unknown): project is PixoresVideoProjec
     && Array.isArray(candidate.assets);
 }
 
-function applyProjectScope<T>(query: T, userId: string | null) {
+function applyProjectScope<T>(query: T, userId: string) {
   const scopedQuery = query as T & {
     eq: (column: string, value: string) => T;
-    is: (column: string, value: null) => T;
   };
 
-  return userId ? scopedQuery.eq("user_id", userId) : scopedQuery.is("user_id", null);
+  return scopedQuery.eq("user_id", userId);
 }
 
 export async function GET(request: NextRequest) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const userId = await getOptionalUserId(request);
+    const userId = await getRequiredUserId(request);
+    if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const query = supabaseAdmin
       .from("video_projects")
       .select("id,user_id,title,project,thumbnail_url,created_at,updated_at")
@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const userId = await getOptionalUserId(request);
+    const userId = await getRequiredUserId(request);
+    if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const body = await request.json();
     const title = String(body?.title || "").trim();
     const thumbnailUrl = typeof body?.thumbnail_url === "string" ? body.thumbnail_url : null;

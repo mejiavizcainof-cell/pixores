@@ -157,7 +157,7 @@ export default function FaviconGeneratorPage() {
         }}
       >
         <h2>
-          What's Included?
+          What&apos;s Included?
         </h2>
 
         <p>

@@ -84,6 +84,19 @@ function cleanLayer(layer: PixoresVideoLayer, persistentAssetUrls: Map<string, s
       x: cleanNumber(layer.transform.x),
       y: cleanNumber(layer.transform.y),
     } : undefined,
+    smartReframe: layer.smartReframe?.keyframes.length ? {
+      ...layer.smartReframe,
+      keyframes: layer.smartReframe.keyframes.map((keyframe) => ({
+        ...keyframe,
+        time: Math.max(0, Math.min(trimmedDuration, cleanNumber(keyframe.time))),
+        centerX: Math.max(0, Math.min(1, cleanNumber(keyframe.centerX, 0.5))),
+        centerY: Math.max(0, Math.min(1, cleanNumber(keyframe.centerY, 0.5))),
+        zoom: Math.max(1, Math.min(2, cleanNumber(keyframe.zoom, 1))),
+        confidence: keyframe.confidence === undefined
+          ? undefined
+          : Math.max(0, Math.min(1, cleanNumber(keyframe.confidence, 1))),
+      })),
+    } : undefined,
     effect: layer.effect ? {
       ...layer.effect,
       intensity: Math.max(0, Math.min(1, cleanNumber(layer.effect.intensity, 1))),

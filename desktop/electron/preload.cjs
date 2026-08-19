@@ -1,9 +1,29 @@
-const { contextBridge, ipcRenderer } = require("electron");
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 const PIXORES_DESKTOP_CHANNELS = Object.freeze({
   assetsImport: "pixores:assets:import",
   assetsChooseProjectFolder: "pixores:assets:choose-project-folder",
   assetsCopyToProject: "pixores:assets:copy-to-project",
+  assetsPrepare: "pixores:assets:prepare",
+  elementLibraryList: "pixores:element-library:list",
+  elementLibrarySave: "pixores:element-library:save",
+  elementLibraryRemove: "pixores:element-library:remove",
+  downloadsListRecentImages: "pixores:downloads:list-recent-images",
+  audioStudioCapabilities: "pixores:audio-studio:capabilities",
+  audioStudioChooseFiles: "pixores:audio-studio:choose-files",
+  audioStudioChooseOutputDirectory: "pixores:audio-studio:choose-output-directory",
+  audioStudioStartConversions: "pixores:audio-studio:start-conversions",
+  audioStudioStartDownloads: "pixores:audio-studio:start-downloads",
+  audioStudioListJobs: "pixores:audio-studio:list-jobs",
+  audioStudioCancelJob: "pixores:audio-studio:cancel-job",
+  audioStudioRetryJob: "pixores:audio-studio:retry-job",
+  audioStudioRevealOutput: "pixores:audio-studio:reveal-output",
+  audioStudioProgress: "pixores:audio-studio:progress",
+  imageAiRemoveBackground: "pixores:image-ai:remove-background",
+  authStorageGet: "pixores:auth-storage:get",
+  authStorageSet: "pixores:auth-storage:set",
+  authStorageRemove: "pixores:auth-storage:remove",
   projectPackageOpen: "pixores:project-package:open",
   projectPackageOpenRecent: "pixores:project-package:open-recent",
   projectPackageSave: "pixores:project-package:save",
@@ -15,6 +35,9 @@ const PIXORES_DESKTOP_CHANNELS = Object.freeze({
   projectPackageRecentDuplicate: "pixores:project-package:recent-duplicate",
   projectOpen: "pixores:project:open",
   projectSave: "pixores:project:save",
+  autoSaveLoad: "pixores:autosave:load",
+  autoSaveSave: "pixores:autosave:save",
+  autoSaveClear: "pixores:autosave:clear",
   licenseStatusGet: "pixores:license:get-status",
   licenseStatusSave: "pixores:license:save-status",
   licenseStatusClear: "pixores:license:clear-status",
@@ -24,12 +47,67 @@ const PIXORES_DESKTOP_CHANNELS = Object.freeze({
   renderVideoLocal: "pixores:render:video-local",
   renderStart: "pixores:render:start",
   renderStatus: "pixores:render:status",
+  renderCancel: "pixores:render:cancel",
+  renderChooseOutputDirectory: "pixores:render:choose-output-directory",
+  renderSaveOutput: "pixores:render:save-output",
+  audioAiDetectSilences: "pixores:audio-ai:detect-silences",
+  audioAiTranscribe: "pixores:audio-ai:transcribe",
+  audioAiCancel: "pixores:audio-ai:cancel",
+  audioAiProgress: "pixores:audio-ai:progress",
+  audioSync: "pixores:audio:sync",
+  youtubeStatus: "pixores:youtube:status",
+  youtubeConfigure: "pixores:youtube:configure",
+  youtubeConnect: "pixores:youtube:connect",
+  youtubeDisconnect: "pixores:youtube:disconnect",
+  youtubeChooseVideo: "pixores:youtube:choose-video",
+  youtubePublish: "pixores:youtube:publish",
+  youtubeCancel: "pixores:youtube:cancel",
+  youtubeProgress: "pixores:youtube:progress",
+  systemOpenExternalUrl: "pixores:system:open-external-url",
+  windowProjectDirty: "pixores:window:project-dirty",
+  windowCloseRequest: "pixores:window:close-request",
+  windowCloseRequested: "pixores:window:close-requested",
+  windowCloseResponse: "pixores:window:close-response",
 });
 
 contextBridge.exposeInMainWorld("pixoresDesktop", {
   importAsset: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.assetsImport, payload),
   chooseProjectFolder: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.assetsChooseProjectFolder, payload),
   copyAssetToProject: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.assetsCopyToProject, payload),
+  copyAssetFileToProject: (file, payload = {}) => {
+    const sourcePath = webUtils.getPathForFile(file);
+    if (!sourcePath) throw new Error("The selected media file does not have a native desktop path.");
+    return ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.assetsCopyToProject, {
+      ...payload,
+      name: file.name,
+      mimeType: file.type || "application/octet-stream",
+      size: file.size,
+      sourcePath,
+    });
+  },
+  prepareAsset: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.assetsPrepare, payload),
+  listElementLibrary: (userKey) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.elementLibraryList, userKey),
+  saveElementLibraryItem: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.elementLibrarySave, payload),
+  removeElementLibraryItem: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.elementLibraryRemove, payload),
+  listRecentDownloadedImages: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.downloadsListRecentImages, payload),
+  getAudioStudioCapabilities: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioCapabilities),
+  chooseAudioStudioFiles: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioChooseFiles),
+  chooseAudioStudioOutputDirectory: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioChooseOutputDirectory),
+  startAudioStudioConversions: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioStartConversions, payload),
+  startAudioStudioDownloads: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioStartDownloads, payload),
+  listAudioStudioJobs: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioListJobs),
+  cancelAudioStudioJob: (jobId) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioCancelJob, jobId),
+  retryAudioStudioJob: (jobId) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioRetryJob, jobId),
+  revealAudioStudioOutput: (filePath) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioStudioRevealOutput, filePath),
+  onAudioStudioProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on(PIXORES_DESKTOP_CHANNELS.audioStudioProgress, listener);
+    return () => ipcRenderer.removeListener(PIXORES_DESKTOP_CHANNELS.audioStudioProgress, listener);
+  },
+  removeImageBackground: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.imageAiRemoveBackground, payload),
+  getAuthStorageItem: (key) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.authStorageGet, key),
+  setAuthStorageItem: (key, value) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.authStorageSet, key, value),
+  removeAuthStorageItem: (key) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.authStorageRemove, key),
   openProjectPackage: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.projectPackageOpen),
   openRecentProjectPackage: (filePath) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.projectPackageOpenRecent, filePath),
   saveProjectPackage: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.projectPackageSave, payload),
@@ -41,6 +119,9 @@ contextBridge.exposeInMainWorld("pixoresDesktop", {
   duplicateRecentProject: (filePath) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.projectPackageRecentDuplicate, filePath),
   openProject: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.projectOpen),
   saveProject: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.projectSave, payload),
+  loadAutoSave: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.autoSaveLoad),
+  saveAutoSave: (contents) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.autoSaveSave, contents),
+  clearAutoSave: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.autoSaveClear),
   getLicenseStatus: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.licenseStatusGet),
   saveLicenseStatus: (input) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.licenseStatusSave, input),
   clearLicenseStatus: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.licenseStatusClear),
@@ -50,4 +131,37 @@ contextBridge.exposeInMainWorld("pixoresDesktop", {
   renderVideoLocal: (project, options) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.renderVideoLocal, project, options),
   startRender: (project, options) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.renderStart, project, options),
   getRenderStatus: (renderId) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.renderStatus, renderId),
+  cancelRender: (renderId) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.renderCancel, renderId),
+  chooseRenderOutputDirectory: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.renderChooseOutputDirectory),
+  saveRenderedOutput: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.renderSaveOutput, payload),
+  detectSilences: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioAiDetectSilences, payload),
+  transcribeMedia: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioAiTranscribe, payload),
+  cancelAudioAi: (jobId) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioAiCancel, jobId),
+  synchronizeAudio: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.audioSync, payload),
+  onAudioAiProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on(PIXORES_DESKTOP_CHANNELS.audioAiProgress, listener);
+    return () => ipcRenderer.removeListener(PIXORES_DESKTOP_CHANNELS.audioAiProgress, listener);
+  },
+  getYouTubeStatus: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubeStatus),
+  configureYouTube: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubeConfigure, payload),
+  connectYouTube: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubeConnect, payload),
+  disconnectYouTube: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubeDisconnect),
+  chooseYouTubeVideo: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubeChooseVideo),
+  publishYouTube: (payload) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubePublish, payload),
+  cancelYouTube: (jobId) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.youtubeCancel, jobId),
+  onYouTubeProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on(PIXORES_DESKTOP_CHANNELS.youtubeProgress, listener);
+    return () => ipcRenderer.removeListener(PIXORES_DESKTOP_CHANNELS.youtubeProgress, listener);
+  },
+  openExternalUrl: (url) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.systemOpenExternalUrl, url),
+  setProjectDirty: (dirty) => ipcRenderer.send(PIXORES_DESKTOP_CHANNELS.windowProjectDirty, Boolean(dirty)),
+  requestWindowClose: () => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.windowCloseRequest),
+  respondToWindowClose: (response) => ipcRenderer.invoke(PIXORES_DESKTOP_CHANNELS.windowCloseResponse, response),
+  onWindowCloseRequested: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on(PIXORES_DESKTOP_CHANNELS.windowCloseRequested, listener);
+    return () => ipcRenderer.removeListener(PIXORES_DESKTOP_CHANNELS.windowCloseRequested, listener);
+  },
 });

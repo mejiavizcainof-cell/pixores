@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import VideoMaker from "@/components/VideoMaker";
 import DesktopAuthGate from "@/components/DesktopAuthGate";
+import QuickVideoProNotice from "@/components/QuickVideoProNotice";
 import ToolSeo from "@/components/ToolSeo";
 
 export const metadata: Metadata = {
-  title: "Free Video Maker",
+  title: "Pixores Quick Video Maker",
   description:
     "Create and edit videos online with Pixores Video Maker. Use the professional timeline, text styles, transitions, audio tools, Smart Clips and browser export.",
   alternates: { canonical: "https://www.pixores.com/video-maker" },
@@ -30,61 +30,10 @@ export default async function VideoMakerPage({ searchParams }: VideoMakerPagePro
 
   return (
     <>
-      {!isDesktopMode && (
-        <section
-          style={{
-            maxWidth: "1180px",
-            margin: "18px auto 0",
-            padding: "0 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "14px",
-              flexWrap: "wrap",
-              border: "1px solid #BFDBFE",
-              borderRadius: "16px",
-              background: "linear-gradient(135deg, #EFF6FF, #FFFFFF)",
-              padding: "14px 16px",
-              boxShadow: "0 14px 35px rgba(37, 99, 235, 0.08)",
-            }}
-          >
-            <div>
-              <strong style={{ display: "block", color: "#0F172A", fontSize: "16px" }}>
-                Get Pixores Video Maker for Windows
-              </strong>
-              <span style={{ color: "#475569", fontSize: "14px", lineHeight: 1.5 }}>
-                Continue larger projects with local GPU render, native project files, media analysis and Windows file dialogs.
-              </span>
-            </div>
-            <Link
-              href="/desktop"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "12px",
-                background: "#2563EB",
-                color: "#FFFFFF",
-                fontWeight: 900,
-                padding: "11px 15px",
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Download Desktop
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <DesktopAuthGate required={isDesktopMode} showAccountDock={false}>
+      <DesktopAuthGate required experience={isDesktopMode ? "desktop" : "online"} showAccountDock={false}>
+        {!isDesktopMode && <QuickVideoProNotice />}
         <VideoMaker />
       </DesktopAuthGate>
-
       {!isDesktopMode && (
         <ToolSeo
           tool="video-maker"

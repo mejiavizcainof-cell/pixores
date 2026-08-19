@@ -22,7 +22,7 @@ import {
   normalizeExportQualityPreset,
   type PixoresExportSettings,
 } from "@/src/video-render/export-settings";
-import type { PixoresAudioEffectChain, PixoresMediaMetadata, PixoresVideoAsset, PixoresVideoProject } from "@/src/video-render/types";
+import type { PixoresAudioEffectChain, PixoresMediaMetadata, PixoresSmartReframe, PixoresVideoAsset, PixoresVideoLayer, PixoresVideoProject } from "@/src/video-render/types";
 import { AUDIO_EFFECT_PRESETS, DEFAULT_AUDIO_EFFECTS, resolveAudioEffects } from "@/src/video-render/audio-effects";
 import { calculateProjectDuration, snapTimeToFrame } from "@/src/video-render/timeline";
 import { calculateSnappedTime, getSnapCandidates, type SnapResult } from "@/src/video-maker/timeline-snapping";
@@ -54,23 +54,55 @@ import {
 import { ensurePixoresFontLoaded, ensurePixoresFontsLoaded } from "@/src/fonts/pixores-font-loader";
 import { resolvePixoresTextStyle } from "@/src/fonts/pixores-text-style";
 import {
+  PIXORES_VIDEO_START_AUDIO_KEY,
   PIXORES_VIDEO_START_FORMAT_KEY,
   PIXORES_VIDEO_START_PROJECT_KEY,
   PIXORES_VIDEO_START_TOOL_KEY,
   type PixoresVideoStartFormatPayload,
+  type PixoresVideoStartAudioItem,
   type PixoresVideoStartProjectPayload,
   type PixoresVideoStartTool,
 } from "@/src/video-maker/startup";
 import {
   createSmartClipProject,
   createSmartClipSegments,
+  createSmartClipSourceProject,
+  generateLocalSmartClipCandidates,
   getSmartClipPlatform,
   SmartClipExportCoordinator,
   SMART_CLIP_DURATIONS,
   SMART_CLIP_PLATFORMS,
+  type SmartClipCandidate,
+  type SmartClipPlatform,
   type SmartClipPlatformId,
+  type SmartClipTranscriptCue,
 } from "@/src/video-maker/smart-clips";
-import { getProfessionalCaptionLayout } from "@/src/video-maker/caption-layout";
+import {
+  SMART_CLIP_CAPTION_SIZE_DEFAULT,
+  SMART_CLIP_CAPTION_SIZE_MAX,
+  SMART_CLIP_CAPTION_SIZE_MIN,
+  clampSmartClipCaptionSize,
+  getProfessionalCaptionLayout,
+  isAiCaptionLayer,
+  type SmartClipCaptionPosition,
+} from "@/src/video-maker/caption-layout";
+import {
+  CAPTION_STYLE_PRESETS as captionStylePresets,
+  SMART_CLIP_CAPTION_TEMPLATES,
+  applySmartClipCaptionTemplate,
+  createSmartClipCaptionStyle,
+  getCaptionStylePreset,
+  resolveCaptionStylePresetPatch,
+  type CaptionStylePresetId,
+  type SmartClipCaptionTemplateId,
+} from "@/src/video-maker/caption-style-presets";
+import { analyzeFaceTracking } from "@/src/video-maker/face-tracking";
+import {
+  buildSmartReframe,
+  resolveSmartReframeAtTime,
+  type SmartSpeechRange,
+} from "@/src/video-maker/smart-reframe";
+import { containFrameBounds, fitFrameBoundsToMedia } from "@/src/video-maker/frame-geometry";
 import {
   EMPTY_MEDIA_LIBRARY,
   loadBuiltInMediaLibrary,
@@ -92,6 +124,7 @@ const MIN_VISIBLE_TIMELINE_TRACKS = 5;
 const SMART_TRACK_PREFIX = "smart-track-";
 const TIMELINE_HEIGHT_STORAGE_KEY = "pixores-video-maker-timeline-height";
 const WORKSPACE_MODE_STORAGE_KEY = "pixores-video-maker-workspace-mode";
+const CANVAS_TOOLBAR_VISIBLE_STORAGE_KEY = "pixores-video-maker-canvas-toolbar-visible";
 const PROJECT_AUTOSAVE_KEY = "pixores-video-maker-autosave-v1";
 const PROJECT_AUTOSAVE_ENABLED_KEY = "pixores-video-maker-autosave-enabled";
 const PROJECT_MANUAL_SAVE_KEY = "pixores-video-maker-saved-project-v1";
@@ -422,6 +455,7 @@ type VideoLayer = {
     x: number;
     y: number;
   };
+  smartReframe?: PixoresSmartReframe;
   linkedVideoLayerId?: string;
   audioDetached?: boolean;
   volume?: number;
@@ -544,6 +578,16 @@ type SmartClipsProgressState = {
   progress: number;
   message: string;
   error: string;
+};
+
+type SmartClipFaceMode = "off" | "static" | "dynamic";
+
+type SmartClipSourceState = {
+  assetId: string;
+  name: string;
+  duration: number;
+  width: number;
+  height: number;
 };
 
 type AudioAiTab = "subtitles" | "silence";
@@ -990,14 +1034,7 @@ function getAutoFittedFrameBounds(mediaLayer: VideoLayer, shapeType: ShapeType) 
     return { x: mediaLayer.x, y: mediaLayer.y, width: mediaLayer.width, height: mediaLayer.height };
   }
   const slot = slots[0];
-  const width = mediaLayer.width / Math.max(0.05, slot.width);
-  const height = mediaLayer.height / Math.max(0.05, slot.height);
-  return {
-    x: Number((mediaLayer.x - slot.x * width).toFixed(2)),
-    y: Number((mediaLayer.y - slot.y * height).toFixed(2)),
-    width: Number(width.toFixed(2)),
-    height: Number(height.toFixed(2)),
-  };
+  return fitFrameBoundsToMedia(mediaLayer, slot);
 }
 
 function traceFrameMediaSlot(
@@ -1120,73 +1157,6 @@ const textEffectPresetOptions: Array<{ id: TextEffectPreset; label: string }> = 
   { id: "neon", label: "Neon" },
   { id: "glitch", label: "Glitch" },
   { id: "curve", label: "Curve" },
-];
-
-type CaptionStylePresetId = "classic" | "minimal" | "yellow" | "clean" | "brand" | "outline" | "neon" | "cinema";
-
-const captionStylePresets: Array<{
-  id: CaptionStylePresetId;
-  label: string;
-  previewText: string;
-  previewBackground: string;
-  patch: Partial<VideoLayer>;
-}> = [
-  {
-    id: "classic",
-    label: "Classic",
-    previewText: "#ffffff",
-    previewBackground: "#000000",
-    patch: { fontFamily: "Arial", fontSize: 50, color: "#ffffff", isBold: true, hasTextBg: true, textBgColor: "#000000", textBgPadding: 10, textBgRadius: 8, textAlign: "center" },
-  },
-  {
-    id: "minimal",
-    label: "Minimal",
-    previewText: "#ffffff",
-    previewBackground: "transparent",
-    patch: { fontFamily: "Montserrat", fontSize: 48, color: "#ffffff", isBold: true, hasTextBg: false, textAlign: "center", shadowColor: "#000000", shadowBlur: 12, shadowOpacity: 0.8, shadowOffsetX: 2, shadowOffsetY: 3 },
-  },
-  {
-    id: "yellow",
-    label: "Creator",
-    previewText: "#facc15",
-    previewBackground: "#050505",
-    patch: { fontFamily: "Anton", fontSize: 54, color: "#facc15", isBold: true, isUppercase: true, hasTextBg: true, textBgColor: "#050505", textBgPadding: 12, textBgRadius: 4, textAlign: "center" },
-  },
-  {
-    id: "clean",
-    label: "Clean",
-    previewText: "#111827",
-    previewBackground: "#ffffff",
-    patch: { fontFamily: "Montserrat", fontSize: 46, color: "#111827", isBold: true, hasTextBg: true, textBgColor: "#ffffff", textBgPadding: 12, textBgRadius: 5, textAlign: "center" },
-  },
-  {
-    id: "brand",
-    label: "Pixores",
-    previewText: "#04111f",
-    previewBackground: "#22d3c5",
-    patch: { fontFamily: "Montserrat", fontSize: 48, color: "#04111f", isBold: true, hasTextBg: true, textBgColor: "#22d3c5", textBgPadding: 12, textBgRadius: 14, textAlign: "center" },
-  },
-  {
-    id: "outline",
-    label: "Outline",
-    previewText: "#ffffff",
-    previewBackground: "transparent",
-    patch: { fontFamily: "Anton", fontSize: 54, color: "#ffffff", isBold: true, hasTextBg: false, textAlign: "center", textEffectPreset: "outline", strokeColor: "#000000", strokeWidth: 6, strokeOpacity: 1 },
-  },
-  {
-    id: "neon",
-    label: "Neon",
-    previewText: "#67e8f9",
-    previewBackground: "#172033",
-    patch: { fontFamily: "Montserrat", fontSize: 48, color: "#ecfeff", isBold: true, hasTextBg: true, textBgColor: "#172033", textBgPadding: 13, textBgRadius: 13, textAlign: "center", textEffectPreset: "neon", glowColor: "#22d3ee", glowRadius: 22, strokeColor: "#cffafe", strokeWidth: 1, strokeOpacity: 1 },
-  },
-  {
-    id: "cinema",
-    label: "Cinema",
-    previewText: "#f8fafc",
-    previewBackground: "#1c1917",
-    patch: { fontFamily: "Georgia", fontSize: 44, color: "#f8fafc", isBold: false, hasTextBg: true, textBgColor: "#1c1917", textBgPadding: 14, textBgRadius: 0, textAlign: "center", letterSpacing: 1.5 },
-  },
 ];
 
 type TransitionPreset = {
@@ -1466,16 +1436,19 @@ function drawLayerMedia(
   layer: VideoLayer,
   width: number,
   height: number,
+  localTime = 0,
 ) {
   const crop = layer.crop || { x: 0, y: 0, width: 100, height: 100, unit: "percent" as const };
   const transform = layer.transform || { scale: 1, x: 0, y: 0 };
+  const smartReframe = resolveSmartReframeAtTime(layer.smartReframe, localTime);
   const cropX = clamp(crop.x, 0, 100) / 100 * sourceWidth;
   const cropY = clamp(crop.y, 0, 100) / 100 * sourceHeight;
   const cropWidth = clamp(crop.width, 1, 100 - crop.x) / 100 * sourceWidth;
   const cropHeight = clamp(crop.height, 1, 100 - crop.y) / 100 * sourceHeight;
   context.save();
   context.translate(width / 2, height / 2);
-  context.scale(Math.max(0.1, transform.scale || 1), Math.max(0.1, transform.scale || 1));
+  const mediaScale = Math.max(0.1, (transform.scale || 1) * (smartReframe?.zoom || 1));
+  context.scale(mediaScale, mediaScale);
   context.translate((transform.x || 0) / 100 * width, (transform.y || 0) / 100 * height);
   context.translate(-width / 2, -height / 2);
 
@@ -1491,7 +1464,9 @@ function drawLayerMedia(
   const scale = Math.max(width / cropWidth, height / cropHeight);
   const drawWidth = cropWidth * scale;
   const drawHeight = cropHeight * scale;
-  context.drawImage(source, cropX, cropY, cropWidth, cropHeight, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  const positionX = smartReframe?.centerX ?? 0.5;
+  const positionY = smartReframe?.centerY ?? 0.5;
+  context.drawImage(source, cropX, cropY, cropWidth, cropHeight, (width - drawWidth) * positionX, (height - drawHeight) * positionY, drawWidth, drawHeight);
   context.restore();
 }
 
@@ -2083,8 +2058,7 @@ function ElementPresetThumbnail({
       if (shapeType === "splitScreenFrame") return <><rect x="12" y="11" width="136" height="74" rx="5" fill="none" stroke={color} strokeWidth="6" /><line x1="80" y1="11" x2="80" y2="85" stroke={color} strokeWidth="6" /></>;
       if (shapeType === "diagonalSplitFrame") return <><rect x="12" y="11" width="136" height="74" rx="5" fill="none" stroke={color} strokeWidth="6" /><line x1="59" y1="11" x2="101" y2="85" stroke={color} strokeWidth="6" /></>;
       if (shapeType === "paperStripFrame") return <path d="M10 24 L20 17 L31 24 L43 17 L55 24 L67 17 L79 24 L91 17 L103 24 L115 17 L127 24 L139 17 L150 24 L144 72 L132 79 L120 72 L108 79 L96 72 L84 79 L72 72 L60 79 L48 72 L36 79 L24 72 L12 79 Z" fill={color} />;
-      if (shapeType === "paperPortraitFrame") return <path d="M45 7 L116 11 L112 89 L42 84 Z" fill={color} />;
-      if (shapeType === "paperSquareFrame") return <path d="M38 9 L123 13 L119 88 L36 83 Z" fill={color} />;
+      if (shapeType === "paperPortraitFrame" || shapeType === "paperSquareFrame") return <path d="M11 17 L148 11 L143 83 L16 87 Z" fill={color} />;
       if (shapeType === "paperLeftFrame") return <path d="M29 10 L148 15 L134 86 L12 78 Z" fill={color} />;
       if (shapeType === "paperRightFrame") return <path d="M12 15 L132 9 L148 78 L27 87 Z" fill={color} />;
       if (shapeType === "paperFrame") return <path d="M11 17 L148 11 L143 83 L16 87 Z" fill={color} />;
@@ -2408,13 +2382,28 @@ function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: num
   const lines: string[] = [];
   let line = "";
 
-  for (const word of words) {
-    const nextLine = line ? `${line} ${word}` : word;
-    if (context.measureText(nextLine).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = nextLine;
+  for (const rawWord of words) {
+    const wordParts: string[] = [];
+    let wordPart = "";
+    for (const character of Array.from(rawWord)) {
+      const nextPart = `${wordPart}${character}`;
+      if (wordPart && context.measureText(nextPart).width > maxWidth) {
+        wordParts.push(wordPart);
+        wordPart = character;
+      } else {
+        wordPart = nextPart;
+      }
+    }
+    if (wordPart) wordParts.push(wordPart);
+
+    for (const word of wordParts) {
+      const nextLine = line ? `${line} ${word}` : word;
+      if (context.measureText(nextLine).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = nextLine;
+      }
     }
   }
 
@@ -2894,6 +2883,7 @@ export default function VideoMaker() {
   const textLayerInputRef = useRef<HTMLInputElement>(null);
   const inlineTextEditorRef = useRef<HTMLTextAreaElement>(null);
   const previewPanelRef = useRef<HTMLDivElement>(null);
+  const canvasViewportRef = useRef<HTMLDivElement>(null);
   const mediaPreviewRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
   const soundEffectPreviewRef = useRef<HTMLAudioElement | null>(null);
   const mediaAssetsRef = useRef<Map<string, MediaAsset>>(new Map());
@@ -2985,6 +2975,8 @@ export default function VideoMaker() {
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [isMobileTimelineOpen, setIsMobileTimelineOpen] = useState(false);
   const [isTimelineVisible, setIsTimelineVisible] = useState(true);
+  const [isCanvasToolbarVisible, setIsCanvasToolbarVisible] = useState(true);
+  const [isCanvasFullscreen, setIsCanvasFullscreen] = useState(false);
   const [formatIndex, setFormatIndex] = useState(5);
   const [customWidth, setCustomWidth] = useState(1920);
   const [customHeight, setCustomHeight] = useState(1080);
@@ -3011,6 +3003,8 @@ export default function VideoMaker() {
   const [savedProjectFingerprint, setSavedProjectFingerprint] = useState("");
   const [pendingProjectAction, setPendingProjectAction] = useState<ProjectLifecycleAction | null>(null);
   const [isSavingBeforeProjectAction, setIsSavingBeforeProjectAction] = useState(false);
+  const [isProjectFileSaving, setIsProjectFileSaving] = useState(false);
+  const [projectFileNotice, setProjectFileNotice] = useState<{ tone: "working" | "success" | "error"; message: string } | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<Date | null>(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -3021,9 +3015,23 @@ export default function VideoMaker() {
   const [autoImportDownloads, setAutoImportDownloads] = useState(true);
   const [isRemovingImageBackground, setIsRemovingImageBackground] = useState(false);
   const [isSmartClipsDialogOpen, setIsSmartClipsDialogOpen] = useState(false);
-  const [isSmartClipsSetupMode, setIsSmartClipsSetupMode] = useState(false);
   const [smartClipPlatformId, setSmartClipPlatformId] = useState<SmartClipPlatformId>("instagram-reels");
   const [smartClipDuration, setSmartClipDuration] = useState(60);
+  const [smartClipCustomWidth, setSmartClipCustomWidth] = useState(1080);
+  const [smartClipCustomHeight, setSmartClipCustomHeight] = useState(1920);
+  const [smartClipAutoCaptions, setSmartClipAutoCaptions] = useState(true);
+  const [smartClipCaptionTemplateId, setSmartClipCaptionTemplateId] = useState<SmartClipCaptionTemplateId>("none");
+  const [smartClipCaptionPosition, setSmartClipCaptionPosition] = useState<SmartClipCaptionPosition>("bottom");
+  const [smartClipCaptionSize, setSmartClipCaptionSize] = useState(SMART_CLIP_CAPTION_SIZE_DEFAULT);
+  const [smartClipFaceMode, setSmartClipFaceMode] = useState<SmartClipFaceMode>("dynamic");
+  const [smartClipSpeakerSelection, setSmartClipSpeakerSelection] = useState(true);
+  const [smartClipFastExport, setSmartClipFastExport] = useState(true);
+  const [smartClipSource, setSmartClipSource] = useState<SmartClipSourceState | null>(null);
+  const [isSmartClipSourceLoading, setIsSmartClipSourceLoading] = useState(false);
+  const [smartClipCandidates, setSmartClipCandidates] = useState<SmartClipCandidate[]>([]);
+  const [smartClipActiveCandidateId, setSmartClipActiveCandidateId] = useState("");
+  const [smartClipPreviewSource, setSmartClipPreviewSource] = useState("");
+  const [smartClipPreviewOffset, setSmartClipPreviewOffset] = useState(0);
   const [smartClipsProgress, setSmartClipsProgress] = useState<SmartClipsProgressState>({
     running: false,
     cancelling: false,
@@ -3105,6 +3113,11 @@ export default function VideoMaker() {
   const [markTrackId, setMarkTrackId] = useState("");
   const rangeMarkerDragRef = useRef<"in" | "out" | null>(null);
   const smartClipExportCoordinatorRef = useRef(new SmartClipExportCoordinator());
+  const smartClipAudioAiJobIdRef = useRef("");
+  const smartClipCaptionPreparationRef = useRef("");
+  const smartClipSourceProjectRef = useRef<PixoresVideoProject | null>(null);
+  const smartClipPreparedProjectRef = useRef<PixoresVideoProject | null>(null);
+  const smartClipSpeechRangesRef = useRef<Map<string, SmartSpeechRange[]>>(new Map());
   const audioAiJobIdRef = useRef("");
   const selectedFormat = useMemo(() => {
     const selectedPreset = formats[formatIndex] || formats[5];
@@ -3622,7 +3635,7 @@ export default function VideoMaker() {
         if (!chromaKey) {
           context.filter = canvasFilter;
           try {
-            drawLayerMedia(context, source, sourceWidth, sourceHeight, layer, layerWidth, layerHeight);
+            drawLayerMedia(context, source, sourceWidth, sourceHeight, layer, layerWidth, layerHeight, Math.max(0, layerTime - layer.start));
           } catch {
             // A decoder can briefly lose its frame while a large project is restoring.
             // Keep the canvas alive and redraw when loadeddata/seeked fires.
@@ -3647,7 +3660,7 @@ export default function VideoMaker() {
         if (!effectContext) return;
         effectContext.clearRect(0, 0, effectWidth, effectHeight);
         effectContext.filter = canvasFilter;
-        drawLayerMedia(effectContext, source, sourceWidth, sourceHeight, layer, effectWidth, effectHeight);
+        drawLayerMedia(effectContext, source, sourceWidth, sourceHeight, layer, effectWidth, effectHeight, Math.max(0, layerTime - layer.start));
         effectContext.filter = "none";
 
         try {
@@ -3657,7 +3670,7 @@ export default function VideoMaker() {
         } catch {
           context.filter = canvasFilter;
           try {
-            drawLayerMedia(context, source, sourceWidth, sourceHeight, layer, layerWidth, layerHeight);
+            drawLayerMedia(context, source, sourceWidth, sourceHeight, layer, layerWidth, layerHeight, Math.max(0, layerTime - layer.start));
           } catch {
             // Keep rendering the remaining layers while the media frame recovers.
           }
@@ -3856,6 +3869,7 @@ export default function VideoMaker() {
           { ...mediaLayer, objectFit: "cover" },
           bounds.width,
           bounds.height,
+          Math.max(0, time - frameLayer.start),
         );
         context.restore();
       });
@@ -4480,18 +4494,26 @@ export default function VideoMaker() {
   }, [isMediaPreviewMuted, mediaPreviewVolume, selectedImportId]);
 
   useEffect(() => {
-    const previewPanel = previewPanelRef.current;
-    if (!previewPanel) return;
+    const canvasViewport = canvasViewportRef.current;
+    if (!canvasViewport) return;
 
     const updatePreviewSize = () => {
-      const rect = previewPanel.getBoundingClientRect();
+      const rect = canvasViewport.getBoundingClientRect();
       setPreviewSize({ width: rect.width, height: rect.height });
     };
 
     updatePreviewSize();
     const resizeObserver = new ResizeObserver(updatePreviewSize);
-    resizeObserver.observe(previewPanel);
+    resizeObserver.observe(canvasViewport);
     return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const updateFullscreenState = () => {
+      setIsCanvasFullscreen(document.fullscreenElement === previewPanelRef.current);
+    };
+    document.addEventListener("fullscreenchange", updateFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", updateFullscreenState);
   }, []);
 
   useEffect(() => {
@@ -4737,6 +4759,7 @@ export default function VideoMaker() {
   useEffect(() => {
     const projectPayload = sessionStorage.getItem(PIXORES_VIDEO_START_PROJECT_KEY);
     const formatPayload = sessionStorage.getItem(PIXORES_VIDEO_START_FORMAT_KEY);
+    const audioPayload = sessionStorage.getItem(PIXORES_VIDEO_START_AUDIO_KEY);
     const requestedTool = (
       sessionStorage.getItem(PIXORES_VIDEO_START_TOOL_KEY)
       || new URLSearchParams(window.location.search).get("tool")
@@ -4748,6 +4771,7 @@ export default function VideoMaker() {
     sessionStorage.removeItem(PIXORES_VIDEO_START_PROJECT_KEY);
     sessionStorage.removeItem(PIXORES_VIDEO_START_FORMAT_KEY);
     sessionStorage.removeItem(PIXORES_VIDEO_START_TOOL_KEY);
+    sessionStorage.removeItem(PIXORES_VIDEO_START_AUDIO_KEY);
 
     const timeoutId = window.setTimeout(async () => {
       const markAutoSaveReady = () => {
@@ -4758,10 +4782,19 @@ export default function VideoMaker() {
       };
       const openRequestedTool = () => {
         if (requestedTool === "smart-clips") {
-          setIsSmartClipsSetupMode(true);
           setIsSmartClipsDialogOpen(true);
         }
         if (requestedTool === "social-resizer") setStatus("Social Resizer ready · Import media and use Crop & Zoom to adjust the vertical frame");
+      };
+      const importRequestedAudio = () => {
+        if (!audioPayload) return;
+        try {
+          const items = JSON.parse(audioPayload) as PixoresVideoStartAudioItem[];
+          const importedCount = importAudioStudioOutputs(Array.isArray(items) ? items : []);
+          if (importedCount > 0) setStatus(`${importedCount} Audio Studio file(s) added to Imports`);
+        } catch {
+          setStatus("Audio Studio files could not be added to Imports");
+        }
       };
 
       if (projectPayload) {
@@ -4775,6 +4808,7 @@ export default function VideoMaker() {
           setStatus("Desktop start project could not be loaded");
         }
         openRequestedTool();
+        importRequestedAudio();
         markAutoSaveReady();
         return;
       }
@@ -4793,6 +4827,7 @@ export default function VideoMaker() {
           setStatus("Desktop start format could not be applied");
         }
         openRequestedTool();
+        importRequestedAudio();
         markAutoSaveReady();
         return;
       }
@@ -4822,6 +4857,7 @@ export default function VideoMaker() {
         }
       }
       openRequestedTool();
+      importRequestedAudio();
       markAutoSaveReady();
     }, 0);
 
@@ -5130,10 +5166,12 @@ export default function VideoMaker() {
   useEffect(() => {
     const savedHeight = Number(localStorage.getItem(TIMELINE_HEIGHT_STORAGE_KEY));
     const savedMode = localStorage.getItem(WORKSPACE_MODE_STORAGE_KEY);
+    const savedCanvasToolbarVisibility = localStorage.getItem(CANVAS_TOOLBAR_VISIBLE_STORAGE_KEY);
     if (Number.isFinite(savedHeight) && savedHeight > 0) {
       setTimelineHeight(clamp(savedHeight, 220, Math.max(320, Math.round(window.innerHeight * 0.65))));
     }
     if (savedMode === "edit" || savedMode === "timeline" || savedMode === "preview") setWorkspaceMode(savedMode);
+    if (savedCanvasToolbarVisibility !== null) setIsCanvasToolbarVisible(savedCanvasToolbarVisibility !== "false");
     window.requestAnimationFrame(() => {
       workspacePreferencesLoadedRef.current = true;
     });
@@ -5143,7 +5181,8 @@ export default function VideoMaker() {
     if (!workspacePreferencesLoadedRef.current) return;
     localStorage.setItem(TIMELINE_HEIGHT_STORAGE_KEY, String(Math.round(timelineHeight)));
     localStorage.setItem(WORKSPACE_MODE_STORAGE_KEY, workspaceMode);
-  }, [timelineHeight, workspaceMode]);
+    localStorage.setItem(CANVAS_TOOLBAR_VISIBLE_STORAGE_KEY, String(isCanvasToolbarVisible));
+  }, [isCanvasToolbarVisible, timelineHeight, workspaceMode]);
 
   useEffect(() => {
     setSelectedLayerIds((current) => {
@@ -5894,29 +5933,10 @@ export default function VideoMaker() {
 
   function applyCaptionStylePreset(presetId: CaptionStylePresetId) {
     if (!selectedLayer || selectedLayer.type !== "text" || selectedLayer.locked) return;
-    const preset = captionStylePresets.find((item) => item.id === presetId);
+    const preset = getCaptionStylePreset(presetId);
     if (!preset) return;
     ensureVideoMakerFontLoaded(preset.patch.fontFamily || "Arial");
-    updateLayer(selectedLayer.id, {
-      isItalic: false,
-      isUnderline: false,
-      isStrikethrough: false,
-      isUppercase: false,
-      textEffectPreset: "none",
-      hasTextBg: false,
-      textCurve: 0,
-      strokeWidth: 0,
-      strokeOpacity: 0,
-      shadowPreset: "none",
-      shadowBlur: 0,
-      shadowOpacity: 0,
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-      glowRadius: 0,
-      letterSpacing: 0,
-      lineHeight: 1.1,
-      ...preset.patch,
-    });
+    updateLayer(selectedLayer.id, resolveCaptionStylePresetPatch(presetId));
     setStatus(`${preset.label} caption style applied`);
   }
 
@@ -6314,9 +6334,11 @@ export default function VideoMaker() {
     const unstableAssetCount = getUnstableProjectAssetCount();
     if (unstableAssetCount <= 0) return true;
     const stillUploading = imports.some((item) => item.uploadStatus === "uploading");
-    setStatus(stillUploading
+    const message = stillUploading
       ? "Please wait for imported media to finish preparing before saving"
-      : `${unstableAssetCount} media file${unstableAssetCount === 1 ? " needs" : "s need"} to be re-imported before saving`);
+      : `${unstableAssetCount} media file${unstableAssetCount === 1 ? " needs" : "s need"} to be re-imported before saving`;
+    setStatus(message);
+    setProjectFileNotice({ tone: "error", message });
     return false;
   }
 
@@ -6329,25 +6351,36 @@ export default function VideoMaker() {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
 
   async function saveProjectFile() {
+    if (isProjectFileSaving) return false;
     if (!canSaveProjectMedia()) return false;
-    if (adapters.isDesktop) {
-      return saveDesktopProjectPackage();
-    }
-
-    const contents = createProjectPackageContents();
+    setIsProjectFileSaving(true);
+    setProjectFileNotice({ tone: "working", message: adapters.isDesktop ? "Opening the project save window…" : "Preparing the project download…" });
     try {
-      localStorage.setItem(PROJECT_MANUAL_SAVE_KEY, JSON.stringify(contents));
-    } catch {
-      // The downloadable project remains available if browser storage is full.
+      if (adapters.isDesktop) return await saveDesktopProjectPackage();
+
+      const contents = createProjectPackageContents();
+      try {
+        localStorage.setItem(PROJECT_MANUAL_SAVE_KEY, JSON.stringify(contents));
+      } catch {
+        // The downloadable project remains available if browser storage is full.
+      }
+      downloadProjectFile(contents);
+      markCurrentProjectClean();
+      setStatus("Project saved");
+      setProjectFileNotice({ tone: "success", message: "Project exported to your Downloads folder." });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Project export failed";
+      setStatus(`Project export error: ${message}`);
+      setProjectFileNotice({ tone: "error", message: `Project export failed: ${message}` });
+      return false;
+    } finally {
+      setIsProjectFileSaving(false);
     }
-    downloadProjectFile(contents);
-    markCurrentProjectClean();
-    setStatus("Project saved");
-    return true;
   }
 
   function openProjectFile() {
@@ -6384,6 +6417,7 @@ export default function VideoMaker() {
 
       if (result.canceled) {
         setStatus("Desktop project save canceled");
+        setProjectFileNotice({ tone: "error", message: "Project export was canceled." });
         return false;
       }
 
@@ -6391,9 +6425,12 @@ export default function VideoMaker() {
       markCurrentProjectClean(result.metadata.title);
       setCurrentCloudProjectId("");
       setStatus(`Desktop project saved: ${result.filePath}`);
+      setProjectFileNotice({ tone: "success", message: `Project saved: ${result.filePath}` });
       return true;
     } catch (error) {
-      setStatus(`Desktop save error: ${error instanceof Error ? error.message : "Save failed"}`);
+      const message = error instanceof Error ? error.message : "Save failed";
+      setStatus(`Desktop save error: ${message}`);
+      setProjectFileNotice({ tone: "error", message: `Project export failed: ${message}` });
       return false;
     }
   }
@@ -6419,12 +6456,22 @@ export default function VideoMaker() {
     }
   }
 
+  async function getCloudProjectHeaders(includeJson = false) {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Sign in to sync Pixores projects.");
+    return {
+      ...(includeJson ? { "Content-Type": "application/json" } : {}),
+      Authorization: `Bearer ${accessToken}`,
+    };
+  }
+
   async function loadCloudProjects() {
     setIsCloudLoading(true);
     setStatus("Loading cloud projects...");
 
     try {
-      const response = await fetch("/api/video-maker/projects");
+      const response = await fetch("/api/video-maker/projects", { headers: await getCloudProjectHeaders() });
       const payload = await response.json().catch(() => null) as { projects?: CloudVideoProject[]; error?: string } | null;
 
       if (!response.ok) {
@@ -6449,7 +6496,7 @@ export default function VideoMaker() {
     try {
       const response = await fetch(currentCloudProjectId ? `/api/video-maker/projects/${encodeURIComponent(currentCloudProjectId)}` : "/api/video-maker/projects", {
         method: currentCloudProjectId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getCloudProjectHeaders(true),
         body: JSON.stringify({
           title,
           project,
@@ -6482,7 +6529,7 @@ export default function VideoMaker() {
     setStatus("Opening cloud project...");
 
     try {
-      const response = await fetch(`/api/video-maker/projects/${encodeURIComponent(projectId)}`);
+      const response = await fetch(`/api/video-maker/projects/${encodeURIComponent(projectId)}`, { headers: await getCloudProjectHeaders() });
       const payload = await response.json().catch(() => null) as { project?: CloudVideoProject; error?: string } | null;
 
       if (!response.ok || !payload?.project) {
@@ -6508,6 +6555,7 @@ export default function VideoMaker() {
     try {
       const response = await fetch(`/api/video-maker/projects/${encodeURIComponent(projectId)}`, {
         method: "DELETE",
+        headers: await getCloudProjectHeaders(),
       });
       const payload = await response.json().catch(() => null) as { deleted?: boolean; error?: string } | null;
 
@@ -6606,10 +6654,14 @@ export default function VideoMaker() {
     setCustomHeight(project.canvas.height);
     setBackground(project.background);
     const projectAssetUrls = new Map(restoredAssets.map((asset) => [asset.id, asset.persistentUrl || asset.url]));
-    const restoredProjectLayers = (project.layers as VideoLayer[]).map((layer) => normalizeTimelineClip({
-      ...layer,
-      src: layer.assetKey ? projectAssetUrls.get(layer.assetKey) || layer.src : layer.src,
-    }));
+    const restoredProjectLayers = (project.layers as VideoLayer[]).map((layer) => {
+      const restoredLayer = normalizeTimelineClip({
+        ...layer,
+        src: layer.assetKey ? projectAssetUrls.get(layer.assetKey) || layer.src : layer.src,
+      });
+      if (restoredLayer.type !== "shape" || !isMediaContainerShape(restoredLayer.shapeType)) return restoredLayer;
+      return { ...restoredLayer, ...containFrameBounds(restoredLayer) };
+    });
     const restoredLayerIds = new Set(restoredProjectLayers.map((layer) => layer.id));
     const recoveredTransitionLayers: VideoLayer[] = (project.transitions || []).flatMap((transition) => {
       if (restoredLayerIds.has(transition.id)) return [];
@@ -6740,6 +6792,17 @@ export default function VideoMaker() {
     }
   }
 
+  function toggleCanvasToolbar() {
+    setIsCanvasToolbarVisible((visible) => {
+      const next = !visible;
+      if (!next) {
+        setActiveObjectStylePanel(null);
+        setIsTextEffectsPanelOpen(false);
+      }
+      return next;
+    });
+  }
+
   function selectLayer(layerId: string, trackId?: string) {
     setSelectedLayerId(layerId);
     setSelectedLayerIds(layerId ? [layerId] : []);
@@ -6785,12 +6848,26 @@ export default function VideoMaker() {
 
   function addEmptyTrack() {
     const id = `empty-track-${Date.now()}`;
-    const order = trackSettings.reduce((highest, track) => Math.max(highest, track.order), -1) + 1;
-    setEmptyTracks((current) => [...current, { id, order, name: `Track ${order + 1}`, visible: true }]);
-    setTrackSettings((current) => [...current, { id, order, name: `Track ${order + 1}`, muted: false }]);
+    const name = `Track ${trackSettings.length + 1}`;
+    setLayers((current) => {
+      const next = current.map((layer, fallbackIndex) => ({
+        ...layer,
+        trackOrder: getTrackOrder(getTrackId(layer), trackSettings, layer.trackOrder ?? fallbackIndex) + 1,
+      }));
+      layersRef.current = next;
+      return next;
+    });
+    setEmptyTracks((current) => [
+      { id, order: 0, name, visible: true },
+      ...current.map((track, index) => ({ ...track, order: (track.order ?? index) + 1 })),
+    ]);
+    setTrackSettings((current) => [
+      { id, order: 0, name, muted: false },
+      ...current.map((track) => ({ ...track, order: track.order + 1 })),
+    ]);
     setSelectedLayerId("");
     setSelectedTrackId(id);
-    setStatus("Empty track added");
+    setStatus("New track added at the top");
   }
 
   function fitSelectedMediaToCanvas() {
@@ -6912,15 +6989,83 @@ export default function VideoMaker() {
     setCurrentTime((value) => clamp(value + frameStep * direction, previewRangeStart, previewRangeEnd));
   }
 
-  function snapshotCanvas() {
+  async function saveImageBlobToExportDestination(blob: Blob, fileName: string) {
+    if (adapters.isDesktop) {
+      const bridge = getPixoresDesktopBridge();
+      if (!bridge?.saveRenderedOutput) throw new Error("Desktop image saving is unavailable.");
+      const result = await bridge.saveRenderedOutput({
+        fileName,
+        outputDirectory: exportSettings.outputDirectory,
+        bytes: await blob.arrayBuffer(),
+      });
+      return result.outputPath;
+    }
+
+    const directory = browserExportDirectoryRef.current;
+    if (directory) {
+      const fileHandle = await directory.getFileHandle(fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return `${directory.name}/${fileName}`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    triggerBrowserDownload(url, fileName);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    return `Downloads/${fileName}`;
+  }
+
+  function createCanvasPngBlob(canvas: HTMLCanvasElement) {
+    return new Promise<Blob>((resolve, reject) => {
+      try {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("The canvas did not produce an image."));
+        }, "image/png", 0.96);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  async function addGeneratedImageToImportsAndDisk(blob: Blob, fileName: string, label: string) {
+    const file = new File([blob], fileName, { type: "image/png" });
+    await importMediaFile(file, { origin: "local" });
+    try {
+      const outputPath = await saveImageBlobToExportDestination(blob, fileName);
+      setStatus(`${label} added to Imports and saved: ${outputPath}`);
+    } catch (error) {
+      setStatus(`${label} added to Imports, but the disk copy failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  async function saveImportedImageToDisk(item: ImportedAsset) {
+    if (item.kind !== "image") return;
+    try {
+      const response = await fetch(item.persistentUrl || item.url);
+      if (!response.ok) throw new Error(`Image read failed with ${response.status}`);
+      const outputPath = await saveImageBlobToExportDestination(await response.blob(), item.name);
+      setStatus(`Image saved: ${outputPath}`);
+    } catch (error) {
+      setStatus(`Image could not be saved: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  async function snapshotCanvas() {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const url = canvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `pixores-frame-${formatTimecode(currentTime).replace(/:/g, "-")}.png`;
-    link.click();
-    setStatus("Snapshot saved");
+    if (!canvas) {
+      setStatus("The canvas is not ready for a snapshot");
+      return;
+    }
+    try {
+      const context = canvas.getContext("2d");
+      if (context) drawScene(context, currentTimeRef.current);
+      const fileName = `${sanitizeProjectFileName(projectTitle)}-frame-${formatTimecode(currentTimeRef.current).replace(/:/g, "-")}.png`;
+      await addGeneratedImageToImportsAndDisk(await createCanvasPngBlob(canvas), fileName, "Snapshot");
+    } catch (error) {
+      setStatus(`Snapshot failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   }
 
   function toggleMediaPreviewPlayback() {
@@ -6944,13 +7089,10 @@ export default function VideoMaker() {
     setIsMediaPreviewPlaying(false);
   }
 
-  function snapshotSelectedImport() {
+  async function snapshotSelectedImport() {
     if (!selectedImport) return;
     if (selectedImport.kind === "image") {
-      const link = document.createElement("a");
-      link.href = selectedImport.url;
-      link.download = selectedImport.name.replace(/\.[^.]+$/, "") || "pixores-image";
-      link.click();
+      await saveImportedImageToDisk(selectedImport);
       return;
     }
 
@@ -6960,11 +7102,12 @@ export default function VideoMaker() {
     canvas.width = media.videoWidth;
     canvas.height = media.videoHeight;
     canvas.getContext("2d")?.drawImage(media, 0, 0, canvas.width, canvas.height);
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = `${selectedImport.name.replace(/\.[^.]+$/, "")}-snapshot.png`;
-    link.click();
-    setStatus("Media snapshot saved");
+    try {
+      const fileName = `${selectedImport.name.replace(/\.[^.]+$/, "")}-snapshot.png`;
+      await addGeneratedImageToImportsAndDisk(await createCanvasPngBlob(canvas), fileName, "Media snapshot");
+    } catch (error) {
+      setStatus(`Media snapshot failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   }
 
   function replaceSelectedClipWithImport(item: ImportedAsset) {
@@ -8778,6 +8921,56 @@ export default function VideoMaker() {
     });
   }
 
+  function importAudioStudioOutputs(items: PixoresVideoStartAudioItem[]) {
+    const validItems = items.filter((item) => item?.outputUrl && item?.name).slice(0, 50);
+    if (!validItems.length) return 0;
+    const importedAssets = validItems.map((item, index) => {
+      const id = `audio-studio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+      const url = createDesktopMediaUrl(item.outputUrl);
+      const metadata: PixoresMediaMetadata = {
+        analyzer: "ffprobe",
+        analyzedAt: new Date().toISOString(),
+        mimeType: item.mimeType || "audio/mpeg",
+        size: item.size,
+        hasVideo: false,
+        hasAudio: true,
+      };
+      const audio = document.createElement("audio");
+      const mediaAsset: MediaAsset = { kind: "audio", audio, url, persistentUrl: url, metadata };
+      audio.src = url;
+      audio.preload = "metadata";
+      audio.crossOrigin = "anonymous";
+      audio.onloadedmetadata = () => {
+        if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+        const completedMetadata = { ...metadata, duration: audio.duration };
+        mediaAsset.duration = audio.duration;
+        mediaAsset.metadata = completedMetadata;
+        setImports((current) => current.map((asset) => asset.id === id ? { ...asset, duration: audio.duration, metadata: completedMetadata } : asset));
+      };
+      audio.load();
+      mediaAssetsRef.current.set(id, mediaAsset);
+      return {
+        id,
+        name: item.name,
+        kind: "audio" as const,
+        url,
+        persistentUrl: url,
+        uploadStatus: "ready" as const,
+        size: item.size,
+        metadata,
+        origin: "local" as const,
+      };
+    });
+    setImports((current) => {
+      const next = [...importedAssets, ...current];
+      importsRef.current = next;
+      return next;
+    });
+    setSelectedImportId(importedAssets[0].id);
+    openToolPanel("imports");
+    return importedAssets.length;
+  }
+
   async function importMediaFile(
     file: File,
     options: { origin?: "local" | "chatgpt"; saveToChatGptLibrary?: boolean } = {},
@@ -9868,7 +10061,7 @@ export default function VideoMaker() {
     }
     const bridge = getPixoresDesktopBridge();
     if (!bridge?.synchronizeAudio) {
-      setStatus("Automatic audio synchronization is available in Pixores Desktop");
+      setStatus("Automatic audio synchronization is available in Pixores Video Maker Pro");
       return;
     }
     setIsSynchronizingAudio(true);
@@ -10320,10 +10513,9 @@ export default function VideoMaker() {
     });
     const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, "image/png", 0.96));
     if (!blob) return;
-    const file = new File([blob], `${sanitizeProjectFileName(projectTitle)}-thumbnail.png`, { type: "image/png" });
-    await importMediaFile(file, { origin: "chatgpt", saveToChatGptLibrary: true });
+    const fileName = `${sanitizeProjectFileName(projectTitle)}-thumbnail.png`;
+    await addGeneratedImageToImportsAndDisk(blob, fileName, "Thumbnail");
     setIsThumbnailDialogOpen(false);
-    setStatus("Thumbnail generated in Imports and saved in Creations from ChatGPT");
   }
 
   function getSelectedExportRange() {
@@ -10638,7 +10830,7 @@ export default function VideoMaker() {
     }
 
     if (normalizedSettings.renderMethod === "local" && !adapters.isDesktop) {
-      setStatus("Local render is available in Pixores Desktop. Choose Server or Browser export.");
+      setStatus("Local render is available in Pixores Video Maker Pro. Choose Server or Browser export.");
       return;
     }
 
@@ -10829,7 +11021,7 @@ export default function VideoMaker() {
     const exportType = getSupportedExportType();
     const warnings = [
       ...(settings.format === "mp4" && exportType.extension !== "mp4" ? ["This browser exports WebM when MP4 recording is unavailable."] : []),
-      ...(settings.includeAudio && exportType.audioCodec !== "aac" ? ["This browser cannot guarantee AAC audio. Pixores Desktop is required for AAC output."] : []),
+      ...(settings.includeAudio && exportType.audioCodec !== "aac" ? ["This browser cannot guarantee AAC audio. Pixores Video Maker Pro is required for AAC output."] : []),
       ...(settings.includeAudio && !exportStream.hasAudio ? ["Audio could not be attached by this browser. Use the desktop renderer for guaranteed audio."] : []),
     ];
     setRenderProgress({
@@ -10970,32 +11162,113 @@ export default function VideoMaker() {
   }
 
   function openSmartClipsDialog() {
-    setIsSmartClipsSetupMode(false);
     setIsSmartClipsDialogOpen(true);
     setSmartClipsProgress((current) => ({
       ...current,
       error: "",
-      message: layers.some((layer) => layer.type === "media" && layer.mediaKind === "video")
-        ? "Choose a platform and clip length."
-        : "Import a video and place it on the timeline before exporting Smart Clips.",
+      message: smartClipSource
+        ? "Choose the output format and clip length, then analyze locally."
+        : "Choose the master video you want to turn into short clips.",
     }));
   }
 
+  function resetSmartClipCandidates(options: { clearSource?: boolean } = {}) {
+    setSmartClipCandidates([]);
+    setSmartClipActiveCandidateId("");
+    smartClipPreparedProjectRef.current = null;
+    smartClipSpeechRangesRef.current = new Map();
+    if (options.clearSource) {
+      smartClipSourceProjectRef.current = null;
+      setSmartClipSource(null);
+      setSmartClipPreviewSource("");
+      setSmartClipPreviewOffset(0);
+    }
+  }
+
+  async function selectSmartClipSourceFile(file: File) {
+    if (!adapters.isDesktop) {
+      setSmartClipsProgress((current) => ({
+        ...current,
+        error: "Local Smart Clips are available in Pixores Video Maker Pro.",
+        message: "Desktop local processing is required.",
+      }));
+      return;
+    }
+    const isVideoFile = file.type.startsWith("video/") || /\.(?:mp4|mov|m4v|webm|mkv|avi|wmv)$/i.test(file.name);
+    if (!isVideoFile) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Choose a supported video file.", message: "The selected file is not a video." }));
+      return;
+    }
+
+    const inferredType = file.type || (/\.webm$/i.test(file.name) ? "video/webm" : /\.mov$/i.test(file.name) ? "video/quicktime" : "video/mp4");
+    const importFile = file.type ? file : new File([file], file.name, { type: inferredType, lastModified: file.lastModified });
+    resetSmartClipCandidates({ clearSource: true });
+    setIsSmartClipSourceLoading(true);
+    setSmartClipsProgress({
+      running: false,
+      cancelling: false,
+      completed: 0,
+      total: 0,
+      currentClip: 0,
+      progress: 0,
+      message: "Preparing the master video locally...",
+      error: "",
+    });
+    setStatus(`Smart Clips · preparing ${file.name} locally`);
+
+    try {
+      const assetId = await importMediaFile(importFile);
+      const imported = importsRef.current.find((item) => item.id === assetId);
+      const mediaAsset = mediaAssetsRef.current.get(assetId);
+      if (!imported || imported.uploadStatus === "error") throw new Error("The local video adapter could not prepare this file.");
+      const metadata = imported.metadata || mediaAsset?.metadata;
+      const duration = Number(imported.duration || metadata?.duration || mediaAsset?.duration) || 0;
+      if (duration <= 0) throw new Error("Pixores could not read the duration of this video.");
+      const persistentUrl = imported.persistentUrl || mediaAsset?.persistentUrl;
+      const sourceUrl = persistentUrl || imported.url || mediaAsset?.url;
+      if (!sourceUrl) throw new Error("The local video source is unavailable.");
+      const width = Math.max(2, Math.round(Number(metadata?.width) || 1920));
+      const height = Math.max(2, Math.round(Number(metadata?.height) || 1080));
+      const sourceProject = createSmartClipSourceProject({
+        id: assetId,
+        name: file.name.replace(/\.[^.]+$/, ""),
+        url: sourceUrl,
+        persistentUrl,
+        duration,
+        width,
+        height,
+        metadata,
+      });
+      smartClipSourceProjectRef.current = sourceProject;
+      setSmartClipSource({ assetId, name: file.name, duration, width, height });
+      setSmartClipPreviewSource(createDesktopMediaUrl(imported.url || mediaAsset?.url || sourceUrl));
+      setSmartClipPreviewOffset(0);
+      setSmartClipsProgress((current) => ({
+        ...current,
+        message: "Master video ready. Choose the format, duration and local options, then analyze.",
+        error: "",
+      }));
+      setStatus(`Smart Clips · ${file.name} ready · ${formatExportSeconds(duration)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The master video could not be prepared.";
+      resetSmartClipCandidates({ clearSource: true });
+      setSmartClipsProgress((current) => ({ ...current, error: message, message: "Choose another master video and try again." }));
+      setStatus(`Smart Clips source error: ${message}`);
+    } finally {
+      setIsSmartClipSourceLoading(false);
+    }
+  }
+
   function selectSmartClipPlatform(platformId: SmartClipPlatformId) {
-    const platform = getSmartClipPlatform(platformId);
+    const platform = getSmartClipPlatform(platformId, { width: smartClipCustomWidth, height: smartClipCustomHeight });
+    resetSmartClipCandidates();
     setSmartClipPlatformId(platformId);
     setSmartClipDuration((current) => Math.min(current, platform.maxDuration));
-    if (!isSmartClipsSetupMode) return;
+  }
 
-    const verticalFormatIndex = formats.findIndex((format) => format.id === "9_16");
-    setFormatIndex(verticalFormatIndex >= 0 ? verticalFormatIndex : 0);
-    setCustomWidth(platform.width);
-    setCustomHeight(platform.height);
-    setManualCanvasWidth(null);
-    setIsSmartClipsDialogOpen(false);
-    setIsSmartClipsSetupMode(false);
-    openToolPanel("imports");
-    setStatus(`${platform.label} project ready · import a video and add it to the timeline`);
+  function selectSmartClipDuration(duration: number) {
+    resetSmartClipCandidates();
+    setSmartClipDuration(duration);
   }
 
   function openAudioAiDialog(tab: AudioAiTab) {
@@ -11005,7 +11278,7 @@ export default function VideoMaker() {
       return;
     }
     if (!adapters.isDesktop) {
-      setStatus("Subtitles and silence removal are available in Pixores Desktop");
+      setStatus("Subtitles and silence removal are available in Pixores Video Maker Pro");
       return;
     }
     setAudioAiTab(tab);
@@ -11050,6 +11323,429 @@ export default function VideoMaker() {
       preparedLayer?.src,
       ...getAudioAiSources(layer),
     ].filter((value): value is string => Boolean(value)))];
+  }
+
+  function getSmartClipLayerSources(project: PixoresVideoProject, layer: PixoresVideoLayer) {
+    const assetId = layer.assetKey || layer.id;
+    const asset = project.assets.find((item) => item.id === assetId);
+    return [...new Set([
+      asset?.persistentUrl,
+      asset?.url,
+      layer.src,
+    ].filter((value): value is string => Boolean(value)))];
+  }
+
+  function selectSmartClipCaptionTemplate(templateId: SmartClipCaptionTemplateId) {
+    setSmartClipCaptionTemplateId(templateId);
+    if (templateId === "none") {
+      setStatus("Smart Clips · no subtitle template selected");
+      return;
+    }
+    const preset = getCaptionStylePreset(templateId);
+    if (preset?.patch.fontFamily) ensureVideoMakerFontLoaded(preset.patch.fontFamily);
+    setStatus(`Smart Clips · ${preset?.label || "subtitle"} template selected`);
+  }
+
+  function selectSmartClipCaptionPosition(position: SmartClipCaptionPosition) {
+    setSmartClipCaptionPosition(position);
+    setStatus(`Smart Clips · subtitles placed at the ${position}`);
+  }
+
+  function selectSmartClipCaptionSize(sizePercent: number) {
+    const nextSize = clampSmartClipCaptionSize(sizePercent);
+    setSmartClipCaptionSize(nextSize);
+    setStatus(`Smart Clips · subtitle size set to ${nextSize}%`);
+  }
+
+  function placeSmartClipCaption<T extends { x: number; y: number; width: number; height: number; fontSize?: number }>(
+    caption: T,
+    layout: ReturnType<typeof getProfessionalCaptionLayout>,
+  ): T {
+    return {
+      ...caption,
+      x: layout.x,
+      y: layout.y,
+      width: layout.width,
+      height: layout.height,
+      fontSize: layout.fontSize,
+    };
+  }
+
+  function applySelectedSmartClipTemplateToCaptions(captions: VideoLayer[]) {
+    const platform = getSmartClipPlatform(smartClipPlatformId, { width: smartClipCustomWidth, height: smartClipCustomHeight });
+    const layout = getProfessionalCaptionLayout(platform.width, platform.height, smartClipCaptionPosition, smartClipCaptionSize);
+    const captionIds = new Set(captions.map((caption) => caption.id));
+    const applyPresentation = (caption: VideoLayer) => placeSmartClipCaption(
+      applySmartClipCaptionTemplate(caption, smartClipCaptionTemplateId),
+      layout,
+    );
+    const styledCaptions = captions.map(applyPresentation);
+    commitLayers((current) => current.map((layer) => captionIds.has(layer.id) ? applyPresentation(layer) : layer));
+    return styledCaptions;
+  }
+
+  function applySelectedSmartClipTemplateToProject(
+    project: PixoresVideoProject,
+    platform: ReturnType<typeof getSmartClipPlatform>,
+  ) {
+    const layout = getProfessionalCaptionLayout(platform.width, platform.height, smartClipCaptionPosition, smartClipCaptionSize);
+    return {
+      ...project,
+      layers: project.layers.map((layer) => isAiCaptionLayer(layer)
+        ? placeSmartClipCaption(applySmartClipCaptionTemplate(layer, smartClipCaptionTemplateId), layout)
+        : layer),
+    };
+  }
+
+  function openSmartClipCaptionEditor(captions = layersRef.current.filter((layer) => isAiCaptionLayer(layer))) {
+    const orderedCaptions = [...captions].sort((first, second) => first.start - second.start);
+    const firstCaption = orderedCaptions[0];
+    if (!firstCaption) {
+      setStatus("Generate Smart Clip subtitles before opening the caption editor");
+      return;
+    }
+
+    setIsSmartClipsDialogOpen(false);
+    setIsPlaying(false);
+    setCurrentTime(Math.max(0, firstCaption.start + Math.min(0.05, firstCaption.duration / 2)));
+    setSelectedLayerId(firstCaption.id);
+    setSelectedLayerIds([firstCaption.id]);
+    setSelectedTrackId(firstCaption.trackId || firstCaption.id);
+    setActivePanel("settings");
+    setIsSidebarOpen(true);
+    setIsMobilePanelOpen(true);
+    setIsMobileTimelineOpen(false);
+    setIsCanvasToolbarVisible(true);
+    setActiveObjectStylePanel(null);
+    setIsTextEffectsPanelOpen(true);
+    setInlineEditingTextId("");
+    setStatus(`${orderedCaptions.length} editable Smart Clip subtitle${orderedCaptions.length === 1 ? "" : "s"} ready · edit the text individually and use Styles → Apply to all`);
+  }
+
+  async function prepareEditableSmartClipCaptions() {
+    const existingCaptions = layersRef.current.filter((layer) => isAiCaptionLayer(layer));
+    if (existingCaptions.length) {
+      openSmartClipCaptionEditor(applySelectedSmartClipTemplateToCaptions(existingCaptions));
+      return;
+    }
+
+    const bridge = getPixoresDesktopBridge();
+    if (!adapters.isDesktop || !bridge?.transcribeMedia) {
+      setSmartClipsProgress((current) => ({
+        ...current,
+        error: "Local transcription is available in Pixores Video Maker Pro.",
+        message: "Editable subtitles require the desktop app.",
+      }));
+      return;
+    }
+
+    if (!layersRef.current.some((layer) => layer.type === "media" && layer.mediaKind === "video" && layer.visible)) {
+      setSmartClipsProgress((current) => ({
+        ...current,
+        error: "Add at least one video to the timeline first.",
+        message: "No video was found for subtitle generation.",
+      }));
+      return;
+    }
+
+    const operationId = globalThis.crypto?.randomUUID?.() || `smart-caption-edit-${Date.now()}`;
+    smartClipCaptionPreparationRef.current = operationId;
+    setSmartClipsProgress({
+      running: true,
+      cancelling: false,
+      completed: 0,
+      total: 0,
+      currentClip: 0,
+      progress: 2,
+      message: "Preparing media for editable Smart Clip subtitles...",
+      error: "",
+    });
+    setStatus("Preparing editable Smart Clip subtitles...");
+
+    try {
+      const project = await prepareProjectMediaForRender();
+      if (smartClipCaptionPreparationRef.current !== operationId) throw new Error("Smart Clip subtitle preparation cancelled");
+      const videoLayers = project.layers.filter((layer) => layer.type === "media" && layer.mediaKind === "video" && layer.visible);
+      if (!videoLayers.length) throw new Error("No visible video was found on the timeline.");
+
+      const platform = getSmartClipPlatform(smartClipPlatformId, { width: smartClipCustomWidth, height: smartClipCustomHeight });
+      const captionLayout = getProfessionalCaptionLayout(platform.width, platform.height, smartClipCaptionPosition, smartClipCaptionSize);
+      const captionStyle = createSmartClipCaptionStyle(smartClipCaptionTemplateId, captionLayout) as Partial<VideoLayer>;
+      const stamp = Date.now();
+      const trackId = `smart-editable-captions-${stamp}`;
+      const captionLayers: VideoLayer[] = [];
+      const failures: string[] = [];
+
+      for (let videoIndex = 0; videoIndex < videoLayers.length; videoIndex += 1) {
+        if (smartClipCaptionPreparationRef.current !== operationId) throw new Error("Smart Clip subtitle preparation cancelled");
+        const layer = videoLayers[videoIndex];
+        const sourceUrls = getSmartClipLayerSources(project, layer);
+        if (!sourceUrls.length) {
+          failures.push(`${layer.name}: local source not found`);
+          continue;
+        }
+
+        const jobId = globalThis.crypto?.randomUUID?.() || `smart-editable-caption-${stamp}-${videoIndex}`;
+        smartClipAudioAiJobIdRef.current = jobId;
+        setSmartClipsProgress((current) => ({
+          ...current,
+          total: videoLayers.length,
+          currentClip: videoIndex + 1,
+          progress: 5 + Math.round((videoIndex / Math.max(1, videoLayers.length)) * 85),
+          message: `Transcribing subtitles · video ${videoIndex + 1} of ${videoLayers.length}`,
+        }));
+
+        try {
+          const sourceStart = Math.max(0, layer.sourceStart ?? layer.trimStart ?? 0);
+          const sourceEnd = Math.max(sourceStart + 0.05, layer.sourceEnd ?? layer.trimEnd ?? (sourceStart + layer.duration));
+          const result = await bridge.transcribeMedia({
+            jobId,
+            sourceUrl: sourceUrls[0],
+            sourceUrls,
+            sourceStart,
+            sourceEnd,
+            model: subtitleModel,
+            language: subtitleLanguage,
+          });
+          if (smartClipCaptionPreparationRef.current !== operationId) throw new Error("Smart Clip subtitle preparation cancelled");
+          const groups = groupCaptionWords(result.captions, platform.height / Math.max(1, platform.width) >= 1.3
+            ? { maxCharacters: 34, maxDurationMs: 2600 }
+            : { maxCharacters: 44, maxDurationMs: 3200 });
+
+          for (const group of groups) {
+            const localStart = Math.max(0, group.startMs / 1000);
+            const localEnd = Math.min(layer.duration, Math.max(localStart + 0.15, group.endMs / 1000));
+            if (localEnd <= localStart) continue;
+            const captionNumber = captionLayers.length + 1;
+            captionLayers.push({
+              id: `smart-editable-caption-${stamp}-${captionNumber}`,
+              trackId,
+              type: "text",
+              name: `Smart Caption ${captionNumber}`,
+              trackName: "AI Captions",
+              trackOrder: -1,
+              zIndex: 10_000,
+              start: Number((layer.start + localStart).toFixed(3)),
+              duration: Number((localEnd - localStart).toFixed(3)),
+              visible: true,
+              locked: false,
+              opacity: 1,
+              x: captionLayout.x,
+              y: captionLayout.y,
+              width: captionLayout.width,
+              height: captionLayout.height,
+              text: group.text,
+              ...captionStyle,
+            });
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "transcription failed";
+          if (/cancel/i.test(message) || smartClipCaptionPreparationRef.current !== operationId) throw new Error("Smart Clip subtitle preparation cancelled");
+          failures.push(`${layer.name}: ${message}`);
+        } finally {
+          if (smartClipAudioAiJobIdRef.current === jobId) smartClipAudioAiJobIdRef.current = "";
+        }
+      }
+
+      if (!captionLayers.length) throw new Error(failures[0] || "No spoken words were detected in the selected videos.");
+      commitLayers((current) => [...current, ...captionLayers]);
+      setTrackSettings((current) => [
+        { id: trackId, order: -1, name: "AI Captions", muted: false },
+        ...current.filter((track) => track.id !== trackId),
+      ]);
+      setSmartClipAutoCaptions(true);
+      setSmartClipsProgress({
+        running: false,
+        cancelling: false,
+        completed: captionLayers.length,
+        total: captionLayers.length,
+        currentClip: captionLayers.length,
+        progress: 100,
+        message: `${captionLayers.length} editable subtitles are ready.`,
+        error: "",
+      });
+      openSmartClipCaptionEditor(captionLayers);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Smart Clip subtitle generation failed.";
+      const cancelled = smartClipCaptionPreparationRef.current !== operationId || /cancel/i.test(message);
+      setSmartClipsProgress((current) => ({
+        ...current,
+        running: false,
+        cancelling: false,
+        progress: cancelled ? 0 : current.progress,
+        message: cancelled ? "Smart Clip subtitle preparation cancelled." : "Editable subtitles could not be generated.",
+        error: cancelled ? "" : message,
+      }));
+      setStatus(cancelled ? "Smart Clip subtitle preparation cancelled" : `Smart Clip subtitle error: ${message}`);
+    } finally {
+      if (smartClipCaptionPreparationRef.current === operationId) smartClipCaptionPreparationRef.current = "";
+      smartClipAudioAiJobIdRef.current = "";
+    }
+  }
+
+  function getExistingSmartClipSpeechRanges(project: PixoresVideoProject, layer: PixoresVideoLayer) {
+    return project.layers
+      .filter((candidate) => isAiCaptionLayer(candidate))
+      .flatMap((caption): SmartSpeechRange[] => {
+        const overlapStart = Math.max(layer.start, caption.start);
+        const overlapEnd = Math.min(layer.start + layer.duration, caption.start + caption.duration);
+        if (overlapEnd <= overlapStart) return [];
+        return [{
+          start: Number((overlapStart - layer.start).toFixed(3)),
+          end: Number((overlapEnd - layer.start).toFixed(3)),
+        }];
+      });
+  }
+
+  async function addAutomaticSmartClipCaptions(
+    project: PixoresVideoProject,
+    platform: ReturnType<typeof getSmartClipPlatform>,
+    sessionId: string,
+    options: { requireTranscript?: boolean } = {},
+  ) {
+    project = applySelectedSmartClipTemplateToProject(project, platform);
+    const existingCaptions = project.layers.filter((layer) => isAiCaptionLayer(layer));
+    const speechRangesByLayer = new Map<string, SmartSpeechRange[]>();
+    const videoLayers = project.layers.filter((layer) => layer.type === "media" && layer.mediaKind === "video" && layer.visible);
+    for (const layer of videoLayers) {
+      const existing = getExistingSmartClipSpeechRanges(project, layer);
+      if (existing.length) speechRangesByLayer.set(layer.id, existing);
+    }
+    if (!smartClipAutoCaptions && !options.requireTranscript) {
+      return { project, speechRangesByLayer, captions: existingCaptions };
+    }
+
+    const bridge = getPixoresDesktopBridge();
+    if (!bridge?.transcribeMedia) throw new Error("Local transcription is not available in this Pixores Video Maker Pro build.");
+    const generatedCaptions: PixoresVideoLayer[] = [];
+    const failures: string[] = [];
+    const captionLayout = getProfessionalCaptionLayout(platform.width, platform.height, smartClipCaptionPosition, smartClipCaptionSize);
+    const captionStyle = createSmartClipCaptionStyle(smartClipCaptionTemplateId, captionLayout);
+
+    for (let index = 0; index < videoLayers.length; index += 1) {
+      const layer = videoLayers[index];
+      if (smartClipExportCoordinatorRef.current.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
+      if (speechRangesByLayer.has(layer.id)) continue;
+      const sourceUrls = getSmartClipLayerSources(project, layer);
+      if (!sourceUrls.length) {
+        failures.push(`${layer.name}: local source not found`);
+        continue;
+      }
+      const sourceStart = Math.max(0, layer.sourceStart ?? layer.trimStart ?? 0);
+      const sourceEnd = Math.max(sourceStart + 0.05, layer.sourceEnd ?? layer.trimEnd ?? (sourceStart + layer.duration));
+      const jobId = globalThis.crypto?.randomUUID?.() || `smart-caption-${Date.now()}-${index}`;
+      smartClipAudioAiJobIdRef.current = jobId;
+      const baseProgress = 2 + Math.round((index / Math.max(1, videoLayers.length)) * 11);
+      setSmartClipsProgress((current) => ({
+        ...current,
+        progress: baseProgress,
+        message: `Generating local subtitles · video ${index + 1} of ${videoLayers.length}`,
+      }));
+      try {
+        const result = await bridge.transcribeMedia({
+          jobId,
+          sourceUrl: sourceUrls[0],
+          sourceUrls,
+          sourceStart,
+          sourceEnd,
+          model: subtitleModel,
+          language: subtitleLanguage,
+        });
+        const groups = groupCaptionWords(result.captions, { maxCharacters: 34, maxDurationMs: 2600 });
+        const trackId = `smart-captions-${Date.now()}-${index}`;
+        const speechRanges: SmartSpeechRange[] = [];
+        for (let captionIndex = 0; captionIndex < groups.length; captionIndex += 1) {
+          const group = groups[captionIndex];
+          const localStart = Math.max(0, group.startMs / 1000);
+          const localEnd = Math.min(layer.duration, Math.max(localStart + 0.15, group.endMs / 1000));
+          if (localEnd <= localStart) continue;
+          speechRanges.push({ start: localStart, end: localEnd });
+          generatedCaptions.push({
+            id: `${trackId}-${captionIndex}`,
+            trackId,
+            type: "text",
+            name: `Smart Caption ${captionIndex + 1}`,
+            trackName: "AI Captions",
+            trackOrder: -1,
+            zIndex: 10_000,
+            start: Number((layer.start + localStart).toFixed(3)),
+            duration: Number((localEnd - localStart).toFixed(3)),
+            visible: true,
+            locked: false,
+            opacity: 1,
+            x: captionLayout.x,
+            y: captionLayout.y,
+            width: captionLayout.width,
+            height: captionLayout.height,
+            text: group.text,
+            ...captionStyle,
+          });
+        }
+        speechRangesByLayer.set(layer.id, speechRanges);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "transcription failed";
+        if (/cancel/i.test(message) || smartClipExportCoordinatorRef.current.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
+        failures.push(`${layer.name}: ${message}`);
+      } finally {
+        if (smartClipAudioAiJobIdRef.current === jobId) smartClipAudioAiJobIdRef.current = "";
+      }
+    }
+
+    if (generatedCaptions.length === 0 && speechRangesByLayer.size === 0 && failures.length) {
+      throw new Error(`Automatic subtitles could not be generated. ${failures[0]}`);
+    }
+    return {
+      project: generatedCaptions.length && smartClipAutoCaptions ? { ...project, layers: [...project.layers, ...generatedCaptions] } : project,
+      speechRangesByLayer,
+      captions: [...existingCaptions, ...generatedCaptions],
+    };
+  }
+
+  async function addSmartClipFaceReframing(
+    project: PixoresVideoProject,
+    speechRangesByLayer: Map<string, SmartSpeechRange[]>,
+    sessionId: string,
+  ) {
+    if (smartClipFaceMode === "off") return project;
+    const videoLayers = project.layers.filter((layer) => layer.type === "media" && layer.mediaKind === "video" && layer.visible);
+    const reframes = new Map<string, PixoresSmartReframe>();
+
+    for (let index = 0; index < videoLayers.length; index += 1) {
+      const layer = videoLayers[index];
+      if (smartClipExportCoordinatorRef.current.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
+      const sourceUrls = getSmartClipLayerSources(project, layer).map(createDesktopMediaUrl);
+      if (!sourceUrls.length) continue;
+      const sourceStart = Math.max(0, layer.sourceStart ?? layer.trimStart ?? 0);
+      const sourceEnd = Math.max(sourceStart + 0.05, layer.sourceEnd ?? layer.trimEnd ?? (sourceStart + layer.duration));
+      const samples = await analyzeFaceTracking({
+        sourceUrls,
+        sourceStart,
+        sourceEnd,
+        sampleFps: smartClipFaceMode === "dynamic" ? 4 : 2,
+        maxFaces: smartClipSpeakerSelection ? 6 : 3,
+        shouldCancel: () => smartClipExportCoordinatorRef.current.shouldCancel(sessionId),
+        onProgress: (progress, message) => {
+          const overall = 14 + Math.round(((index + progress) / Math.max(1, videoLayers.length)) * 11);
+          setSmartClipsProgress((current) => ({ ...current, progress: overall, message }));
+        },
+      });
+      const reframe = buildSmartReframe(samples, {
+        mode: smartClipFaceMode,
+        preferActiveSpeaker: smartClipSpeakerSelection,
+        speechRanges: speechRangesByLayer.get(layer.id),
+        duration: layer.duration,
+      });
+      if (reframe) reframes.set(layer.id, reframe);
+    }
+
+    if (!reframes.size) return project;
+    return {
+      ...project,
+      layers: project.layers.map((layer) => {
+        const smartReframe = reframes.get(layer.id);
+        return smartReframe ? { ...layer, smartReframe } : layer;
+      }),
+    };
   }
 
   async function generateSubtitles() {
@@ -11243,16 +11939,119 @@ export default function VideoMaker() {
     setSilenceAnalysis(null);
   }
 
-  async function cancelSmartClipsExport() {
-    const renderIds = smartClipExportCoordinatorRef.current.requestCancel();
-    setSmartClipsProgress((current) => ({ ...current, cancelling: true, message: "Cancelling Smart Clips..." }));
-    if (!adapters.renderAdapter.cancelRender) return;
-    await Promise.allSettled(renderIds.map((renderId) => adapters.renderAdapter.cancelRender!(renderId)));
+  function updateSmartClipCandidate(candidateId: string, patch: Partial<Pick<SmartClipCandidate, "title" | "selected">>) {
+    setSmartClipCandidates((current) => current.map((candidate) => candidate.id === candidateId ? { ...candidate, ...patch } : candidate));
   }
 
-  async function exportSmartClips(platformId: SmartClipPlatformId, segmentDuration: number) {
+  async function analyzeSmartClips() {
     if (!adapters.isDesktop) {
-      setSmartClipsProgress((current) => ({ ...current, error: "Smart Clips batch export is available in Pixores Desktop.", message: "Desktop local rendering is required." }));
+      setSmartClipsProgress((current) => ({ ...current, error: "Local Smart Clip analysis is available in Pixores Video Maker Pro.", message: "Desktop local processing is required." }));
+      return;
+    }
+    const masterProject = smartClipSourceProjectRef.current;
+    if (!masterProject || !smartClipSource) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Choose the master video first.", message: "No local source video is loaded." }));
+      return;
+    }
+
+    const sessionId = globalThis.crypto?.randomUUID?.() || `smart-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const coordinator = smartClipExportCoordinatorRef.current;
+    if (!coordinator.tryStart(sessionId)) return;
+    resetSmartClipCandidates();
+    setSmartClipsProgress({
+      running: true,
+      cancelling: false,
+      completed: 0,
+      total: 1,
+      currentClip: 1,
+      progress: 2,
+      message: "Preparing the video for private local analysis...",
+      error: "",
+    });
+    setStatus("Smart Clips · analyzing speech locally");
+
+    try {
+      const sourceProject = masterProject;
+      if (coordinator.shouldCancel(sessionId)) throw new Error("Smart Clip analysis cancelled");
+      const platform = getSmartClipPlatform(smartClipPlatformId, { width: smartClipCustomWidth, height: smartClipCustomHeight });
+      const captionResult = await addAutomaticSmartClipCaptions(sourceProject, platform, sessionId, { requireTranscript: true });
+      if (coordinator.shouldCancel(sessionId)) throw new Error("Smart Clip analysis cancelled");
+      const transcriptCues: SmartClipTranscriptCue[] = captionResult.captions
+        .filter((caption) => Boolean(caption.text?.trim()))
+        .map((caption) => ({
+          start: caption.start,
+          end: caption.start + caption.duration,
+          text: caption.text || "",
+        }));
+      const safeDuration = Math.min(platform.maxDuration, Math.max(8, smartClipDuration));
+      const candidates = generateLocalSmartClipCandidates(transcriptCues, sourceProject.duration, safeDuration);
+      if (!candidates.length) throw new Error("No complete spoken moments were found in this video.");
+
+      smartClipPreparedProjectRef.current = captionResult.project;
+      smartClipSpeechRangesRef.current = captionResult.speechRangesByLayer;
+      setSmartClipCandidates(candidates);
+      setSmartClipActiveCandidateId(candidates[0].id);
+      setSmartClipsProgress({
+        running: false,
+        cancelling: false,
+        completed: candidates.length,
+        total: candidates.length,
+        currentClip: candidates.length,
+        progress: 100,
+        message: `${candidates.length} local Smart Clip proposal${candidates.length === 1 ? "" : "s"} ready to review.`,
+        error: "",
+      });
+      setStatus(`Smart Clips · ${candidates.length} local proposals ready · review titles and select exports`);
+      coordinator.finish(sessionId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Local Smart Clip analysis failed.";
+      const cancelled = coordinator.shouldCancel(sessionId) || /cancel/i.test(message);
+      setSmartClipsProgress((current) => ({
+        ...current,
+        running: false,
+        cancelling: false,
+        progress: cancelled ? 0 : current.progress,
+        message: cancelled ? "Smart Clip analysis cancelled." : "The local analysis could not create proposals.",
+        error: cancelled ? "" : message,
+      }));
+      setStatus(cancelled ? "Smart Clip analysis cancelled" : `Smart Clip analysis error: ${message}`);
+      coordinator.finish(sessionId);
+    } finally {
+      smartClipAudioAiJobIdRef.current = "";
+    }
+  }
+
+  async function cancelSmartClipsExport() {
+    const wasPreparingCaptions = Boolean(smartClipCaptionPreparationRef.current);
+    smartClipCaptionPreparationRef.current = "";
+    const renderIds = smartClipExportCoordinatorRef.current.requestCancel();
+    setSmartClipsProgress((current) => ({ ...current, cancelling: true, message: wasPreparingCaptions ? "Cancelling subtitle preparation..." : "Cancelling Smart Clips..." }));
+    const transcriptionJobId = smartClipAudioAiJobIdRef.current;
+    const bridge = getPixoresDesktopBridge();
+    await Promise.allSettled([
+      ...(adapters.renderAdapter.cancelRender
+        ? renderIds.map((renderId) => adapters.renderAdapter.cancelRender!(renderId))
+        : []),
+      ...(transcriptionJobId && bridge?.cancelAudioAi ? [bridge.cancelAudioAi(transcriptionJobId)] : []),
+    ]);
+  }
+
+  async function exportSmartClips(platformId: SmartClipPlatformId, segmentDuration: number, customWidth: number, customHeight: number) {
+    if (!adapters.isDesktop) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Smart Clips batch export is available in Pixores Video Maker Pro.", message: "Desktop local rendering is required." }));
+      return;
+    }
+    const reviewedCandidates = smartClipCandidates.filter((candidate) => candidate.selected);
+    if (!smartClipSourceProjectRef.current || !smartClipSource) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Choose the master video first.", message: "No local source video is loaded." }));
+      return;
+    }
+    if (!smartClipCandidates.length) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Analyze the master video before exporting.", message: "No reviewed Smart Clip proposals are available." }));
+      return;
+    }
+    if (smartClipCandidates.length && !reviewedCandidates.length) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Select at least one Smart Clip proposal.", message: "Nothing is selected for export." }));
       return;
     }
 
@@ -11269,7 +12068,8 @@ export default function VideoMaker() {
     }));
     let sourceProject: PixoresVideoProject;
     try {
-      sourceProject = await prepareProjectMediaForRender();
+      if (smartClipPreparedProjectRef.current) sourceProject = smartClipPreparedProjectRef.current;
+      else sourceProject = smartClipSourceProjectRef.current;
       if (coordinator.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Project media could not be prepared.";
@@ -11286,14 +12086,37 @@ export default function VideoMaker() {
       return;
     }
     if (!sourceProject.layers.some((layer) => layer.type === "media" && layer.mediaKind === "video")) {
-      setSmartClipsProgress((current) => ({ ...current, running: false, error: "Add at least one video to the timeline first.", message: "No video was found in this project." }));
+      setSmartClipsProgress((current) => ({ ...current, running: false, error: "Choose the master video first.", message: "No source video was found." }));
       coordinator.finish(sessionId);
       return;
     }
 
-    const platform = getSmartClipPlatform(platformId);
+    const platform = getSmartClipPlatform(platformId, { width: customWidth, height: customHeight });
+    try {
+      let speechRangesByLayer = smartClipSpeechRangesRef.current;
+      if (!smartClipPreparedProjectRef.current) {
+        const captionResult = await addAutomaticSmartClipCaptions(sourceProject, platform, sessionId);
+        sourceProject = captionResult.project;
+        speechRangesByLayer = captionResult.speechRangesByLayer;
+      }
+      sourceProject = await addSmartClipFaceReframing(sourceProject, speechRangesByLayer, sessionId);
+      if (coordinator.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Smart enhancements could not be prepared.";
+      const cancelled = coordinator.shouldCancel(sessionId) || /cancelled/i.test(message);
+      setSmartClipsProgress((current) => ({
+        ...current,
+        running: false,
+        cancelling: false,
+        error: cancelled ? "" : message,
+        message: cancelled ? "Smart Clips export cancelled." : "Smart Clips enhancements could not be prepared.",
+      }));
+      setStatus(cancelled ? "Smart Clips export cancelled" : `Smart Clips enhancement error: ${message}`);
+      coordinator.finish(sessionId);
+      return;
+    }
     const safeSegmentDuration = Math.min(platform.maxDuration, Math.max(1, segmentDuration));
-    const segments = createSmartClipSegments(sourceProject.duration, safeSegmentDuration);
+    const segments = reviewedCandidates.length ? reviewedCandidates : createSmartClipSegments(sourceProject.duration, safeSegmentDuration);
     if (!segments.length) {
       setSmartClipsProgress((current) => ({ ...current, running: false, error: "The project does not contain an exportable duration.", message: "Add media to the timeline first." }));
       coordinator.finish(sessionId);
@@ -11306,7 +12129,7 @@ export default function VideoMaker() {
       completed: 0,
       total: segments.length,
       currentClip: 1,
-      progress: 0,
+      progress: 25,
       message: `Preparing ${segments.length} ${platform.shortLabel} clip${segments.length === 1 ? "" : "s"}...`,
       error: "",
     });
@@ -11316,21 +12139,26 @@ export default function VideoMaker() {
       for (let index = 0; index < segments.length; index += 1) {
         if (coordinator.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
         const segment = segments[index];
+        const candidate = reviewedCandidates[index];
+        const candidateTitle = candidate?.title.trim() || `Smart Clip ${index + 1}`;
         const clipProject = createSmartClipProject(sourceProject, segment, platform);
         const clipNumber = String(index + 1).padStart(2, "0");
+        const candidateFileName = candidate
+          ? `${sanitizeProjectFileName(candidateTitle) || platform.fileSuffix}-${clipNumber}`
+          : `${sanitizeProjectFileName(projectTitle)}-${platform.fileSuffix}-${clipNumber}`;
         const clipSettings = applyExportQualityPreset({
           ...createDefaultExportSettings({
-            projectTitle: `${sanitizeProjectFileName(projectTitle)}-${platform.fileSuffix}-${clipNumber}`,
+            projectTitle: candidateFileName,
             width: platform.width,
             height: platform.height,
             fps: exportSettings.fps || 30,
           }),
-          fileName: normalizeExportFileName(`${sanitizeProjectFileName(projectTitle)}-${platform.fileSuffix}-${clipNumber}`, "mp4"),
+          fileName: normalizeExportFileName(candidateFileName, "mp4"),
           outputDirectory: exportSettings.outputDirectory,
           renderMethod: "local",
-          acceleration: exportSettings.acceleration,
+          acceleration: smartClipFastExport ? "auto" : exportSettings.acceleration,
           includeAudio: exportSettings.includeAudio,
-        }, normalizeExportQualityPreset(exportSettings.qualityPreset));
+        }, smartClipFastExport ? "fast" : normalizeExportQualityPreset(exportSettings.qualityPreset));
 
         setSmartClipsProgress((current) => ({
           ...current,
@@ -11356,7 +12184,7 @@ export default function VideoMaker() {
           await new Promise((resolve) => window.setTimeout(resolve, 700));
           const job = await adapters.renderAdapter.getRenderStatus(started.renderId);
           const jobProgress = Math.max(0, Math.min(1, job.progress || 0));
-          const totalProgress = Math.round(((index + jobProgress) / segments.length) * 100);
+          const totalProgress = 25 + Math.round(((index + jobProgress) / segments.length) * 75);
           setSmartClipsProgress((current) => ({
             ...current,
             progress: totalProgress,
@@ -11633,7 +12461,7 @@ export default function VideoMaker() {
                       value={mediaPreviewVolume}
                       onChange={(event) => setMediaPreviewVolume(Number(event.target.value))}
                     />
-                    <button type="button" onClick={snapshotSelectedImport} disabled={selectedImport.kind === "audio"} aria-label="Snapshot media">
+                    <button type="button" onClick={() => void snapshotSelectedImport()} disabled={selectedImport.kind === "audio"} aria-label="Snapshot media">
                       <Camera size={14} />
                     </button>
                     <button type="button" onClick={() => void mediaPreviewRef.current?.requestFullscreen?.()} disabled={selectedImport.kind === "image"} aria-label="Fullscreen media">
@@ -11642,6 +12470,11 @@ export default function VideoMaker() {
                   </div>
                   <div className={styles.mediaPreviewActions}>
                     <button type="button" onClick={() => addImportToTrack(selectedImport)}><Plus size={14} /> Add to Timeline</button>
+                    {selectedImport.kind === "image" && (
+                      <button type="button" onClick={() => void saveImportedImageToDisk(selectedImport)}>
+                        <Download size={14} /> Save image to disk
+                      </button>
+                    )}
                     <button type="button" onClick={() => saveImportedAssetToPersonalLibrary(selectedImport)} disabled={selectedImport.uploadStatus === "uploading"}>
                       <FolderOpen size={14} /> Save to My Library
                     </button>
@@ -12611,7 +13444,7 @@ export default function VideoMaker() {
                     ))}
                   </div>
                 )}
-                <button type="button" onClick={() => void saveProjectFile()}>Save Project</button>
+                <button type="button" onClick={() => void saveProjectFile()} disabled={isProjectFileSaving}>{isProjectFileSaving ? "Saving Project…" : "Save Project"}</button>
                 <button type="button" onClick={openProjectFile}>Open Project</button>
                 <button type="button" onClick={toggleAutoSave} className={autoSaveEnabled ? styles.activeToggle : ""}>
                   Auto Save: {autoSaveEnabled ? "On" : "Off"}
@@ -13436,7 +14269,7 @@ export default function VideoMaker() {
                   <button type="button" onClick={() => runTraditionalMenuAction(() => openToolPanel("imports"))}>Import Media…<span>Ctrl+I</span></button>
                   <button type="button" onClick={() => runTraditionalMenuAction(openProjectFile)}>Open Project…<span>Ctrl+O</span></button>
                   <div className={styles.traditionalMenuSeparator} />
-                  <button type="button" onClick={() => runTraditionalMenuAction(() => void saveProjectFile())}>Save Project<span>Ctrl+S</span></button>
+                  <button type="button" disabled={isProjectFileSaving} onClick={() => runTraditionalMenuAction(() => void saveProjectFile())}>{isProjectFileSaving ? "Saving Project…" : "Save Project"}<span>Ctrl+S</span></button>
                   <button type="button" onClick={() => runTraditionalMenuAction(toggleAutoSave)}>Auto Save<span>{autoSaveEnabled ? "On" : "Off"}</span></button>
                   <div className={styles.traditionalMenuSeparator} />
                   <button type="button" onClick={() => runTraditionalMenuAction(openExportDialog)}>Export Video…<span>Ctrl+E</span></button>
@@ -13489,6 +14322,7 @@ export default function VideoMaker() {
                     setIsMobilePanelOpen(next);
                   })}>{isSidebarOpen ? "Hide" : "Show"} Side Panel</button>
                   <button type="button" onClick={() => runTraditionalMenuAction(toggleTimelinePanel)}>{isTimelineVisible ? "Hide" : "Show"} Timeline</button>
+                  <button type="button" onClick={() => runTraditionalMenuAction(toggleCanvasToolbar)}>{isCanvasToolbarVisible ? "Hide" : "Show"} Canvas Toolbar</button>
                   <div className={styles.traditionalMenuSeparator} />
                   <button type="button" onClick={() => runTraditionalMenuAction(fitTimelineToView)}>Fit Timeline</button>
                   <button type="button" onClick={() => runTraditionalMenuAction(() => void toggleCanvasFullscreen())}>Full Screen Preview<span>F11</span></button>
@@ -13518,7 +14352,7 @@ export default function VideoMaker() {
                 <div className={styles.traditionalMenuDropdown} role="menu">
                   <Link href="/faq" onClick={() => setActiveTraditionalMenu(null)}>Frequently Asked Questions</Link>
                   <Link href="/contact" onClick={() => setActiveTraditionalMenu(null)}>Support & Contact</Link>
-                  <Link href="/desktop" onClick={() => setActiveTraditionalMenu(null)}>Pixores Desktop</Link>
+                  <Link href="/desktop" onClick={() => setActiveTraditionalMenu(null)}>Pixores Video Maker Pro</Link>
                   <div className={styles.traditionalMenuSeparator} />
                   <Link href="/about" onClick={() => setActiveTraditionalMenu(null)}>About Pixores</Link>
                 </div>
@@ -13528,8 +14362,8 @@ export default function VideoMaker() {
 
           <header className={styles.topBar}>
             <div>
-              <span className={styles.kicker}><Film size={17} /> Pixores Video Maker</span>
-              <h1>Video editor</h1>
+              <span className={styles.kicker}><Film size={17} /> {adapters.isDesktop ? "Pixores Video Maker Pro" : "Pixores Quick Video Maker"}</span>
+              <h1>{adapters.isDesktop ? "Professional video editor" : "Quick video editor"}</h1>
             </div>
             <div className={styles.topBarActions}>
               <button type="button" className={styles.smartClipsButton} onClick={openSmartClipsDialog} disabled={isRecording || isPreparingServerRender || smartClipsProgress.running}>
@@ -13581,7 +14415,12 @@ export default function VideoMaker() {
                 if (event.target === event.currentTarget) clearLayerSelection();
               }}
             >
-              {selectedLayer?.type === "text" && (
+              {isCanvasFullscreen && (
+                <button type="button" className={styles.fullscreenExitButton} onClick={() => void toggleCanvasFullscreen()} aria-label="Exit full screen preview">
+                  <X size={18} /> Exit full screen
+                </button>
+              )}
+              {isCanvasToolbarVisible && selectedLayer?.type === "text" && (
                 <div className={styles.floatingTextToolbar} onPointerDown={(event) => event.stopPropagation()}>
                   <button type="button" className={styles.durationPill} onClick={openSettingsPanel}>
                     <span className={styles.clockGlyph} />
@@ -13644,7 +14483,7 @@ export default function VideoMaker() {
                   <button type="button" className={styles.textToolbarButton} onClick={openSettingsPanel}>Position</button>
                 </div>
               )}
-              {selectedLayer?.type === "text" && isTextEffectsPanelOpen && (
+              {isCanvasToolbarVisible && selectedLayer?.type === "text" && isTextEffectsPanelOpen && (
                 <section className={`${styles.objectStylePanel} ${styles.textEffectsPanel}`} aria-label="Text Effects controls" onPointerDown={(event) => event.stopPropagation()}>
                   <header className={styles.objectStylePanelHeader}>
                     <button type="button" onClick={() => setIsTextEffectsPanelOpen(false)} aria-label="Back to text toolbar"><ArrowLeft size={19} /></button>
@@ -13736,7 +14575,7 @@ export default function VideoMaker() {
                   <button type="button" className={styles.textEffectsAdvancedButton} onClick={openSettingsPanel}>Advanced text controls</button>
                 </section>
               )}
-              {selectedLayer && (selectedLayer.type === "media" || selectedLayer.type === "shape" || selectedLayer.type === "lower-third") && (
+              {isCanvasToolbarVisible && selectedLayer && (selectedLayer.type === "media" || selectedLayer.type === "shape" || selectedLayer.type === "lower-third") && (
                 <div className={`${styles.floatingTextToolbar} ${styles.floatingObjectToolbar}`} aria-label="Object editing toolbar" onPointerDown={(event) => event.stopPropagation()}>
                   <button type="button" className={styles.durationPill} onClick={openSettingsPanel}>
                     <span className={styles.clockGlyph} />
@@ -13785,7 +14624,7 @@ export default function VideoMaker() {
                   )}
                 </div>
               )}
-              {selectedLayer && activeObjectStylePanel && (selectedLayer.type === "media" || selectedLayer.type === "shape" || selectedLayer.type === "lower-third") && (
+              {isCanvasToolbarVisible && selectedLayer && activeObjectStylePanel && (selectedLayer.type === "media" || selectedLayer.type === "shape" || selectedLayer.type === "lower-third") && (
                 <section className={styles.objectStylePanel} aria-label={activeObjectStylePanel === "shadow" ? "Shadow controls" : "Stroke controls"} onPointerDown={(event) => event.stopPropagation()}>
                   <header className={styles.objectStylePanelHeader}>
                     <button type="button" onClick={() => setActiveObjectStylePanel(null)} aria-label="Back to object toolbar"><ArrowLeft size={19} /></button>
@@ -13881,9 +14720,10 @@ export default function VideoMaker() {
                   )}
                 </section>
               )}
-              <div className={styles.canvasFrame} style={canvasStyle}>
-                <canvas ref={canvasRef} className={styles.canvas} />
-                <div
+              <div ref={canvasViewportRef} className={styles.canvasViewport}>
+                <div className={styles.canvasFrame} style={canvasStyle}>
+                  <canvas ref={canvasRef} className={styles.canvas} />
+                  <div
                   className={styles.stageOverlay}
                   data-preview-stage
                   onPointerDown={selectStageLayerAtPoint}
@@ -13993,6 +14833,7 @@ export default function VideoMaker() {
                 </div>
               </div>
             </div>
+            </div>
 
             <div className={styles.transport}>
               <button type="button" onClick={() => stepFrame(-1)} className={styles.iconButton} aria-label="Previous frame">
@@ -14013,10 +14854,10 @@ export default function VideoMaker() {
               <button type="button" onClick={() => stepFrame(1)} className={styles.iconButton} aria-label="Next frame">
                 <SkipForward size={16} />
               </button>
-              <button type="button" onClick={toggleCanvasFullscreen} className={styles.iconButton} aria-label="Fullscreen preview">
-                <Maximize2 size={17} />
+              <button type="button" onClick={() => void toggleCanvasFullscreen()} className={styles.iconButton} aria-label={isCanvasFullscreen ? "Exit full screen preview" : "Fullscreen preview"}>
+                {isCanvasFullscreen ? <X size={17} /> : <Maximize2 size={17} />}
               </button>
-              <button type="button" onClick={snapshotCanvas} className={styles.iconButton} aria-label="Snapshot">
+              <button type="button" onClick={() => void snapshotCanvas()} className={styles.iconButton} aria-label="Take snapshot and add it to Imports">
                 <Camera size={16} />
               </button>
               <input
@@ -14523,6 +15364,12 @@ export default function VideoMaker() {
         </section>
         </main>
       </section>
+      {projectFileNotice && (
+        <div className={`${styles.projectFileNotice} ${styles[`projectFileNotice_${projectFileNotice.tone}`]}`} role={projectFileNotice.tone === "error" ? "alert" : "status"} aria-live="polite">
+          <span>{projectFileNotice.message}</span>
+          {projectFileNotice.tone !== "working" && <button type="button" onClick={() => setProjectFileNotice(null)} aria-label="Close project export message">×</button>}
+        </div>
+      )}
       {isMediaToolsDialogOpen && selectedLayer?.type === "media" && (
         <div className={styles.modalBackdrop} role="presentation" onPointerDown={() => setIsMediaToolsDialogOpen(false)}>
           <section
@@ -14781,7 +15628,7 @@ export default function VideoMaker() {
                 </button>
               ))}
             </div>
-            <p>Pixores uses the frame visible in the editor, creates a 1280 × 720 PNG and adds it to Imports and My Library.</p>
+            <p>Pixores uses the visible frame, creates a 1280 × 720 PNG, adds it to Imports and saves a copy in the video export folder. You can add it to My Library later.</p>
             <footer>
               <button type="button" onClick={() => setIsThumbnailDialogOpen(false)}>Cancel</button>
               <button type="button" className={styles.dialogPrimaryAction} onClick={() => void generateAutomaticThumbnail()}><Sparkles size={16} /> Generate thumbnail</button>
@@ -14791,23 +15638,71 @@ export default function VideoMaker() {
       )}
       <SmartClipsDialog
         open={isSmartClipsDialogOpen}
-        setupMode={isSmartClipsSetupMode}
         platformId={smartClipPlatformId}
         segmentDuration={smartClipDuration}
-        projectDuration={projectDuration}
+        customWidth={smartClipCustomWidth}
+        customHeight={smartClipCustomHeight}
+        projectDuration={smartClipSource?.duration || 0}
         outputDirectory={exportSettings.outputDirectory || "Downloads"}
         isDesktop={adapters.isDesktop}
+        source={smartClipSource}
+        sourceLoading={isSmartClipSourceLoading}
         progress={smartClipsProgress}
+        autoCaptions={smartClipAutoCaptions}
+        captionTemplateId={smartClipCaptionTemplateId}
+        captionPosition={smartClipCaptionPosition}
+        captionSize={smartClipCaptionSize}
+        faceMode={smartClipFaceMode}
+        speakerSelection={smartClipSpeakerSelection}
+        fastExport={smartClipFastExport}
+        subtitleLanguage={subtitleLanguage}
+        subtitleModel={subtitleModel}
+        candidates={smartClipCandidates}
+        activeCandidateId={smartClipActiveCandidateId}
+        previewSource={smartClipPreviewSource}
+        previewOffset={smartClipPreviewOffset}
+        onSourceFileChange={(file) => void selectSmartClipSourceFile(file)}
         onPlatformChange={selectSmartClipPlatform}
-        onDurationChange={setSmartClipDuration}
+        onDurationChange={selectSmartClipDuration}
+        onAutoCaptionsChange={(enabled) => {
+          resetSmartClipCandidates();
+          setSmartClipAutoCaptions(enabled);
+        }}
+        onCaptionTemplateChange={(templateId) => {
+          resetSmartClipCandidates();
+          selectSmartClipCaptionTemplate(templateId);
+        }}
+        onCaptionPositionChange={selectSmartClipCaptionPosition}
+        onCaptionSizeChange={(sizePercent) => {
+          resetSmartClipCandidates();
+          selectSmartClipCaptionSize(sizePercent);
+        }}
+        onFaceModeChange={setSmartClipFaceMode}
+        onSpeakerSelectionChange={setSmartClipSpeakerSelection}
+        onFastExportChange={setSmartClipFastExport}
+        onSubtitleLanguageChange={(language) => {
+          resetSmartClipCandidates();
+          setSubtitleLanguage(language);
+        }}
+        onSubtitleModelChange={(model) => {
+          resetSmartClipCandidates();
+          setSubtitleModel(model);
+        }}
+        onCustomSizeChange={(width, height) => {
+          resetSmartClipCandidates();
+          setSmartClipCustomWidth(width);
+          setSmartClipCustomHeight(height);
+        }}
+        onAnalyze={() => void analyzeSmartClips()}
+        onCandidateChange={updateSmartClipCandidate}
+        onActiveCandidateChange={setSmartClipActiveCandidateId}
         onChooseDestination={() => void chooseExportDestination()}
         onClose={() => {
           if (smartClipsProgress.running) return;
           setIsSmartClipsDialogOpen(false);
-          setIsSmartClipsSetupMode(false);
         }}
         onCancel={() => void cancelSmartClipsExport()}
-        onExport={() => void exportSmartClips(smartClipPlatformId, smartClipDuration)}
+        onExport={() => void exportSmartClips(smartClipPlatformId, smartClipDuration, smartClipCustomWidth, smartClipCustomHeight)}
       />
       <ExportVideoDialog
         open={isExportDialogOpen}
@@ -14961,15 +15856,45 @@ type ExportVideoDialogProps = {
 
 type SmartClipsDialogProps = {
   open: boolean;
-  setupMode: boolean;
   platformId: SmartClipPlatformId;
   segmentDuration: number;
+  customWidth: number;
+  customHeight: number;
   projectDuration: number;
   outputDirectory: string;
   isDesktop: boolean;
+  source: SmartClipSourceState | null;
+  sourceLoading: boolean;
   progress: SmartClipsProgressState;
+  autoCaptions: boolean;
+  captionTemplateId: SmartClipCaptionTemplateId;
+  captionPosition: SmartClipCaptionPosition;
+  captionSize: number;
+  faceMode: SmartClipFaceMode;
+  speakerSelection: boolean;
+  fastExport: boolean;
+  subtitleLanguage: "auto" | "Spanish" | "English";
+  subtitleModel: "tiny" | "base";
+  candidates: SmartClipCandidate[];
+  activeCandidateId: string;
+  previewSource: string;
+  previewOffset: number;
+  onSourceFileChange: (file: File) => void;
   onPlatformChange: (platformId: SmartClipPlatformId) => void;
   onDurationChange: (duration: number) => void;
+  onAutoCaptionsChange: (enabled: boolean) => void;
+  onCaptionTemplateChange: (templateId: SmartClipCaptionTemplateId) => void;
+  onCaptionPositionChange: (position: SmartClipCaptionPosition) => void;
+  onCaptionSizeChange: (sizePercent: number) => void;
+  onFaceModeChange: (mode: SmartClipFaceMode) => void;
+  onSpeakerSelectionChange: (enabled: boolean) => void;
+  onFastExportChange: (enabled: boolean) => void;
+  onSubtitleLanguageChange: (language: "auto" | "Spanish" | "English") => void;
+  onSubtitleModelChange: (model: "tiny" | "base") => void;
+  onAnalyze: () => void;
+  onCandidateChange: (candidateId: string, patch: Partial<Pick<SmartClipCandidate, "title" | "selected">>) => void;
+  onActiveCandidateChange: (candidateId: string) => void;
+  onCustomSizeChange: (width: number, height: number) => void;
   onChooseDestination: () => void;
   onClose: () => void;
   onCancel: () => void;
@@ -14992,25 +15917,164 @@ type CropDragState = {
   initialCrop: NonNullable<VideoLayer["crop"]>;
 };
 
+function SmartClipCandidatePreview({
+  source,
+  candidate,
+  sourceOffset,
+  platform,
+}: {
+  source: string;
+  candidate?: SmartClipCandidate;
+  sourceOffset: number;
+  platform: SmartClipPlatform;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const previewStart = Math.max(0, sourceOffset + (candidate?.start || 0));
+  const previewEnd = Math.max(previewStart, sourceOffset + (candidate?.end || 0));
+  const previewDuration = Math.max(0.05, previewEnd - previewStart);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !candidate?.id) return;
+    video.pause();
+    setIsPlaying(false);
+    setElapsed(0);
+    if (video.readyState >= 1) video.currentTime = previewStart;
+  }, [candidate?.id, previewStart, source]);
+
+  if (!source || !candidate) {
+    return <div className={styles.smartClipPreviewEmpty}><Film size={28} /><span>Select a proposal to preview that individual cut.</span></div>;
+  }
+
+  const seekPreview = (nextElapsed: number) => {
+    const video = videoRef.current;
+    const safeElapsed = Math.max(0, Math.min(previewDuration, nextElapsed));
+    setElapsed(safeElapsed);
+    if (video) video.currentTime = previewStart + safeElapsed;
+  };
+
+  const togglePreview = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!video.paused) {
+      video.pause();
+      setIsPlaying(false);
+      return;
+    }
+    if (video.currentTime < previewStart || video.currentTime >= previewEnd - 0.04) {
+      video.currentTime = previewStart;
+      setElapsed(0);
+    }
+    try {
+      await video.play();
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <div className={styles.smartClipPreviewPlayer}>
+      <div className={styles.smartClipPreviewStage} style={{ aspectRatio: `${platform.width} / ${platform.height}` }}>
+        <video
+          ref={videoRef}
+          src={source}
+          preload="metadata"
+          playsInline
+          onClick={() => void togglePreview()}
+          onLoadedMetadata={(event) => {
+            event.currentTarget.currentTime = previewStart;
+            setElapsed(0);
+          }}
+          onPause={() => setIsPlaying(false)}
+          onPlay={() => setIsPlaying(true)}
+          onTimeUpdate={(event) => {
+            const currentElapsed = Math.max(0, event.currentTarget.currentTime - previewStart);
+            if (event.currentTarget.currentTime >= previewEnd - 0.025) {
+              event.currentTarget.pause();
+              event.currentTarget.currentTime = previewEnd;
+              setElapsed(previewDuration);
+              return;
+            }
+            setElapsed(Math.min(previewDuration, currentElapsed));
+          }}
+        />
+        <span>{platform.aspectRatio} · {platform.width} × {platform.height}</span>
+      </div>
+      <div className={styles.smartClipPreviewControls}>
+        <button type="button" onClick={() => void togglePreview()} aria-label={isPlaying ? "Pause cut preview" : "Play cut preview"}>
+          {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={previewDuration}
+          step={0.01}
+          value={Math.min(previewDuration, elapsed)}
+          onChange={(event) => seekPreview(Number(event.target.value))}
+          aria-label="Cut preview position"
+        />
+        <span>{formatTimelineClock(elapsed)} / {formatTimelineClock(previewDuration)}</span>
+      </div>
+      <small>Cut {candidate.index + 1} · {formatTimelineClock(candidate.start)}–{formatTimelineClock(candidate.end)} of the master video</small>
+    </div>
+  );
+}
+
 function SmartClipsDialog({
   open,
-  setupMode,
   platformId,
   segmentDuration,
+  customWidth,
+  customHeight,
   projectDuration,
   outputDirectory,
   isDesktop,
+  source,
+  sourceLoading,
   progress,
+  autoCaptions,
+  captionTemplateId,
+  captionPosition,
+  captionSize,
+  faceMode,
+  speakerSelection,
+  fastExport,
+  subtitleLanguage,
+  subtitleModel,
+  candidates,
+  activeCandidateId,
+  previewSource,
+  previewOffset,
+  onSourceFileChange,
   onPlatformChange,
   onDurationChange,
+  onAutoCaptionsChange,
+  onCaptionTemplateChange,
+  onCaptionPositionChange,
+  onCaptionSizeChange,
+  onFaceModeChange,
+  onSpeakerSelectionChange,
+  onFastExportChange,
+  onSubtitleLanguageChange,
+  onSubtitleModelChange,
+  onAnalyze,
+  onCandidateChange,
+  onActiveCandidateChange,
+  onCustomSizeChange,
   onChooseDestination,
   onClose,
   onCancel,
   onExport,
 }: SmartClipsDialogProps) {
   if (!open) return null;
-  const platform = getSmartClipPlatform(platformId);
+  const platform = getSmartClipPlatform(platformId, { width: customWidth, height: customHeight });
   const segments = createSmartClipSegments(projectDuration, segmentDuration);
+  const selectedCaptionTemplate = SMART_CLIP_CAPTION_TEMPLATES.find((template) => template.id === captionTemplateId) || SMART_CLIP_CAPTION_TEMPLATES[0];
+  const activeCandidate = candidates.find((candidate) => candidate.id === activeCandidateId) || candidates[0];
+  const selectedCandidateCount = candidates.filter((candidate) => candidate.selected).length;
 
   return (
     <div className={styles.modalBackdrop} onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -15019,12 +16083,42 @@ function SmartClipsDialog({
           <div>
             <span><Sparkles size={14} /> Social batch creator</span>
             <h2>Smart Clips</h2>
-            <p>{setupMode ? "Choose a platform to open a correctly sized vertical editing project." : "Split one timeline into platform-ready vertical videos and export every clip automatically."}</p>
+            <p>Choose a master video, configure the short format, analyze it privately on this computer, then preview and export only the cuts you select.</p>
           </div>
           <button type="button" onClick={onClose} disabled={progress.running} aria-label="Close Smart Clips">×</button>
         </header>
 
         <div className={styles.smartClipsBody}>
+          <div className={styles.smartClipSteps}>
+            <span data-complete={Boolean(source)}><b>1</b> Master video</span>
+            <span data-complete={Boolean(source && candidates.length)}><b>2</b> Format & analyze</span>
+            <span data-complete={Boolean(candidates.length)}><b>3</b> Preview & export</span>
+          </div>
+
+          <section className={styles.smartClipSourceCard} data-ready={Boolean(source)}>
+            <div>
+              <span><Film size={17} /></span>
+              <p>
+                <strong>{source?.name || "Choose the master video"}</strong>
+                <small>{source ? `${formatExportSeconds(source.duration)} · ${source.width} × ${source.height} · ready locally` : "The original stays on this computer. MP4, MOV, WebM, MKV, AVI and WMV are supported."}</small>
+              </p>
+            </div>
+            <label>
+              <input
+                type="file"
+                accept="video/*,.mkv,.avi,.wmv"
+                disabled={!isDesktop || sourceLoading || progress.running}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) onSourceFileChange(file);
+                }}
+              />
+              <FolderOpen size={16} /> {sourceLoading ? "Preparing locally…" : source ? "Change video" : "Choose video"}
+            </label>
+          </section>
+
+          <div className={styles.smartClipSectionTitle}><span>2</span><div><strong>Choose the output</strong><small>The preview and exported files use these exact dimensions.</small></div></div>
           <div className={styles.smartClipPlatforms}>
             {SMART_CLIP_PLATFORMS.map((item) => (
               <button
@@ -15032,17 +16126,25 @@ function SmartClipsDialog({
                 type="button"
                 className={platformId === item.id ? styles.activeSmartClipPlatform : ""}
                 onClick={() => onPlatformChange(item.id)}
-                disabled={progress.running}
+                disabled={progress.running || sourceLoading}
                 style={{ "--platform-accent": item.accent } as CSSProperties}
               >
                 <span className={styles.smartClipPhone}><i /></span>
                 <strong>{item.label}</strong>
-                <small>{item.aspectRatio} · {item.width} × {item.height}</small>
+                <small>{item.id === "custom" ? `${customWidth} × ${customHeight}` : `${item.aspectRatio} · ${item.width} × ${item.height}`}</small>
               </button>
             ))}
           </div>
 
-          {!setupMode && <div className={styles.smartClipSettings}>
+          {platformId === "custom" && (
+            <div className={styles.smartClipCustomSize}>
+              <label>Width <input type="number" min={320} max={7680} step={2} value={customWidth} disabled={progress.running} onChange={(event) => onCustomSizeChange(Number(event.target.value) || 320, customHeight)} /></label>
+              <label>Height <input type="number" min={320} max={7680} step={2} value={customHeight} disabled={progress.running} onChange={(event) => onCustomSizeChange(customWidth, Number(event.target.value) || 320)} /></label>
+              <span>Allowed range: 320 to 7680 pixels.</span>
+            </div>
+          )}
+
+          <div className={styles.smartClipSettings}>
             <label className={styles.dialogField}>
               Length per clip
               <select value={segmentDuration} onChange={(event) => onDurationChange(Number(event.target.value))} disabled={progress.running}>
@@ -15056,17 +16158,193 @@ function SmartClipsDialog({
               <strong title={outputDirectory}>{outputDirectory}</strong>
               <button type="button" onClick={onChooseDestination} disabled={progress.running || !isDesktop}><FolderOpen size={15} /> Choose Folder</button>
             </div>
-          </div>}
+          </div>
 
-          {!setupMode && <div className={styles.smartClipPlan}>
-            <div><strong>{segments.length}</strong><span>files</span></div>
+          <section className={styles.smartClipTemplateSection} aria-label="Smart Clip subtitle template">
+            <header>
+              <span><Type size={15} /> Subtitle template</span>
+              <small>Choose a ready-made look or select None to keep the standard or edited style.</small>
+            </header>
+            <div className={styles.smartClipTemplateGrid}>
+              {SMART_CLIP_CAPTION_TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  className={captionTemplateId === template.id ? styles.activeSmartClipTemplate : ""}
+                  onClick={() => onCaptionTemplateChange(template.id)}
+                  disabled={progress.running}
+                  aria-pressed={captionTemplateId === template.id}
+                  title={template.description}
+                >
+                  <span
+                    data-transparent={template.previewBackground === "transparent"}
+                    style={{
+                      color: template.previewText,
+                      background: template.previewBackground === "transparent" ? undefined : template.previewBackground,
+                      fontFamily: `"${template.fontFamily || "Arial"}", Arial, sans-serif`,
+                    }}
+                  >{template.id === "none" ? "—" : "Aa"}</span>
+                  <strong>{template.label}</strong>
+                </button>
+              ))}
+            </div>
+            <div className={styles.smartClipCaptionPosition}>
+              <span>
+                <strong>Subtitle position</strong>
+                <small>Choose a consistent safe zone for every generated clip.</small>
+              </span>
+              <div role="radiogroup" aria-label="Subtitle position">
+                {(["top", "middle", "bottom"] as SmartClipCaptionPosition[]).map((position) => (
+                  <button
+                    key={position}
+                    type="button"
+                    aria-checked={captionPosition === position}
+                    role="radio"
+                    className={captionPosition === position ? styles.activeSmartClipCaptionPosition : ""}
+                    onClick={() => onCaptionPositionChange(position)}
+                    disabled={progress.running}
+                  >
+                    {position[0].toUpperCase() + position.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.smartClipCaptionSize}>
+              <span>
+                <strong>Subtitle size</strong>
+                <small>Larger by default and automatically limited to the video safe area.</small>
+              </span>
+              <div>
+                <button
+                  type="button"
+                  aria-label="Decrease Smart Clip subtitle size"
+                  onClick={() => onCaptionSizeChange(captionSize - 5)}
+                  disabled={progress.running || captionSize <= SMART_CLIP_CAPTION_SIZE_MIN}
+                ><Minus size={14} /></button>
+                <input
+                  type="range"
+                  min={SMART_CLIP_CAPTION_SIZE_MIN}
+                  max={SMART_CLIP_CAPTION_SIZE_MAX}
+                  step={5}
+                  value={captionSize}
+                  onChange={(event) => onCaptionSizeChange(Number(event.target.value))}
+                  disabled={progress.running}
+                  aria-label="Smart Clip subtitle size"
+                />
+                <output>{captionSize}%</output>
+                <button
+                  type="button"
+                  aria-label="Increase Smart Clip subtitle size"
+                  onClick={() => onCaptionSizeChange(captionSize + 5)}
+                  disabled={progress.running || captionSize >= SMART_CLIP_CAPTION_SIZE_MAX}
+                ><Plus size={14} /></button>
+              </div>
+            </div>
+            <p><strong>{selectedCaptionTemplate.label}</strong> · {selectedCaptionTemplate.description}{!autoCaptions ? " Enable Automatic subtitles to use this template on generated captions." : ""}</p>
+          </section>
+
+          <section className={styles.smartClipEnhancements} aria-label="Automatic Smart Clip enhancements">
+            <header>
+              <span><Sparkles size={15} /> Local AI enhancements</span>
+              <small>Video frames and audio stay on this computer.</small>
+            </header>
+            <div className={styles.smartClipEnhancementGrid}>
+              <label className={styles.smartClipEnhancementToggle}>
+                <input type="checkbox" checked={autoCaptions} disabled={progress.running || !isDesktop} onChange={(event) => onAutoCaptionsChange(event.target.checked)} />
+                <span><strong>Automatic subtitles</strong><small>Transcribe once, then place editable captions in every clip.</small></span>
+              </label>
+              <label className={styles.smartClipEnhancementField}>
+                <span>Face framing</span>
+                <select value={faceMode} disabled={progress.running || !isDesktop} onChange={(event) => onFaceModeChange(event.target.value as SmartClipFaceMode)}>
+                  <option value="off">Off</option>
+                  <option value="static">Primary face · static</option>
+                  <option value="dynamic">Smooth face tracking</option>
+                </select>
+              </label>
+              <label className={styles.smartClipEnhancementToggle}>
+                <input type="checkbox" checked={speakerSelection} disabled={progress.running || !isDesktop || faceMode === "off"} onChange={(event) => onSpeakerSelectionChange(event.target.checked)} />
+                <span><strong>Follow active speaker</strong><small>Prefer the face with matching mouth movement when several people appear.</small></span>
+              </label>
+              <div className={styles.smartClipCaptionOptions} aria-disabled={!autoCaptions}>
+                <label>Language
+                  <select value={subtitleLanguage} disabled={progress.running || !autoCaptions || !isDesktop} onChange={(event) => onSubtitleLanguageChange(event.target.value as "auto" | "Spanish" | "English")}>
+                    <option value="auto">Auto detect</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="English">English</option>
+                  </select>
+                </label>
+                <label>Accuracy
+                  <select value={subtitleModel} disabled={progress.running || !autoCaptions || !isDesktop} onChange={(event) => onSubtitleModelChange(event.target.value as "tiny" | "base")}>
+                    <option value="tiny">Fast</option>
+                    <option value="base">Better</option>
+                  </select>
+                </label>
+              </div>
+              <label className={styles.smartClipEnhancementToggle}>
+                <input type="checkbox" checked={fastExport} disabled={progress.running || !isDesktop} onChange={(event) => onFastExportChange(event.target.checked)} />
+                <span><strong>Fast local export</strong><small>Uses the fast social-video preset and hardware acceleration when available.</small></span>
+              </label>
+              <div className={styles.smartClipTitleNotice}>
+                <Type size={16} />
+                <span><strong>Cut titles name the files only</strong><small>Pixores never places the cut title over the video. Automatic subtitles remain separate.</small></span>
+              </div>
+            </div>
+          </section>
+
+          {candidates.length > 0 && (
+            <section className={styles.smartClipReview} aria-label="Local Smart Clip proposals">
+              <header>
+                <div>
+                  <span><Sparkles size={15} /> Local proposals</span>
+                  <strong>{selectedCandidateCount} of {candidates.length} selected</strong>
+                </div>
+                <div>
+                  <button type="button" onClick={() => candidates.forEach((candidate) => onCandidateChange(candidate.id, { selected: true }))}>Select all</button>
+                  <button type="button" onClick={() => candidates.forEach((candidate) => onCandidateChange(candidate.id, { selected: false }))}>Clear</button>
+                </div>
+              </header>
+              <SmartClipCandidatePreview source={previewSource} candidate={activeCandidate} sourceOffset={previewOffset} platform={platform} />
+              <div className={styles.smartClipCandidateGrid}>
+                {candidates.map((candidate) => (
+                  <article key={candidate.id} className={styles.smartClipCandidateCard} data-selected={candidate.selected}>
+                    <header>
+                      <label>
+                        <input type="checkbox" checked={candidate.selected} onChange={(event) => onCandidateChange(candidate.id, { selected: event.target.checked })} />
+                        <span>Clip {candidate.index + 1}</span>
+                      </label>
+                      <span>{Math.round(candidate.score)}% · {formatExportSeconds(candidate.duration)}</span>
+                    </header>
+                    <label className={styles.smartClipCandidateTitle}>
+                      File title · not shown in video
+                      <input
+                        type="text"
+                        maxLength={90}
+                        value={candidate.title}
+                        onChange={(event) => onCandidateChange(candidate.id, { title: event.target.value })}
+                      />
+                    </label>
+                    <p>{candidate.transcript || "No transcript text was available for this fallback segment."}</p>
+                    <footer>
+                      <span>{candidate.reason}</span>
+                      <button type="button" onClick={() => onActiveCandidateChange(candidate.id)} aria-pressed={activeCandidate?.id === candidate.id}>
+                        <Play size={13} /> {activeCandidate?.id === candidate.id ? "In preview" : "Preview"}
+                      </button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className={styles.smartClipPlan}>
+            <div><strong>{candidates.length || segments.length}</strong><span>{candidates.length ? "proposals" : "estimated files"}</span></div>
             <div><strong>{platform.aspectRatio}</strong><span>vertical</span></div>
             <div><strong>{platform.width}p</strong><span>width</span></div>
             <div><strong>{formatExportSeconds(projectDuration)}</strong><span>source</span></div>
-            <p>{platform.description} The last file uses the remaining timeline duration.</p>
-          </div>}
+            <p>{candidates.length ? `${selectedCandidateCount} reviewed proposal${selectedCandidateCount === 1 ? " is" : "s are"} ready for selective export.` : `${platform.description} Local analysis will find complete spoken moments instead of exporting every consecutive block.`}</p>
+          </div>
 
-          {!setupMode && (progress.running || progress.completed > 0 || progress.error) && (
+          {(progress.running || progress.completed > 0 || progress.error) && (
             <div className={`${styles.smartClipProgress} ${progress.error ? styles.smartClipProgressError : ""}`}>
               <div><strong>{progress.error || progress.message}</strong><span>{progress.progress}%</span></div>
               <span className={styles.smartClipProgressTrack}><i style={{ width: `${progress.progress}%` }} /></span>
@@ -15074,18 +16352,24 @@ function SmartClipsDialog({
             </div>
           )}
 
-          {setupMode && <p className={styles.smartClipDesktopNote}>After choosing, Pixores will open the editor in 1080 × 1920 with professional vertical safe areas.</p>}
-          {!setupMode && !isDesktop && <p className={styles.smartClipDesktopNote}>Batch export uses the local renderer and is available in Pixores Desktop.</p>}
+          {!isDesktop && <p className={styles.smartClipDesktopNote}>Batch export uses the local renderer and is available in Pixores Video Maker Pro.</p>}
         </div>
 
-        {!setupMode && <footer className={styles.smartClipActions}>
+        <footer className={styles.smartClipActions}>
           <button type="button" className={styles.smartClipSecondaryAction} onClick={progress.running ? onCancel : onClose} disabled={progress.cancelling}>
             {progress.running ? "Cancel Batch" : "Close"}
           </button>
-          <button type="button" className={styles.smartClipPrimaryAction} onClick={onExport} disabled={!isDesktop || progress.running || segments.length === 0}>
-            <Scissors size={17} /> Export {segments.length || 0} Clip{segments.length === 1 ? "" : "s"}
-          </button>
-        </footer>}
+          {candidates.length > 0 && <button type="button" className={styles.smartClipSecondaryAction} onClick={onAnalyze} disabled={!isDesktop || progress.running || sourceLoading}><Sparkles size={16} /> Analyze again</button>}
+          {candidates.length > 0 ? (
+            <button type="button" className={styles.smartClipPrimaryAction} onClick={onExport} disabled={!isDesktop || progress.running || sourceLoading || selectedCandidateCount === 0}>
+              <Scissors size={17} /> Export {selectedCandidateCount} Selected
+            </button>
+          ) : (
+            <button type="button" className={styles.smartClipPrimaryAction} onClick={onAnalyze} disabled={!isDesktop || progress.running || sourceLoading || !source || segments.length === 0}>
+              <Sparkles size={17} /> Analyze Locally
+            </button>
+          )}
+        </footer>
       </section>
     </div>
   );

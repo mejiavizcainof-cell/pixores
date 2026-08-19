@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import ThumbnailEditorV2 from "@/components/ThumbnailEditorV2";
 import PixoreStudioSeo from "@/components/PixoreStudioSeo";
 import PixoreStudioSchema from "@/components/PixoreStudioSchema";
+import DesktopAuthGate from "@/components/DesktopAuthGate";
 
 export const metadata: Metadata = {
   title: "Free YouTube Thumbnail Maker",
@@ -61,32 +62,25 @@ export default async function YouTubeThumbnailMakerPage({ searchParams }: YouTub
                 Download Pixores Thumbnail Maker for PC
               </strong>
               <span style={{ color: "#475569", fontSize: "14px", lineHeight: 1.5 }}>
-                Use the same editor in a Windows desktop app with native file dialogs and local autosave.
+                Design thumbnails here, create complete presentations, or use the Windows app with native file dialogs and local autosave.
               </span>
             </div>
-            <Link
-              href="/desktop"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "12px",
-                background: "#2563EB",
-                color: "#FFFFFF",
-                fontWeight: 900,
-                padding: "11px 15px",
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Download PC App
-            </Link>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <Link href="/presentation-maker" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "12px", border: "1px solid #2563EB", background: "#FFFFFF", color: "#2563EB", fontWeight: 900, padding: "11px 15px", textDecoration: "none", whiteSpace: "nowrap" }}>
+                Create Presentation
+              </Link>
+              <Link href="/desktop" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "12px", background: "#2563EB", color: "#FFFFFF", fontWeight: 900, padding: "11px 15px", textDecoration: "none", whiteSpace: "nowrap" }}>
+                Download PC App
+              </Link>
+            </div>
           </div>
         </section>
       )}
 
       <Suspense fallback={<div>Loading Pixores Thumbnail Maker...</div>}>
-        <ThumbnailEditorV2 />
+        <DesktopAuthGate required experience={isDesktopMode ? "desktop" : "online"} showAccountDock={false}>
+          <ThumbnailEditorV2 />
+        </DesktopAuthGate>
       </Suspense>
 
       {!isDesktopMode && <PixoreStudioSeo />}

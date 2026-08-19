@@ -80,6 +80,49 @@ export type VideoAssetAdapter = {
   prepareAsset?: (input: { sourceUrl: string; kind: "video" | "audio"; metadata?: PixoresMediaMetadata }) => Promise<Pick<AssetImportResult, "previewUrl" | "waveformPeaks">>;
 };
 
+export type PixoresAudioStudioFormat = {
+  id: string;
+  label: string;
+  extension: string;
+  mimeType: string;
+  lossy: boolean;
+};
+
+export type PixoresAudioStudioSourceFile = {
+  sourcePath: string;
+  name: string;
+  size: number;
+  mimeType: string;
+};
+
+export type PixoresAudioStudioJobStatus = "queued" | "starting" | "resolving" | "downloading" | "converting" | "completed" | "failed" | "cancelled";
+
+export type PixoresAudioStudioJob = {
+  id: string;
+  type: "download" | "conversion";
+  status: PixoresAudioStudioJobStatus;
+  progress: number;
+  message: string;
+  name: string;
+  sourceLabel: string;
+  outputPath: string;
+  outputUrl: string;
+  mimeType: string;
+  size: number;
+  error: string;
+  createdAt: string;
+  startedAt: string;
+  completedAt: string;
+};
+
+export type PixoresAudioStudioCapabilities = {
+  ok: true;
+  formats: PixoresAudioStudioFormat[];
+  defaultOutputDirectory: string;
+  maximumDownloadBytes: number;
+  defaultDownloadConcurrency: number;
+};
+
 export type PixoresDesktopBridge = {
   importAsset?: (payload: { name: string; mimeType: string; size: number }) => Promise<AssetImportResult>;
   chooseProjectFolder?: (payload?: { title?: string }) => Promise<{ canceled: true } | { ok: true; canceled: false; projectFolder: string; assetsRoot: string }>;
@@ -104,12 +147,38 @@ export type PixoresDesktopBridge = {
     scannedAt: number;
     files: Array<{ name: string; mimeType: string; size: number; lastModified: number; url: string }>;
   }>;
+  getAudioStudioCapabilities?: () => Promise<PixoresAudioStudioCapabilities>;
+  chooseAudioStudioFiles?: () => Promise<{ canceled: true; files: [] } | { ok: true; canceled: false; files: PixoresAudioStudioSourceFile[] }>;
+  chooseAudioStudioOutputDirectory?: () => Promise<{ canceled: true } | { ok: true; canceled: false; directory: string }>;
+  startAudioStudioConversions?: (payload: {
+    files: Array<Pick<PixoresAudioStudioSourceFile, "sourcePath">>;
+    outputDirectory: string;
+    formatId: string;
+    bitrateKbps: number;
+    sampleRate: number;
+    channels: 1 | 2;
+    normalize: boolean;
+  }) => Promise<{ ok: true; jobs: PixoresAudioStudioJob[] }>;
+  startAudioStudioDownloads?: (payload: {
+    urls: string[];
+    outputDirectory: string;
+    concurrency: number;
+    rightsAccepted: boolean;
+  }) => Promise<{ ok: true; jobs: PixoresAudioStudioJob[] }>;
+  listAudioStudioJobs?: () => Promise<{ ok: true; jobs: PixoresAudioStudioJob[] }>;
+  cancelAudioStudioJob?: (jobId: string) => Promise<PixoresAudioStudioJob>;
+  retryAudioStudioJob?: (jobId: string) => Promise<{ ok: true; job: PixoresAudioStudioJob }>;
+  revealAudioStudioOutput?: (filePath: string) => Promise<{ ok: true }>;
+  onAudioStudioProgress?: (callback: (job: PixoresAudioStudioJob) => void) => () => void;
   removeImageBackground?: (payload: {
     accessToken: string;
     name: string;
     mimeType: string;
     bytes: ArrayBuffer;
   }) => Promise<{ ok: true; bytes: ArrayBuffer; mimeType: string; creditsRemaining?: number }>;
+  getAuthStorageItem?: (key: string) => Promise<string | null>;
+  setAuthStorageItem?: (key: string, value: string) => Promise<{ ok: true }>;
+  removeAuthStorageItem?: (key: string) => Promise<{ ok: true }>;
   openProjectPackage?: () => Promise<ProjectPackageOpenResult>;
   openRecentProjectPackage?: (filePath: string) => Promise<ProjectPackageOpenResult>;
   saveProjectPackage?: (payload: ProjectPackageSaveInput) => Promise<ProjectPackageSaveResult>;

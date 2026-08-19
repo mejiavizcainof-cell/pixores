@@ -11,6 +11,9 @@
 .card input { min-width: 0; flex: 1; border: 0; outline: 0; color: #f8fafc; background: transparent; font: inherit; }
 .submit { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; color: #061014; background: linear-gradient(135deg, #28ddd4, #52aaff); font: inherit; font-weight: 950; cursor: pointer; }
 .submit:disabled { opacity: .62; cursor: wait; }
+.forgot { justify-self: center; border: 0; color: #8fa6c0; background: transparent; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; }
+.forgot:hover { color: #2bd8d0; }
+.forgot:disabled { opacity: .55; cursor: wait; }
 .message { min-height: 22px; margin: 13px 0 0 !important; color: #a7b5c7 !important; font-size: 12px !important; text-align: center; }
 .switch { width: 100%; border: 0; color: #2bd8d0; background: transparent; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; }
 .success { margin-top: 36px; text-align: center; }

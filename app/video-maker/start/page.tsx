@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Clock3, Copy, DownloadCloud, FileVideo, FolderOpen, KeyRound, LogOut, MonitorCog, Pencil, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, SlidersHorizontal, Trash2, UserCircle, X } from "lucide-react";
+import Image from "next/image";
+import DesktopAuthGate from "@/components/DesktopAuthGate";
+import { ArrowRight, AudioLines, Clock3, Copy, DownloadCloud, FileVideo, FolderOpen, ImagePlus, KeyRound, LogOut, Monitor, MonitorCog, Pencil, Plus, RefreshCw, RotateCcw, Scissors, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Type, UserCircle, X } from "lucide-react";
 import type { PixoresVideoFormat } from "@/src/video-render/types";
 import { getPixoresDesktopBridge, isPixoresDesktop } from "@/src/video-maker/adapters/runtime";
 import type { PixoresLicenseStatus, PixoresUpdateStatus, ProjectPackageRecentProject } from "@/src/video-maker/adapters/types";
 import {
   PIXORES_VIDEO_START_FORMAT_KEY,
   PIXORES_VIDEO_START_PROJECT_KEY,
+  PIXORES_VIDEO_START_TOOL_KEY,
+  type PixoresVideoStartTool,
   type PixoresVideoStartFormatPayload,
   type PixoresVideoStartProjectPayload,
 } from "@/src/video-maker/startup";
@@ -15,6 +19,7 @@ import styles from "./VideoMakerStart.module.css";
 
 const RECENTS_STORAGE_KEY = "pixores-video-maker-recent-projects";
 const LICENSE_STORAGE_KEY = "pixores-video-maker-license";
+const PIXORES_WEBSITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.pixores.com").replace(/\/$/, "");
 
 const quickFormats: PixoresVideoFormat[] = [
   { id: "16_9", label: "YouTube 16:9", width: 1920, height: 1080 },
@@ -23,6 +28,30 @@ const quickFormats: PixoresVideoFormat[] = [
   { id: "4_5", label: "Instagram 4:5", width: 1080, height: 1350 },
   { id: "custom", label: "Custom", width: 1920, height: 1080 },
 ];
+
+const formatPreviewImages: Record<string, string> = {
+  "16_9": "/template-assets/backgrounds/creator-breaking-world.webp",
+  "9_16": "/template-assets/backgrounds/creator-ai-experiment.webp",
+  "1_1": "/template-assets/backgrounds/gaming-square.webp",
+  "4_5": "/template-assets/backgrounds/creator-business-growth.webp",
+  custom: "/template-assets/backgrounds/creator-top-tools.webp",
+};
+
+const toolPreviewImages = {
+  smartClips: "/template-assets/backgrounds/creator-ai-tools.webp",
+  videoEditor: "/template-assets/backgrounds/creator-breaking-world.webp",
+  socialResizer: "/template-assets/backgrounds/creator-business-growth.webp",
+  backgroundRemover: "/template-assets/backgrounds/mood-joyful.webp",
+  thumbnailMaker: "/template-assets/backgrounds/creator-thumbnail-design.webp",
+  autoCaptions: "/template-assets/backgrounds/creator-truth-exposed.webp",
+  audioStudio: "/template-assets/backgrounds/mood-calm.webp",
+};
+
+function getRecentProjectPreview(project: ProjectPackageRecentProject) {
+  if (project.width && project.height && project.height > project.width) return formatPreviewImages["9_16"];
+  if (project.width && project.height && Math.abs(project.width - project.height) < 8) return formatPreviewImages["1_1"];
+  return formatPreviewImages["16_9"];
+}
 
 function editorUrl() {
   return isPixoresDesktop() ? "/video-maker?desktop=1" : "/video-maker";
@@ -185,19 +214,26 @@ export default function VideoMakerStartPage() {
   }, [customHeight, customWidth, selectedFormatId]);
 
   useEffect(() => {
+    let active = true;
     const bridge = getPixoresDesktopBridge();
-    setRecentProjects(readRecentsFromStorage());
-    setLicenseStatus(readLicenseFromStorage());
+    queueMicrotask(() => {
+      if (!active) return;
+      setRecentProjects(readRecentsFromStorage());
+      setLicenseStatus(readLicenseFromStorage());
+    });
 
-    if (!bridge?.getRecentProjects) return;
+    if (!bridge?.getRecentProjects) return () => { active = false; };
     bridge.getRecentProjects()
       .then((result) => {
+        if (!active) return;
         setRecentProjects(result.projects);
         saveRecentsToStorage(result.projects);
       })
       .catch(() => {
+        if (!active) return;
         setStatus("Recent projects are available after opening a desktop project.");
       });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -220,6 +256,10 @@ export default function VideoMakerStartPage() {
     window.location.assign(editorUrl());
   }
 
+  function openAudioStudio() {
+    window.location.assign(isPixoresDesktop() ? "/audio-studio?desktop=1" : "/audio-studio");
+  }
+
   function startNewProject() {
     const payload: PixoresVideoStartFormatPayload = {
       title: "Untitled video",
@@ -227,6 +267,29 @@ export default function VideoMakerStartPage() {
     };
     sessionStorage.setItem(PIXORES_VIDEO_START_FORMAT_KEY, JSON.stringify(payload));
     goToEditor();
+  }
+
+  function launchEditorTool(tool: PixoresVideoStartTool) {
+    sessionStorage.setItem(PIXORES_VIDEO_START_TOOL_KEY, tool);
+    if (tool === "smart-clips" || tool === "social-resizer") {
+      const verticalFormat = quickFormats.find((format) => format.id === "9_16") || quickFormats[1];
+      const payload: PixoresVideoStartFormatPayload = {
+        title: tool === "smart-clips" ? "Smart Clips project" : "Social video project",
+        format: verticalFormat,
+      };
+      sessionStorage.setItem(PIXORES_VIDEO_START_FORMAT_KEY, JSON.stringify(payload));
+    }
+    goToEditor();
+  }
+
+  async function openWebsiteTool(pathname: string) {
+    const url = `${PIXORES_WEBSITE_URL}${pathname}`;
+    const bridge = getPixoresDesktopBridge();
+    if (bridge?.openExternalUrl) {
+      await bridge.openExternalUrl(url);
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function openProjectFromDialog() {
@@ -475,19 +538,20 @@ export default function VideoMakerStartPage() {
   }
 
   return (
+    <DesktopAuthGate>
     <div className={styles.shell}>
       <section className={styles.hero}>
         <div>
           <div className={styles.brandMark}>
-            <FileVideo size={24} />
-            <span>Pixores Video Maker</span>
+            <Image className={styles.brandLogo} src="/pixores-logo.png" alt="Pixores" width={445} height={120} priority />
+            <span className={styles.productName}>Pixores Video Maker Pro</span>
           </div>
-          <h1>Start a desktop video project</h1>
-          <p>Create, open, and render Pixores projects locally with the same editor used on the web.</p>
+          <h1>Create without limits.</h1>
+          <p>Professional video editing, social clips, motion graphics, and Pixores creative tools in one focused desktop studio.</p>
         </div>
         <button className={styles.settingsButton} type="button" onClick={() => setShowSettings((current) => !current)}>
           <Settings size={18} />
-          Configuration
+          Settings
         </button>
       </section>
 
@@ -509,7 +573,17 @@ export default function VideoMakerStartPage() {
                 type="button"
                 onClick={() => setSelectedFormatId(format.id)}
               >
-                <span className={styles.formatPreview} style={{ aspectRatio: `${format.width} / ${format.height}` }} />
+                <span className={styles.formatPreview}>
+                  <Image
+                    className={styles.formatPreviewImage}
+                    src={formatPreviewImages[format.id] || formatPreviewImages.custom}
+                    alt=""
+                    fill
+                    sizes="(max-width: 620px) 100vw, 180px"
+                  />
+                  <span className={styles.formatPreviewShade} />
+                  <span className={styles.formatSafeFrame} style={{ aspectRatio: `${format.width} / ${format.height}` }} />
+                </span>
                 <strong>{format.label}</strong>
                 <small>{format.id === "custom" ? `${customWidth} x ${customHeight}` : `${format.width} x ${format.height}`}</small>
               </button>
@@ -544,6 +618,57 @@ export default function VideoMakerStartPage() {
             </button>
           </div>
 
+          <section className={styles.toolsSection} aria-label="Pixores creative tools">
+            <div className={styles.panelHeader}>
+              <div>
+                <span>Creative launchpad</span>
+                <h2>What do you want to make?</h2>
+              </div>
+              <Sparkles size={22} />
+            </div>
+            <div className={styles.toolGrid}>
+              <button type="button" className={`${styles.toolCard} ${styles.featuredTool}`} onClick={() => launchEditorTool("smart-clips")}>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.smartClips} alt="" fill sizes="360px" /><span className={styles.toolIcon}><Scissors size={23} /></span></span>
+                <strong>Smart Clips</strong>
+                <small>Create Reels, Shorts, and TikToks automatically.</small>
+                <em>New</em>
+              </button>
+              <button type="button" className={styles.toolCard} onClick={() => launchEditorTool("video-editor")}>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.videoEditor} alt="" fill sizes="360px" /><span className={styles.toolIcon}><FileVideo size={23} /></span></span>
+                <strong>Video Editor</strong>
+                <small>Timeline editing, effects, titles, and local export.</small>
+              </button>
+              <button type="button" className={styles.toolCard} onClick={() => launchEditorTool("social-resizer")}>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.socialResizer} alt="" fill sizes="360px" /><span className={styles.toolIcon}><Monitor size={23} /></span></span>
+                <strong>Social Resizer</strong>
+                <small>Adapt a project to vertical and social formats.</small>
+              </button>
+              <button type="button" className={styles.toolCard} onClick={() => void openWebsiteTool("/remove-background")}>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.backgroundRemover} alt="" fill sizes="360px" /><span className={styles.toolIcon}><ImagePlus size={23} /></span></span>
+                <strong>Background Remover</strong>
+                <small>Remove image backgrounds with Pixores AI.</small>
+              </button>
+              <button type="button" className={styles.toolCard} onClick={() => void openWebsiteTool("/youtube-thumbnail-maker")}>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.thumbnailMaker} alt="" fill sizes="360px" /><span className={styles.toolIcon}><Type size={23} /></span></span>
+                <strong>Thumbnail Maker</strong>
+                <small>Create branded thumbnails and social graphics.</small>
+              </button>
+              <button type="button" className={styles.toolCard} onClick={openAudioStudio}>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.audioStudio} alt="" fill sizes="360px" /><span className={styles.toolIcon}><AudioLines size={23} /></span></span>
+                <strong>Audio Studio</strong>
+                <small>Convert audio formats and download authorized links.</small>
+                <em>New</em>
+              </button>
+              <button type="button" className={styles.toolCard} disabled>
+                <span className={styles.toolThumbnail}><Image src={toolPreviewImages.autoCaptions} alt="" fill sizes="360px" /><span className={styles.toolIcon}><Sparkles size={23} /></span></span>
+                <strong>Auto Captions</strong>
+                <small>Automatic captions and animated subtitles.</small>
+                <em>Coming soon</em>
+              </button>
+            </div>
+          </section>
+
+          {showSettings && (<>
           <section className={styles.accountPanel} aria-label="Account and license">
             <div className={styles.panelHeader}>
               <div>
@@ -635,6 +760,7 @@ export default function VideoMakerStartPage() {
               </button>
             </div>
           </section>
+          </>)}
         </div>
 
         <aside className={styles.sidePanel}>
@@ -649,7 +775,10 @@ export default function VideoMakerStartPage() {
           <div className={styles.recentList}>
             {recentProjects.length > 0 ? recentProjects.map((project) => (
               <article key={project.filePath} className={styles.recentItem}>
-                <span className={styles.recentIcon}><FileVideo size={18} /></span>
+                <span className={styles.recentIcon}>
+                  <Image src={getRecentProjectPreview(project)} alt="" fill sizes="72px" />
+                  <FileVideo size={18} />
+                </span>
                 <div className={styles.recentInfo}>
                   {editingProjectPath === project.filePath ? (
                     <label className={styles.renameField}>
@@ -737,5 +866,6 @@ export default function VideoMakerStartPage() {
 
       <div className={styles.statusBar}>{status}</div>
     </div>
+    </DesktopAuthGate>
   );
 }

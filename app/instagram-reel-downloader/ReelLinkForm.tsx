@@ -158,7 +158,7 @@ export default function ReelLinkForm() {
         >
           Instagram links are not downloaded directly on Pixores. To protect
           AdSense compliance, copyright owners, and Instagram access rules, use
-          Instagram's official export/save options for your own content.
+          Instagram&apos;s official export/save options for your own content.
           <br />
           <a
             href="https://help.instagram.com/181231772500920"

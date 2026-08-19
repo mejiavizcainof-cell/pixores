@@ -24,6 +24,8 @@ type FfprobeStream = {
   r_frame_rate?: string;
   sample_rate?: string;
   channels?: number;
+  tags?: { rotate?: string };
+  side_data_list?: Array<{ rotation?: number }>;
 };
 
 type FfprobeOutput = {
@@ -49,6 +51,13 @@ function parseFps(value?: string) {
   return Number.isFinite(fps) && fps > 0 ? Number(fps.toFixed(3)) : undefined;
 }
 
+function parseDisplayRotation(stream?: FfprobeStream) {
+  const sideDataRotation = stream?.side_data_list?.find((item) => Number.isFinite(Number(item.rotation)))?.rotation;
+  const value = parseNumber(sideDataRotation ?? stream?.tags?.rotate);
+  if (value === undefined) return undefined;
+  return ((Math.round(value / 90) * 90) % 360 + 360) % 360;
+}
+
 async function findFfprobePath() {
   const candidates = [
     process.env.FFPROBE_PATH,
@@ -62,7 +71,7 @@ async function findFfprobePath() {
   for (const candidate of candidates) {
     if (candidate === "ffprobe") return candidate;
     try {
-      await fs.access(candidate);
+      await fs.access(/* turbopackIgnore: true */ candidate);
       return candidate;
     } catch {
       // Try the next bundled ffprobe candidate.
@@ -95,6 +104,7 @@ function normalizeFfprobeMetadata(output: FfprobeOutput, options: AnalyzeOptions
     bitrate,
     width: videoStream?.width,
     height: videoStream?.height,
+    rotation: parseDisplayRotation(videoStream),
     fps: parseFps(videoStream?.avg_frame_rate || videoStream?.r_frame_rate),
     codec: videoStream?.codec_name,
     pixelFormat: videoStream?.pix_fmt,
@@ -140,7 +150,7 @@ async function analyzeImageWithSharp(filePath: string, options: AnalyzeOptions):
 }
 
 export async function analyzeMediaFile(filePath: string, options: AnalyzeOptions = {}): Promise<PixoresMediaMetadata> {
-  const statSize = options.size ?? (await fs.stat(filePath).then((stat) => stat.size).catch(() => undefined));
+  const statSize = options.size ?? (await fs.stat(/* turbopackIgnore: true */ filePath).then((stat) => stat.size).catch(() => undefined));
   const nextOptions = { ...options, size: statSize };
 
   if (options.kind === "image" || options.mimeType?.startsWith("image/")) {

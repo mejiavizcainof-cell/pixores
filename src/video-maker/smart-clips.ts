@@ -1,16 +1,24 @@
-import type { PixoresVideoLayer, PixoresVideoProject } from "@/src/video-render/types";
-import { getProfessionalCaptionLayout, isAiCaptionLayer } from "./caption-layout";
+import type { PixoresMediaMetadata, PixoresVideoLayer, PixoresVideoProject } from "@/src/video-render/types";
+import { isAiCaptionLayer } from "./caption-layout";
+import { sliceSmartReframe } from "./smart-reframe";
 
-export type SmartClipPlatformId = "instagram-reels" | "youtube-shorts" | "tiktok";
+export type SmartClipPlatformId =
+  | "instagram-reels"
+  | "instagram-feed"
+  | "facebook-reels"
+  | "facebook-feed"
+  | "youtube-shorts"
+  | "tiktok"
+  | "custom";
 
 export type SmartClipPlatform = {
   id: SmartClipPlatformId;
   label: string;
   shortLabel: string;
   description: string;
-  width: 1080;
-  height: 1920;
-  aspectRatio: "9:16";
+  width: number;
+  height: number;
+  aspectRatio: string;
   defaultDuration: number;
   maxDuration: number;
   fileSuffix: string;
@@ -23,6 +31,36 @@ export type SmartClipSegment = {
   start: number;
   end: number;
   duration: number;
+};
+
+export type SmartClipTranscriptCue = {
+  start: number;
+  end: number;
+  text: string;
+};
+
+export type SmartClipCandidate = SmartClipSegment & {
+  title: string;
+  transcript: string;
+  score: number;
+  reason: string;
+  selected: boolean;
+};
+
+export type SmartClipCandidateOptions = {
+  maxCandidates?: number;
+  minimumDuration?: number;
+};
+
+export type SmartClipSource = {
+  id: string;
+  name: string;
+  url: string;
+  persistentUrl?: string;
+  duration: number;
+  width?: number;
+  height?: number;
+  metadata?: PixoresMediaMetadata;
 };
 
 export class SmartClipExportCoordinator {
@@ -86,6 +124,45 @@ export const SMART_CLIP_PLATFORMS: SmartClipPlatform[] = [
     accent: "#ff4f81",
   },
   {
+    id: "instagram-feed",
+    label: "Instagram Feed",
+    shortLabel: "Instagram",
+    description: "Portrait posts sized for maximum Instagram feed space.",
+    width: 1080,
+    height: 1350,
+    aspectRatio: "4:5",
+    defaultDuration: 60,
+    maxDuration: 180,
+    fileSuffix: "instagram-feed",
+    accent: "#c13584",
+  },
+  {
+    id: "facebook-reels",
+    label: "Facebook Reels",
+    shortLabel: "Facebook Reel",
+    description: "Full-screen vertical clips for Facebook Reels.",
+    width: 1080,
+    height: 1920,
+    aspectRatio: "9:16",
+    defaultDuration: 60,
+    maxDuration: 180,
+    fileSuffix: "facebook-reel",
+    accent: "#1877f2",
+  },
+  {
+    id: "facebook-feed",
+    label: "Facebook Feed",
+    shortLabel: "Facebook",
+    description: "Portrait video optimized for the Facebook feed.",
+    width: 1080,
+    height: 1350,
+    aspectRatio: "4:5",
+    defaultDuration: 60,
+    maxDuration: 180,
+    fileSuffix: "facebook-feed",
+    accent: "#4267b2",
+  },
+  {
     id: "youtube-shorts",
     label: "YouTube Shorts",
     shortLabel: "Shorts",
@@ -111,10 +188,35 @@ export const SMART_CLIP_PLATFORMS: SmartClipPlatform[] = [
     fileSuffix: "tiktok",
     accent: "#22d3c5",
   },
+  {
+    id: "custom",
+    label: "Custom size",
+    shortLabel: "Custom",
+    description: "Use an exact width and height for any social platform.",
+    width: 1080,
+    height: 1920,
+    aspectRatio: "Custom",
+    defaultDuration: 60,
+    maxDuration: 180,
+    fileSuffix: "custom-clip",
+    accent: "#8b5cf6",
+  },
 ];
 
-export function getSmartClipPlatform(platformId: SmartClipPlatformId) {
-  return SMART_CLIP_PLATFORMS.find((platform) => platform.id === platformId) || SMART_CLIP_PLATFORMS[0];
+export function getSmartClipPlatform(
+  platformId: SmartClipPlatformId,
+  customSize?: { width: number; height: number },
+) {
+  const platform = SMART_CLIP_PLATFORMS.find((item) => item.id === platformId) || SMART_CLIP_PLATFORMS[0];
+  if (platform.id !== "custom" || !customSize) return platform;
+  const width = Math.round(Math.min(7680, Math.max(320, Number(customSize.width) || platform.width)));
+  const height = Math.round(Math.min(7680, Math.max(320, Number(customSize.height) || platform.height)));
+  return {
+    ...platform,
+    width,
+    height,
+    aspectRatio: `${width}:${height}`,
+  };
 }
 
 export function createSmartClipSegments(projectDuration: number, requestedDuration: number): SmartClipSegment[] {
@@ -136,6 +238,249 @@ export function createSmartClipSegments(projectDuration: number, requestedDurati
   });
 }
 
+export function createSmartClipSourceProject(source: SmartClipSource): PixoresVideoProject {
+  const duration = Math.max(0.05, Number(source.duration) || 0.05);
+  const width = Math.max(2, Math.round(Number(source.width || source.metadata?.width) || 1920));
+  const height = Math.max(2, Math.round(Number(source.height || source.metadata?.height) || 1080));
+  const sourceUrl = source.persistentUrl || source.url;
+  const now = new Date().toISOString();
+
+  return {
+    schemaVersion: 1,
+    canvas: { width, height },
+    duration,
+    background: "#000000",
+    layers: [{
+      id: `smart-source-layer-${source.id}`,
+      trackId: `smart-source-track-${source.id}`,
+      type: "media",
+      name: source.name,
+      trackName: "Master video",
+      trackOrder: 0,
+      start: 0,
+      duration,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      src: sourceUrl,
+      mediaKind: "video",
+      assetKey: source.id,
+      objectFit: "cover",
+      sourceStart: 0,
+      trimStart: 0,
+      sourceEnd: duration,
+      trimEnd: duration,
+      sourceDuration: duration,
+      volume: 1,
+      muted: false,
+    }],
+    assets: [{
+      id: source.id,
+      name: source.name,
+      kind: "video",
+      url: sourceUrl,
+      persistentUrl: source.persistentUrl || sourceUrl,
+      uploadStatus: "ready",
+      duration,
+      metadata: source.metadata,
+    }],
+    transitions: [],
+    format: {
+      id: "smart-clip-master",
+      label: `Master ${width}:${height}`,
+      width,
+      height,
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+const SMART_CLIP_FILLER_PREFIX = /^(?:ahora bien|a ver|as[ií] que|bueno|entonces|este|mira|miren|okay|ok|pues|so|well|you know|I mean)[,.:;!\s-]+/i;
+const SMART_CLIP_HOOK_PATTERN = /\b(?:c[oó]mo|por qu[eé]|qu[eé] pasa|qu[eé] ocurre|secreto|verdad|problema|error|importante|nunca|siempre|mejor|peor|imagina|resultado|clave|raz[oó]n|how|why|what happens|secret|truth|problem|mistake|important|never|always|best|worst|imagine|result|key|reason)\b/i;
+const SMART_CLIP_STOP_WORDS = new Set([
+  "a", "al", "and", "are", "como", "con", "de", "del", "el", "en", "es", "esta", "este", "for", "is", "la", "las", "lo", "los", "of", "on", "or", "para", "por", "que", "se", "the", "to", "un", "una", "y",
+]);
+
+function normalizeSmartClipText(value: string) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function trimSmartClipTitle(value: string, maxLength = 72) {
+  const clean = normalizeSmartClipText(value)
+    .replace(SMART_CLIP_FILLER_PREFIX, "")
+    .replace(/^[,.:;!¿?\s-]+|[,.:;!¿?\s-]+$/g, "");
+  if (clean.length <= maxLength) return clean;
+  const shortened = clean.slice(0, maxLength + 1);
+  const boundary = shortened.lastIndexOf(" ");
+  return `${shortened.slice(0, boundary >= Math.floor(maxLength * 0.6) ? boundary : maxLength).trim()}…`;
+}
+
+export function createLocalSmartClipTitle(transcript: string, maxLength = 72) {
+  const clean = normalizeSmartClipText(transcript);
+  if (!clean) return "Untitled Smart Clip";
+  const sentences = clean
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => normalizeSmartClipText(sentence))
+    .filter(Boolean);
+  const ranked = (sentences.length ? sentences : [clean]).map((sentence, index) => {
+    const words = sentence.toLocaleLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+    const meaningfulWords = words.filter((word) => word.length > 2 && !SMART_CLIP_STOP_WORDS.has(word));
+    const hookBonus = SMART_CLIP_HOOK_PATTERN.test(sentence) ? 18 : 0;
+    const questionBonus = /[?¿]/.test(sentence) ? 12 : 0;
+    const usefulLength = Math.min(18, meaningfulWords.length) - Math.abs(10 - Math.min(10, meaningfulWords.length));
+    return { sentence, score: hookBonus + questionBonus + usefulLength - index * 0.25 };
+  });
+  ranked.sort((first, second) => second.score - first.score);
+  return trimSmartClipTitle(ranked[0]?.sentence || clean, maxLength) || "Untitled Smart Clip";
+}
+
+function calculateSmartClipCandidateScore(cues: SmartClipTranscriptCue[], start: number, end: number, targetDuration: number) {
+  const transcript = normalizeSmartClipText(cues.map((cue) => cue.text).join(" "));
+  const words = transcript.match(/[\p{L}\p{N}']+/gu) || [];
+  const duration = Math.max(0.1, end - start);
+  const spokenDuration = cues.reduce((total, cue) => total + Math.max(0, Math.min(end, cue.end) - Math.max(start, cue.start)), 0);
+  const density = Math.min(1, spokenDuration / duration);
+  const lengthFit = Math.max(0, 1 - Math.abs(duration - targetDuration) / Math.max(1, targetDuration));
+  const hookBonus = SMART_CLIP_HOOK_PATTERN.test(transcript) ? 14 : 0;
+  const questionBonus = /[?¿]/.test(transcript) ? 8 : 0;
+  const completeThoughtBonus = /[.!?]$/.test(transcript) ? 5 : 0;
+  const wordScore = Math.min(18, words.length / 5);
+  return Math.round(Math.min(100, density * 40 + lengthFit * 25 + wordScore + hookBonus + questionBonus + completeThoughtBonus));
+}
+
+function smartClipOverlapRatio(first: SmartClipSegment, second: SmartClipSegment) {
+  const overlap = Math.max(0, Math.min(first.end, second.end) - Math.max(first.start, second.start));
+  return overlap / Math.max(0.1, Math.min(first.duration, second.duration));
+}
+
+export function generateLocalSmartClipCandidates(
+  transcriptCues: SmartClipTranscriptCue[],
+  projectDuration: number,
+  requestedDuration: number,
+  options: SmartClipCandidateOptions = {},
+): SmartClipCandidate[] {
+  const duration = Math.max(0, Number(projectDuration) || 0);
+  const targetDuration = Math.max(8, Math.min(duration || requestedDuration, Number(requestedDuration) || 60));
+  const cues = transcriptCues
+    .map((cue) => ({
+      start: Math.max(0, Math.min(duration, Number(cue.start) || 0)),
+      end: Math.max(0, Math.min(duration, Number(cue.end) || 0)),
+      text: normalizeSmartClipText(cue.text),
+    }))
+    .filter((cue) => cue.text && cue.end > cue.start)
+    .sort((first, second) => first.start - second.start);
+
+  const desiredCount = Math.max(1, Math.min(
+    16,
+    options.maxCandidates ?? Math.max(3, Math.round(duration / Math.max(75, targetDuration * 1.65))),
+  ));
+  const minimumDuration = Math.max(6, Math.min(targetDuration * 0.55, options.minimumDuration ?? targetDuration * 0.55));
+
+  if (!cues.length) {
+    return createSmartClipSegments(duration, targetDuration).slice(0, desiredCount).map((segment) => ({
+      ...segment,
+      title: `Smart Clip ${segment.index + 1}`,
+      transcript: "",
+      score: 0,
+      reason: "Timeline fallback",
+      selected: true,
+    }));
+  }
+
+  const proposals: SmartClipCandidate[] = [];
+  const startSpacing = Math.max(4, targetDuration * 0.22);
+  let lastProposalStart = -startSpacing;
+  for (let cueIndex = 0; cueIndex < cues.length; cueIndex += 1) {
+    const firstCue = cues[cueIndex];
+    if (firstCue.start - lastProposalStart < startSpacing) continue;
+    const rawStart = Math.max(0, firstCue.start - 0.18);
+    let bestEnd = 0;
+    let bestPenalty = Number.POSITIVE_INFINITY;
+    let finalCueIndex = cueIndex;
+    for (let endIndex = cueIndex; endIndex < cues.length; endIndex += 1) {
+      const cue = cues[endIndex];
+      const candidateDuration = cue.end - rawStart;
+      if (candidateDuration < minimumDuration) continue;
+      if (candidateDuration > targetDuration * 1.22) break;
+      const nextCue = cues[endIndex + 1];
+      const pauseAfter = nextCue ? nextCue.start - cue.end : 1.5;
+      const naturalBoundary = /[.!?]$/.test(cue.text) || pauseAfter >= 0.7;
+      const penalty = Math.abs(targetDuration - candidateDuration) - (naturalBoundary ? targetDuration * 0.16 : 0);
+      if (penalty < bestPenalty) {
+        bestPenalty = penalty;
+        bestEnd = cue.end;
+        finalCueIndex = endIndex;
+      }
+    }
+    if (!bestEnd) continue;
+    const end = Math.min(duration, bestEnd + 0.12);
+    const candidateCues = cues.slice(cueIndex, finalCueIndex + 1);
+    const transcript = normalizeSmartClipText(candidateCues.map((cue) => cue.text).join(" "));
+    const candidateDuration = Number((end - rawStart).toFixed(3));
+    const score = calculateSmartClipCandidateScore(candidateCues, rawStart, end, targetDuration);
+    proposals.push({
+      id: `smart-candidate-${cueIndex}-${rawStart.toFixed(3)}-${end.toFixed(3)}`,
+      index: proposals.length,
+      start: Number(rawStart.toFixed(3)),
+      end: Number(end.toFixed(3)),
+      duration: candidateDuration,
+      title: createLocalSmartClipTitle(transcript),
+      transcript,
+      score,
+      reason: score >= 78 ? "Strong hook and complete thought" : score >= 62 ? "Clear, speech-rich moment" : "Complete local segment",
+      selected: true,
+    });
+    lastProposalStart = rawStart;
+  }
+
+  const selected: SmartClipCandidate[] = [];
+  for (const proposal of [...proposals].sort((first, second) => second.score - first.score)) {
+    if (selected.some((candidate) => smartClipOverlapRatio(candidate, proposal) > 0.56)) continue;
+    selected.push(proposal);
+    if (selected.length >= desiredCount) break;
+  }
+
+  if (!selected.length) {
+    const fallbackTranscript = normalizeSmartClipText(cues.map((cue) => cue.text).join(" "));
+    const end = Math.min(duration, Math.max(cues.at(-1)?.end || targetDuration, Math.min(duration, targetDuration)));
+    selected.push({
+      id: "smart-candidate-fallback",
+      index: 0,
+      start: 0,
+      end,
+      duration: end,
+      title: createLocalSmartClipTitle(fallbackTranscript),
+      transcript: fallbackTranscript,
+      score: 50,
+      reason: "Complete local segment",
+      selected: true,
+    });
+  }
+
+  const usedTitles = new Set<string>();
+  return selected
+    .sort((first, second) => first.start - second.start)
+    .map((candidate, index) => {
+      const baseTitle = trimSmartClipTitle(candidate.title) || `Smart Clip ${index + 1}`;
+      let uniqueTitle = baseTitle;
+      let suffix = 2;
+      while (usedTitles.has(uniqueTitle.toLocaleLowerCase())) {
+        uniqueTitle = trimSmartClipTitle(`${baseTitle} · Clip ${index + 1}`, 88);
+        if (usedTitles.has(uniqueTitle.toLocaleLowerCase())) {
+          uniqueTitle = trimSmartClipTitle(`${baseTitle} · ${suffix}`, 88);
+          suffix += 1;
+        }
+      }
+      usedTitles.add(uniqueTitle.toLocaleLowerCase());
+      return { ...candidate, index, title: uniqueTitle };
+    });
+}
+
 function getSourceStart(layer: PixoresVideoLayer) {
   return Math.max(0, layer.sourceStart ?? layer.trimStart ?? 0);
 }
@@ -144,20 +489,14 @@ function adaptLayerToVerticalCanvas(
   layer: PixoresVideoLayer,
   sourceWidth: number,
   targetWidth: number,
-  targetHeight: number,
 ): PixoresVideoLayer {
   if (layer.type === "audio" || layer.type === "transition") return layer;
 
   if (isAiCaptionLayer(layer)) {
-    const caption = getProfessionalCaptionLayout(targetWidth, targetHeight);
-    return {
-      ...layer,
-      ...caption,
-      textAlign: "center",
-      hasTextBg: true,
-      textBgColor: layer.textBgColor || "#000000",
-      isBold: true,
-    };
+    // Caption geometry is stored in percentages and its visual fields are the
+    // user's design. Keep every edited style when slicing the timeline into
+    // Smart Clips instead of replacing it with the automatic default.
+    return layer;
   }
 
   const fullCanvasMedia = layer.type === "media"
@@ -216,6 +555,7 @@ function sliceLayer(layer: PixoresVideoLayer, segment: SmartClipSegment): Pixore
     trimStart: sourceStart,
     sourceEnd,
     trimEnd: sourceEnd,
+    smartReframe: sliceSmartReframe(layer.smartReframe, clippedFromStart, duration),
   };
 }
 
@@ -237,7 +577,6 @@ export function createSmartClipProject(
       layer,
       project.canvas.width,
       platform.width,
-      platform.height,
     ));
   const transitionIds = new Set(layers.filter((layer) => layer.type === "transition").map((layer) => layer.id));
   const now = new Date().toISOString();

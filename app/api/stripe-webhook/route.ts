@@ -30,9 +30,10 @@ export async function POST(request: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown Stripe verification error";
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${error.message}` },
+      { error: `Webhook signature verification failed: ${message}` },
       { status: 400 }
     );
   }
@@ -69,10 +70,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("WEBHOOK ERROR:", error);
+    const message = error instanceof Error ? error.message : "Webhook failed";
     return NextResponse.json(
-      { error: error.message || "Webhook failed" },
+      { error: message },
       { status: 500 }
     );
   }
