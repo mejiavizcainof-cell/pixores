@@ -5,6 +5,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, 
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import html2canvas from "html2canvas";
+import { PDFDocument } from "pdf-lib";
 import { templates } from "@/lib/templates";
 import type { AdminAsset } from "@/lib/adminAssets";
 import type { EditorBrandAsset } from "@/lib/brandAssets";
@@ -547,6 +548,59 @@ const PRESET_SIZES = {
   custom: { name: "Custom Size", width: 1080, height: 990 }
 };
 
+const DIMENSION_UNITS = [
+  { value: "px", label: "px" },
+  { value: "in", label: "in" },
+  { value: "mm", label: "mm" },
+  { value: "cm", label: "cm" },
+] as const;
+
+type DimensionUnit = (typeof DIMENSION_UNITS)[number]["value"];
+type DimensionField = "width" | "height";
+
+const MIN_CANVAS_PX = 100;
+const PX_PER_INCH = 96;
+
+const dimensionUnitToPixels = (value: number, unit: DimensionUnit) => {
+  switch (unit) {
+    case "in":
+      return value * PX_PER_INCH;
+    case "mm":
+      return (value / 25.4) * PX_PER_INCH;
+    case "cm":
+      return (value / 2.54) * PX_PER_INCH;
+    default:
+      return value;
+  }
+};
+
+const pixelsToDimensionUnit = (pixels: number, unit: DimensionUnit) => {
+  switch (unit) {
+    case "in":
+      return pixels / PX_PER_INCH;
+    case "mm":
+      return (pixels / PX_PER_INCH) * 25.4;
+    case "cm":
+      return (pixels / PX_PER_INCH) * 2.54;
+    default:
+      return pixels;
+  }
+};
+
+const formatDimensionValue = (pixels: number, unit: DimensionUnit) => {
+  const value = pixelsToDimensionUnit(pixels, unit);
+  const decimals = unit === "px" ? 0 : 2;
+  return Number(value.toFixed(decimals)).toString();
+};
+
+const dimensionInputToPixels = (input: string, unit: DimensionUnit) => {
+  const normalized = input.trim().replace(",", ".");
+  if (!normalized) return null;
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.round(dimensionUnitToPixels(value, unit));
+};
+
 const getPresetForDimensions = (width: number, height: number): keyof typeof PRESET_SIZES => {
   const match = (Object.entries(PRESET_SIZES) as Array<[keyof typeof PRESET_SIZES, { width: number; height: number }]>)
     .find(([key, size]) => key !== "custom" && size.width === width && size.height === height);
@@ -632,6 +686,9 @@ export default function ThumbnailEditorV2() {
   const [currentPreset, setCurrentPreset] = useState<keyof typeof PRESET_SIZES>("youtube");
   const [canvasWidth, setCanvasWidth] = useState<number>(1280);
   const [canvasHeight, setCanvasHeight] = useState<number>(720);
+  const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("px");
+  const [dimensionInputs, setDimensionInputs] = useState({ width: "1280", height: "720" });
+  const [activeDimensionInput, setActiveDimensionInput] = useState<DimensionField | null>(null);
 
   const [draggingLayerId, setDraggingLayerId] = useState<string | number | null>(null);
   const [importedImages, setImportedImages] = useState<ImportedFile[]>([]);
@@ -1612,12 +1669,66 @@ try {
   return { clientX: mouseEvent.clientX, clientY: mouseEvent.clientY };
 };
 
+  useEffect(() => {
+    if (activeDimensionInput) return;
+    setDimensionInputs({
+      width: formatDimensionValue(canvasWidth, dimensionUnit),
+      height: formatDimensionValue(canvasHeight, dimensionUnit),
+    });
+  }, [activeDimensionInput, canvasWidth, canvasHeight, dimensionUnit]);
+
   const handlePresetChange = (presetKey: keyof typeof PRESET_SIZES) => {
     setCurrentPreset(presetKey);
     if (presetKey !== "custom") {
-      setCanvasWidth(PRESET_SIZES[presetKey].width);
-      setCanvasHeight(PRESET_SIZES[presetKey].height);
+      const nextWidth = PRESET_SIZES[presetKey].width;
+      const nextHeight = PRESET_SIZES[presetKey].height;
+      setCanvasWidth(nextWidth);
+      setCanvasHeight(nextHeight);
+      setDimensionInputs({
+        width: formatDimensionValue(nextWidth, dimensionUnit),
+        height: formatDimensionValue(nextHeight, dimensionUnit),
+      });
     }
+  };
+
+  const handleDimensionUnitChange = (nextUnit: DimensionUnit) => {
+    setDimensionUnit(nextUnit);
+    setDimensionInputs({
+      width: formatDimensionValue(canvasWidth, nextUnit),
+      height: formatDimensionValue(canvasHeight, nextUnit),
+    });
+  };
+
+  const handleDimensionInputChange = (field: DimensionField, value: string) => {
+    setCurrentPreset("custom");
+    setDimensionInputs((current) => ({ ...current, [field]: value }));
+
+    const pixels = dimensionInputToPixels(value, dimensionUnit);
+    if (pixels === null || pixels < MIN_CANVAS_PX) return;
+
+    if (field === "width") {
+      setCanvasWidth(pixels);
+    } else {
+      setCanvasHeight(pixels);
+    }
+  };
+
+  const commitDimensionInput = (field: DimensionField) => {
+    const fallbackPixels = field === "width" ? canvasWidth : canvasHeight;
+    const pixels = dimensionInputToPixels(dimensionInputs[field], dimensionUnit);
+    const nextPixels = Math.max(MIN_CANVAS_PX, pixels ?? fallbackPixels);
+
+    if (field === "width") {
+      setCanvasWidth(nextPixels);
+    } else {
+      setCanvasHeight(nextPixels);
+    }
+
+    setDimensionInputs((current) => ({
+      ...current,
+      [field]: formatDimensionValue(nextPixels, dimensionUnit),
+    }));
+    setActiveDimensionInput(null);
   };
 
   const fileToDataUrl = (file: File) => {
@@ -3091,6 +3202,169 @@ const downloadJPG = async () => {
   }
 };
 
+const pngDataUrlToPdfDataUrl = async (pngDataUrl: string) => {
+  const pdfDoc = await PDFDocument.create();
+  const imageBytes = await fetch(pngDataUrl).then((response) => response.arrayBuffer());
+  const pngImage = await pdfDoc.embedPng(imageBytes);
+  const page = pdfDoc.addPage([canvasWidth, canvasHeight]);
+
+  page.drawImage(pngImage, {
+    x: 0,
+    y: 0,
+    width: canvasWidth,
+    height: canvasHeight,
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength);
+  new Uint8Array(pdfBuffer).set(pdfBytes);
+  const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+  return blobToDataUrl(blob);
+};
+
+const downloadPDF = async () => {
+  const workspace = workspaceRef.current;
+  if (!workspace || isExporting) return;
+  let exportNode: HTMLElement | null = null;
+
+  try {
+    setIsExporting(true);
+    setIsCropMode(false);
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    await waitForEditorFonts();
+    await waitForCanvasImages(workspace);
+    exportNode = await prepareWorkspaceForExport(workspace);
+
+    const pngDataUrl = await exportNodeToPng(exportNode, false);
+    const pdfDataUrl = await pngDataUrlToPdfDataUrl(pngDataUrl);
+
+    await downloadDataUrl(pdfDataUrl, "pixores-design.pdf", [
+      { name: "PDF Document", extensions: ["pdf"] },
+    ]);
+  } catch (err) {
+    console.error("PDF export failed:", err);
+    alert(`The PDF could not be generated. ${getExportErrorMessage(err)}`);
+  } finally {
+    exportNode?.remove();
+    setIsExporting(false);
+  }
+};
+
+const printDataUrl = async (dataUrl: string) => {
+  await new Promise<void>((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("title", "Print Pixores Design");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.opacity = "0";
+
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      window.setTimeout(() => iframe.remove(), 1000);
+    };
+
+    const doc = iframe.contentDocument;
+    const printWindow = iframe.contentWindow;
+    if (!doc || !printWindow) {
+      iframe.remove();
+      reject(new Error("Print window could not be prepared."));
+      return;
+    }
+
+    doc.open();
+    doc.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Print Pixores Design</title>
+          <style>
+            @page { margin: 0; }
+            html, body {
+              margin: 0;
+              min-height: 100%;
+              background: #ffffff;
+            }
+            body {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            img {
+              display: block;
+              max-width: 100vw;
+              max-height: 100vh;
+              width: auto;
+              height: auto;
+            }
+          </style>
+        </head>
+        <body>
+          <img id="pixores-print-design" alt="Pixores design" />
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    const image = doc.getElementById("pixores-print-design") as HTMLImageElement | null;
+    if (!image) {
+      iframe.remove();
+      reject(new Error("Print image could not be prepared."));
+      return;
+    }
+
+    image.onload = () => {
+      window.setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        cleanup();
+        resolve();
+      }, 120);
+    };
+
+    image.onerror = () => {
+      iframe.remove();
+      reject(new Error("Print image could not be loaded."));
+    };
+
+    image.src = dataUrl;
+  });
+};
+
+const printDesign = async () => {
+  const workspace = workspaceRef.current;
+  if (!workspace || isExporting) return;
+  let exportNode: HTMLElement | null = null;
+
+  try {
+    setIsExporting(true);
+    setIsCropMode(false);
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    await waitForEditorFonts();
+    await waitForCanvasImages(workspace);
+    exportNode = await prepareWorkspaceForExport(workspace);
+
+    const dataUrl = await exportNodeToPng(exportNode, false);
+    await printDataUrl(dataUrl);
+  } catch (err) {
+    console.error("Print failed:", err);
+    alert(`The design could not be printed. ${getExportErrorMessage(err)}`);
+  } finally {
+    exportNode?.remove();
+    setIsExporting(false);
+  }
+};
+
 const downloadSelectedNoBgPNG = async () => {
   if (!selectedLayer || selectedLayer.type !== "image" || !selectedLayer.src) return;
 
@@ -4367,7 +4641,9 @@ const projectStorageColor =
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: "220px", padding: "8px", border: "1px solid #E2E8F0", borderRadius: "12px", background: "#FFFFFF", boxShadow: "0 18px 40px rgba(15,23,42,0.16)", zIndex: 50 }}>
                 <button onClick={() => { setShowExportMenu(false); void downloadPNG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>PNG HD</button>
                 <button onClick={() => { setShowExportMenu(false); void downloadJPG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>JPG High Quality</button>
+                <button onClick={() => { setShowExportMenu(false); void downloadPDF(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>PDF Document</button>
                 <button onClick={() => { setShowExportMenu(false); void downloadTransparentPNG(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>Transparent PNG</button>
+                <button onClick={() => { setShowExportMenu(false); void printDesign(); }} style={{ width: "100%", padding: "10px", border: "none", borderRadius: "9px", background: "#FFFFFF", color: "#0F172A", textAlign: "left", fontWeight: 800, cursor: "pointer" }}>Print Design</button>
               </div>
             )}
           </div>
@@ -4750,13 +5026,45 @@ const projectStorageColor =
 
               <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: "10px", color: "#64748B" }}>Width (px)</label>
-                  <input type="number" value={canvasWidth} onChange={(e) => { setCurrentPreset("custom"); setCanvasWidth(Math.max(100, Number(e.target.value))); }} style={{ width: "100%", padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #CBD5E1" }} />
+                  <label style={{ fontSize: "10px", color: "#64748B" }}>Width ({dimensionUnit})</label>
+                  <input
+                    type="number"
+                    min={dimensionUnit === "px" ? MIN_CANVAS_PX : undefined}
+                    step={dimensionUnit === "px" ? 1 : 0.1}
+                    value={dimensionInputs.width}
+                    onFocus={() => setActiveDimensionInput("width")}
+                    onChange={(e) => handleDimensionInputChange("width", e.target.value)}
+                    onBlur={() => commitDimensionInput("width")}
+                    style={{ width: "100%", padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                  />
                 </div>
                 <span style={{ fontSize: "12px", marginTop: "14px", color: "#94A3B8" }}>x</span>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: "10px", color: "#64748B" }}>Height (px)</label>
-                  <input type="number" value={canvasHeight} onChange={(e) => { setCurrentPreset("custom"); setCanvasHeight(Math.max(100, Number(e.target.value))); }} style={{ width: "100%", padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #CBD5E1" }} />
+                  <label style={{ fontSize: "10px", color: "#64748B" }}>Height ({dimensionUnit})</label>
+                  <input
+                    type="number"
+                    min={dimensionUnit === "px" ? MIN_CANVAS_PX : undefined}
+                    step={dimensionUnit === "px" ? 1 : 0.1}
+                    value={dimensionInputs.height}
+                    onFocus={() => setActiveDimensionInput("height")}
+                    onChange={(e) => handleDimensionInputChange("height", e.target.value)}
+                    onBlur={() => commitDimensionInput("height")}
+                    style={{ width: "100%", padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                  />
+                </div>
+                <div style={{ flex: "0 0 90px" }}>
+                  <label style={{ fontSize: "10px", color: "#64748B" }}>Units</label>
+                  <select
+                    value={dimensionUnit}
+                    onChange={(e) => handleDimensionUnitChange(e.target.value as DimensionUnit)}
+                    style={{ width: "100%", padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #CBD5E1", background: "#FFFFFF" }}
+                  >
+                    {DIMENSION_UNITS.map((unit) => (
+                      <option key={unit.value} value={unit.value}>
+                        {unit.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -7472,8 +7780,16 @@ const buyCredits = async (packageId: string) => {
             JPG High Quality
           </button>
 
+          <button disabled={isExporting} onClick={() => downloadPDF()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#7C3AED", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
+            PDF Document
+          </button>
+
           <button disabled={isExporting} onClick={() => downloadTransparentPNG()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#0EA5E9", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
             Download Transparent PNG
+          </button>
+
+          <button disabled={isExporting} onClick={() => printDesign()} style={{ padding: "12px 10px", background: isExporting ? "#94A3B8" : "#111827", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 700, cursor: isExporting ? "wait" : "pointer" }}>
+            Print Design
           </button>
         </aside>
       )}
