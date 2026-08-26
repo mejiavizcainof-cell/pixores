@@ -17,7 +17,7 @@ const sections = [
   {
     id: "responsibility",
     title: "Who is responsible",
-    content: <><p>Articles are published by the <strong>Pixores Editorial Team</strong>. This organizational byline is used because the guidance is maintained as part of the product rather than attributed to a guest author. Pixores remains responsible for the final published text, corrections, links, and product claims.</p><p>Questions about a guide can be sent through the <Link href="/contact">contact page</Link> or to <a href="mailto:support@pixores.com">support@pixores.com</a>. A future article will not be assigned to a named person unless that person actually wrote or reviewed it and has agreed to the attribution.</p></>,
+    content: <><p>Articles are published by the <strong>Pixores Product &amp; Editorial Team</strong>, the same organization responsible for the tools described on this site. This organizational byline is used because the guidance is maintained with the product rather than attributed to a guest author. Pixores remains accountable for the final text, corrections, links, test records, and product claims.</p><p>Readers can inspect the <a href="https://github.com/mejiavizcainof-cell/pixores" rel="noreferrer">public Pixores product repository</a>, send questions through the <Link href="/contact">contact page</Link>, or write to <a href="mailto:support@pixores.com">support@pixores.com</a>. A named personal byline will only be used when that person actually wrote or reviewed the article and has agreed to public attribution.</p></>,
   },
   {
     id: "process",

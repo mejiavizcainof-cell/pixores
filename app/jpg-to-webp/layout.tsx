@@ -6,6 +6,7 @@ export const metadata = createPageMetadata({
     "Convert JPG images to efficient WebP files online for free. Reduce file size while keeping useful image quality.",
   path: "/jpg-to-webp",
   keywords: ["jpg to webp", "convert jpg to webp", "jpg webp converter"],
+  index: false,
 });
 
 export default function JpgToWebpLayout({ children }: Readonly<{ children: React.ReactNode }>) {

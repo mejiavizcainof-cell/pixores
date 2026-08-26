@@ -329,6 +329,33 @@
   font-weight: 800;
 }
 
+.evidence {
+  margin-top: 46px;
+  padding: 28px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  color: #334155;
+}
+
+.evidenceEyebrow {
+  margin: 0 0 7px;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.evidence h2 { margin: 0 0 10px; color: #0f172a; font-size: 28px; }
+.evidence h3 { margin: 0 0 10px; color: #0f172a; font-size: 18px; }
+.evidence > p:not(.evidenceEyebrow, .passCondition) { margin: 0; line-height: 1.7; }
+.evidenceColumns { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.evidenceColumns > div { padding: 18px; border: 1px solid #dbeafe; border-radius: 12px; background: rgba(255,255,255,.88); }
+.evidenceColumns ol, .evidenceColumns ul { margin: 0; padding-left: 20px; }
+.evidenceColumns li { margin: 8px 0; line-height: 1.55; }
+.passCondition { margin: 18px 0 0; padding: 14px 16px; border-left: 4px solid #2563eb; background: #fff; line-height: 1.65; }
+
 .related {
   margin-top: 60px;
   padding-top: 36px;
@@ -419,9 +446,12 @@
   }
 
   .factGrid,
-  .nextStepGrid {
+  .nextStepGrid,
+  .evidenceColumns {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .evidence { padding: 21px 18px; }
 
   .nextStepCard {
     min-height: 0;

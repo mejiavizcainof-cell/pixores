@@ -10,6 +10,8 @@ import { blogRelations } from "@/lib/blogRelations";
 import { resolveBlogSlug, retiredBlogSlugs } from "@/lib/blogRedirects";
 import { formatBlogContent, formatStoredBlogContent } from "@/lib/formatBlogContent";
 import { historyArticleGuides } from "@/lib/historyArticleGuides";
+import { publicBlogSlugs } from "@/lib/publicBlogSlugs";
+import { articleEvidence } from "@/lib/articleEvidence";
 import styles from "./blogPost.module.css";
 
 type BlogPostPageProps = {
@@ -69,7 +71,9 @@ const getPost = cache(async (slug: string): Promise<BlogPost | null> => {
 });
 
 export function generateStaticParams() {
-  return blogPosts.map((post) => ({ slug: post.slug }));
+  return blogPosts
+    .filter((post) => publicBlogSlugs.has(post.slug))
+    .map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -93,7 +97,10 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.description,
-    authors: [{ name: "Pixores Editorial Team", url: `${SITE_URL}/editorial-policy` }],
+    robots: publicBlogSlugs.has(slug)
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
+    authors: [{ name: "Pixores Product & Editorial Team", url: `${SITE_URL}/editorial-policy` }],
     alternates: {
       canonical: url,
     },
@@ -133,12 +140,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const publishedAt = localPost?.date || post.created_at;
   const publishedDate = new Date(publishedAt.includes("T") ? publishedAt : `${publishedAt}T12:00:00Z`);
   const historyGuide = historyArticleGuides[slug];
+  const evidence = articleEvidence[slug];
   const modifiedAt = historyGuide?.updatedAt || publishedAt;
   const relatedPosts = (blogRelations[slug] || [])
     .map((relatedSlug) => resolveBlogSlug(relatedSlug))
     .filter((relatedSlug, index, slugs) => slugs.indexOf(relatedSlug) === index)
     .map((relatedSlug) => blogPosts.find((item) => item.slug === relatedSlug))
-    .filter((item): item is (typeof blogPosts)[number] => Boolean(item));
+    .filter((item): item is (typeof blogPosts)[number] => item !== undefined && publicBlogSlugs.has(item.slug));
   const canonicalUrl = `${SITE_URL}/blog/${post.slug}`;
   const imageUrl = new URL(post.cover_image || "/og-image.png", SITE_URL).toString();
   const articleSchema = {
@@ -152,7 +160,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     mainEntityOfPage: canonicalUrl,
     author: {
       "@type": "Organization",
-      name: "Pixores Editorial Team",
+      name: "Pixores Product & Editorial Team",
       url: `${SITE_URL}/editorial-policy`,
     },
     publisher: {
@@ -220,8 +228,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         )}
 
         <div className={styles.byline}>
-          <span>Written and reviewed by <Link href="/editorial-policy">Pixores Editorial Team</Link></span>
-          <span>Practical guidance reviewed against the current Pixores tools and primary documentation.</span>
+          <span>Written and reviewed by the <Link href="/editorial-policy">Pixores Product &amp; Editorial Team</Link></span>
+          <span>Product claims are checked against the current implementation and reproducible review notes.</span>
         </div>
 
         {post.cover_image &&
@@ -267,6 +275,25 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           className={styles.content}
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
+
+        {evidence && (
+          <section className={styles.evidence} aria-labelledby="article-evidence-title">
+            <p className={styles.evidenceEyebrow}>Reproducible field check</p>
+            <h2 id="article-evidence-title">{evidence.title}</h2>
+            <p>{evidence.purpose}</p>
+            <div className={styles.evidenceColumns}>
+              <div>
+                <h3>Procedure</h3>
+                <ol>{evidence.procedure.map((step) => <li key={step}>{step}</li>)}</ol>
+              </div>
+              <div>
+                <h3>Record these observations</h3>
+                <ul>{evidence.record.map((item) => <li key={item}>{item}</li>)}</ul>
+              </div>
+            </div>
+            <p className={styles.passCondition}><strong>Pass condition:</strong> {evidence.passCondition}</p>
+          </section>
+        )}
 
         {historyGuide && (
           <section className={styles.nextSteps} aria-labelledby="history-next-steps">

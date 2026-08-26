@@ -6,6 +6,7 @@ export const metadata = createPageMetadata({
     "Convert PNG images to modern WebP files online for free. Create smaller web-ready images with a fast browser workflow.",
   path: "/png-to-webp",
   keywords: ["png to webp", "convert png to webp", "png webp converter"],
+  index: false,
 });
 
 export default function PngToWebpLayout({ children }: Readonly<{ children: React.ReactNode }>) {

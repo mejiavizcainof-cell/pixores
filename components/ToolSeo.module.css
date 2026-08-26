@@ -8,6 +8,14 @@
 .facts div { padding: 16px; border: 1px solid #dbe3ee; border-radius: 10px; background: #fff; }
 .facts dt { color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase; }
 .facts dd { margin: 5px 0 0; color: #0f172a; font-size: 14px; font-weight: 750; }
+.verification { margin: 30px 0; padding: 26px; border: 1px solid #bfdbfe; border-radius: 14px; background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); }
+.verificationHeader > span { color: #1d4ed8; font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.verificationHeader h3 { margin: 6px 0 8px; }
+.verificationHeader p { margin: 0; color: #475569; }
+.verificationGrid { margin: 20px 0 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.verificationGrid div { padding: 16px; border: 1px solid #dbeafe; border-radius: 10px; background: rgba(255,255,255,.86); }
+.verificationGrid dt { color: #1d4ed8; font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.verificationGrid dd { margin: 6px 0 0; color: #1e293b; font-size: 14px; line-height: 1.6; }
 .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .columns section, .privacy, .faq { padding: 24px; border: 1px solid #dbe3ee; border-radius: 12px; background: #fff; }
 .guide h3 { margin: 0 0 12px; color: #0f172a; font-size: 21px; }
@@ -23,5 +31,5 @@
 .related { margin-top: 18px; padding: 18px 20px; border-radius: 12px; background: #0f172a; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: #fff; }
 .related a { padding: 7px 10px; border-radius: 7px; background: #fff; color: #1d4ed8; font-size: 13px; font-weight: 800; text-decoration: none; }
 .simpleList { padding: 22px 22px 22px 42px; border: 1px solid #dbe3ee; border-radius: 12px; background: #fff; }
-@media (max-width: 760px) { .facts { grid-template-columns: repeat(2, 1fr); } .columns { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .facts { grid-template-columns: repeat(2, 1fr); } .columns, .verificationGrid { grid-template-columns: 1fr; } }
 @media (max-width: 460px) { .guide { width: min(100% - 24px, 1040px); margin-top: 48px; } .facts { grid-template-columns: 1fr; } .columns section, .privacy, .faq { padding: 19px; } }

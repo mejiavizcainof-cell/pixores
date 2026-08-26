@@ -7,6 +7,7 @@ type PageMetadataOptions = {
   description: string;
   path: `/${string}`;
   keywords?: string[];
+  index?: boolean;
 };
 
 export function createPageMetadata({
@@ -14,6 +15,7 @@ export function createPageMetadata({
   description,
   path,
   keywords,
+  index = true,
 }: PageMetadataOptions): Metadata {
   const url = `${SITE_URL}${path}`;
 
@@ -21,6 +23,11 @@ export function createPageMetadata({
     title,
     description,
     keywords,
+    robots: {
+      index,
+      follow: true,
+      googleBot: { index, follow: true },
+    },
     alternates: { canonical: url },
     openGraph: {
       title,

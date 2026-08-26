@@ -1,12 +1,18 @@
 export type ToolGuideKey = keyof typeof toolGuides;
 
-type ToolGuide = {
+export type ToolGuide = {
   summary: string[];
   facts: Array<{ label: string; value: string }>;
   steps: string[];
   bestFor: string[];
   watchFor: string[];
   privacy: string;
+  verification?: {
+    scenario: string;
+    method: string;
+    observed: string;
+    limitation: string;
+  };
   faq: Array<{ question: string; answer: string }>;
   related: Array<{ href: string; label: string }>;
 };
@@ -150,6 +156,12 @@ export const toolGuides = {
     bestFor: ["Website photographs", "Blog cover images", "Email-friendly photo copies", "Reducing transfer time for opaque images"],
     watchFor: ["Transparent images are flattened for JPG output.", "Graphics with text may show ringing.", "Repeated compression creates cumulative loss."],
     privacy: "The image is processed by the Pixores compression endpoint. Use local tools for files that should never leave the device.",
+    verification: {
+      scenario: "Opaque photographic image with EXIF orientation",
+      method: "Review the endpoint configuration and compare the downloaded copy with the source at identical display dimensions.",
+      observed: "The orientation is normalized and the derivative is encoded as JPEG at quality 60 without changing the requested task into a resize.",
+      limitation: "Transparency cannot survive the JPEG output, and small text can show ringing at this setting.",
+    },
     faq: [{ question: "Will the pixel dimensions change?", answer: "The compressor targets encoding size rather than deliberate dimension changes. Use Resize Image when width or height must change." }, { question: "Is quality 60 suitable for every image?", answer: "No single setting is universal. Review the actual result and use a different workflow when fine detail or text does not survive." }, { question: "Why did a transparent image change?", answer: "The current compressed output is JPEG, which cannot preserve an alpha channel." }],
     related: [{ href: "/blog/compress-images-for-website-seo", label: "Complete web compression workflow" }, { href: "/resize-image", label: "Resize before compression" }],
   },
@@ -163,6 +175,12 @@ export const toolGuides = {
     bestFor: ["Preparing website image slots", "Matching social-media dimensions", "Reducing oversized camera images", "Creating consistent gallery dimensions"],
     watchFor: ["Mismatched proportions can stretch the image.", "Enlargement does not recreate true detail.", "The current output is JPG and does not retain transparency."],
     privacy: "The source is uploaded to the Pixores resize endpoint to produce the requested JPG. Preserve the original separately.",
+    verification: {
+      scenario: "Landscape source resized to an explicitly entered width and height",
+      method: "Inspect the implementation path, export a derivative, and verify its pixel dimensions outside the editor.",
+      observed: "The downloaded JPG uses the entered dimensions after camera orientation is normalized.",
+      limitation: "Entering a different aspect ratio stretches the image; this tool does not automatically choose a crop.",
+    },
     faq: [{ question: "How do I avoid stretching?", answer: "Keep the original aspect ratio or crop to the target ratio before resizing." }, { question: "Should I resize or compress first?", answer: "Usually resize first, then compress the delivery copy, because unused pixels should not be encoded and transferred." }, { question: "Can resizing sharpen a blurry image?", answer: "Reducing dimensions can make some defects less visible, but ordinary enlargement cannot recover missing focus or detail." }],
     related: [{ href: "/blog/resize-image-without-stretching", label: "Aspect-ratio and resizing guide" }, { href: "/crop-image", label: "Crop to the target ratio first" }],
   },
@@ -176,6 +194,12 @@ export const toolGuides = {
     bestFor: ["Phone photos displayed sideways", "Correcting scanned pages", "Mirroring a design element", "Normalizing orientation before another edit"],
     watchFor: ["Mirroring makes text read backward.", "A rotation does not straighten a tilted horizon by arbitrary degrees.", "Keep the untouched camera file as the source master."],
     privacy: "Rotation is performed by the Pixores image endpoint, which receives the file for the requested operation.",
+    verification: {
+      scenario: "Phone photo with orientation metadata, a 90-degree turn, and a horizontal mirror",
+      method: "Normalize orientation first, apply each transform, then inspect text and left-right details in the export.",
+      observed: "Rotation and mirroring are applied after orientation normalization, and supported sources retain their corresponding output format.",
+      limitation: "The controls work in 90-degree increments and do not provide arbitrary horizon straightening.",
+    },
     faq: [{ question: "Why did my photo look correct before upload?", answer: "Some viewers honor orientation metadata while other workflows inspect the underlying pixel order. Normalizing orientation makes the pixels consistent." }, { question: "Does flip mean rotate?", answer: "No. Rotation turns the image; flip creates a mirror across the horizontal or vertical axis." }, { question: "Will the format change?", answer: "Supported JPG, PNG, and WebP sources are returned in the corresponding format with format-specific quality settings." }],
     related: [{ href: "/crop-image", label: "Crop after correcting orientation" }, { href: "/resize-image", label: "Resize the corrected image" }],
   },
@@ -189,6 +213,12 @@ export const toolGuides = {
     bestFor: ["New websites", "Replacing framework placeholder icons", "PWA manifests", "Consistent browser and device branding"],
     watchFor: ["A detailed logo may become unreadable.", "Transparent marks need enough contrast in light and dark browser themes.", "Caching can delay favicon updates after deployment."],
     privacy: "The source logo is uploaded to the Pixores favicon endpoint to create the downloadable package.",
+    verification: {
+      scenario: "Square brand mark supplied as the package master",
+      method: "Generate the ZIP, enumerate its files, and open the smallest PNG at its actual pixel size.",
+      observed: "The package includes 16, 32, 180, 192, and 512 pixel assets together with favicon and manifest files.",
+      limitation: "The generator cannot make detailed lettering legible at 16 pixels; the source mark must be simplified first.",
+    },
     faq: [{ question: "Why are several sizes necessary?", answer: "Different browser and device contexts request different icon dimensions and file declarations." }, { question: "Why does the old icon still appear?", answer: "Favicons are cached aggressively. Confirm the new URLs first, then test with a fresh profile or after cache invalidation." }, { question: "Should the favicon contain the full brand name?", answer: "Usually not. A simple mark or initial survives tiny rendering more reliably than a wordmark." }],
     related: [{ href: "/blog/favicon-sizes-guide-2026", label: "Favicon files and installation guide" }, { href: "/png-to-webp", label: "Prepare other web assets" }],
   },
@@ -202,6 +232,12 @@ export const toolGuides = {
     bestFor: ["Thumbnail subjects", "Product cutouts", "Profile graphics", "Compositing a subject into a new design"],
     watchFor: ["Transparent or reflective objects can be misclassified.", "Soft shadows may be removed with the background.", "AI output needs human review before commercial use."],
     privacy: "This AI operation uploads the image for server processing. Do not use it for confidential or sensitive images unless that processing is appropriate and permitted.",
+    verification: {
+      scenario: "Single foreground subject reviewed on white, black, and saturated backgrounds",
+      method: "Run one successful removal, download the PNG, and inspect hair, gaps, reflections, and edge pixels at 100 percent.",
+      observed: "The result is a transparent PNG intended for compositing, and a credit is consumed only after a successful process.",
+      limitation: "Transparent materials, smoke, soft shadows, and low-contrast hair still require human inspection.",
+    },
     faq: [{ question: "Why are hair edges imperfect?", answer: "Hair contains fine, partially transparent strands that can resemble background texture. Test on contrasting colors and correct important assets in a layer editor." }, { question: "Why is the download PNG?", answer: "PNG supports the alpha transparency needed to represent removed background pixels." }, { question: "Does the source need a plain background?", answer: "Not always, but clear contrast and an unobstructed subject usually produce a more reviewable result." }],
     related: [{ href: "/blog/make-transparent-background-png", label: "Transparent PNG quality guide" }, { href: "/youtube-thumbnail-maker", label: "Use the cutout in a thumbnail" }],
   },
@@ -215,6 +251,12 @@ export const toolGuides = {
     bestFor: ["Moderately small web graphics", "Preparing a source for a larger composition", "Reducing visible stair-stepping", "Creating a higher-resolution derivative for review"],
     watchFor: ["Small text can become incorrect symbols.", "Faces and repeated textures may acquire invented detail.", "A larger file does not make the source more truthful."],
     privacy: "The image is uploaded for server-side AI processing. Keep confidential, regulated, or evidentiary imagery out of this workflow unless permitted.",
+    verification: {
+      scenario: "Moderately small image enlarged at 2x before testing 4x",
+      method: "Compare source and result at equal display size, then inspect text, faces, hands, and repeated patterns at 100 percent.",
+      observed: "The service offers 2x and 4x outputs while enforcing a 4096-pixel maximum side.",
+      limitation: "Plausible detail may be generated; the result must not be represented as recovered evidence.",
+    },
     faq: [{ question: "Should I choose 2x or 4x?", answer: "Start with the smallest scale that meets the real output dimensions. A restrained scale usually reduces artifacts and file size." }, { question: "Can upscaling fix an out-of-focus photo?", answer: "It may change edge appearance, but it cannot recover focus information that was never captured." }, { question: "Why is the result capped?", answer: "The 4096-pixel side limit keeps processing and output within the current service boundary." }],
     related: [{ href: "/blog/increase-image-resolution-ai", label: "AI upscaling limits and review guide" }, { href: "/resize-image", label: "Resize the approved result" }],
   },
@@ -228,6 +270,12 @@ export const toolGuides = {
     bestFor: ["Social-media aspect ratios", "Removing distracting edges", "Preparing a thumbnail subject", "Creating exact pixel dimensions without distortion"],
     watchFor: ["Cropping permanently removes pixels from the derivative.", "Important text and faces need safe space from edges.", "A very small crop may not have enough resolution for enlargement."],
     privacy: "The crop is rendered on your device; the selected image is not uploaded to a Pixores server for this operation.",
+    verification: {
+      scenario: "Original-resolution photo cropped to a fixed social aspect ratio",
+      method: "Set the crop visually, confirm its X, Y, width, and height fields, and verify the downloaded dimensions.",
+      observed: "The export uses pixels from the original image rather than scaling the smaller on-screen preview.",
+      limitation: "A very small selection contains too few pixels for a large output even though no stretching occurs.",
+    },
     faq: [{ question: "Does cropping reduce quality?", answer: "The selected pixels are exported at their source resolution, but a small crop contains fewer total pixels and may be insufficient for a large display." }, { question: "How is cropping different from resizing?", answer: "Cropping removes outer areas; resizing changes the dimensions of the remaining image." }, { question: "Which format should I export?", answer: "Use PNG for transparency or sharp graphics, and JPG or WebP for reviewed photographic delivery copies." }],
     related: [{ href: "/blog/resize-image-without-stretching", label: "Crop and aspect-ratio guide" }, { href: "/resize-image", label: "Resize after cropping" }],
   },
@@ -241,6 +289,12 @@ export const toolGuides = {
     bestFor: ["Photography previews", "Brand identification", "Draft or proof labeling", "Applying one consistent mark to a batch"],
     watchFor: ["Edge watermarks are easier to crop away.", "High opacity can hide important content.", "A watermark does not replace written licensing terms."],
     privacy: "Images and logo assets stay in the browser for this operation; they are not uploaded to a Pixores processing server.",
+    verification: {
+      scenario: "Text and transparent-logo marks applied to portrait and landscape samples",
+      method: "Check relative size, opacity, position, rotation, and optional tiling before opening every exported result.",
+      observed: "The operation stays in the browser and supports a single download or a multi-image ZIP.",
+      limitation: "A visible watermark supports attribution but cannot prevent determined cropping or retouching.",
+    },
     faq: [{ question: "Can a watermark guarantee protection?", answer: "No. It can discourage casual reuse and identify a source, but determined editing may still remove it." }, { question: "Where should I place it?", answer: "Use a location that overlaps meaningful visual information without covering the main subject. Tiling offers stronger preview coverage." }, { question: "Why use a transparent logo?", answer: "A transparent PNG or WebP logo blends into the image without an unwanted rectangular background." }],
     related: [{ href: "/blog/how-to-watermark-images", label: "Watermark strategy and limitations" }, { href: "/resize-image", label: "Prepare final dimensions first" }],
   },
@@ -254,6 +308,12 @@ export const toolGuides = {
     bestFor: ["Straightforward reports and handouts", "Creating a PDF delivery copy from DOCX", "Recovering editable text from a text-based PDF", "Private local conversion on a supported browser"],
     watchFor: ["Scanned PDFs need OCR, which this converter does not claim to perform.", "Password-protected files may fail.", "Complex layout should be compared page by page with the source."],
     privacy: "Conversion happens on the device in the browser. The source file is not uploaded to a Pixores server by this tool, but the downloaded result remains your responsibility to store and share safely.",
+    verification: {
+      scenario: "Text-based PDF and a straightforward DOCX under the 25 MB limit",
+      method: "Convert in both directions and inspect page breaks, tables, images, hyperlinks, and editability in independent viewers.",
+      observed: "The browser performs the conversion locally and creates an editable DOCX from text-based PDFs or a PDF delivery copy from DOCX.",
+      limitation: "Scans need OCR, while complex layouts and unavailable fonts can require manual repair.",
+    },
     faq: [{ question: "Will a scanned PDF become editable text?", answer: "Not reliably. A scan contains page images and requires OCR; this tool focuses on text-based PDF content." }, { question: "Will the converted file look identical?", answer: "Simple content may transfer well, but layout engines and font availability differ. Always review the entire result." }, { question: "Why can a protected file fail?", answer: "Encryption, permissions, embedded media, forms, and uncommon document structures can prevent browser-side conversion." }],
     related: [{ href: "/jpg-to-pdf", label: "Place a single JPG on a PDF page" }, { href: "/contact", label: "Report a conversion problem" }],
   },
@@ -267,6 +327,12 @@ export const toolGuides = {
     bestFor: ["YouTube thumbnails", "Layered social graphics", "Reusable branded compositions", "Testing controlled visual variations"],
     watchFor: ["The editor cannot guarantee click-through rate.", "Crowded layouts fail quickly on small screens.", "Misleading claims can attract the wrong viewer and harm satisfaction."],
     privacy: "Local imports are used in the editing workspace. Account saves, cloud assets, AI features, and other connected operations can use Pixores services; avoid sensitive files when those workflows are not appropriate.",
+    verification: {
+      scenario: "Layered 16:9 thumbnail exported in two controlled variants",
+      method: "Build from separate subject, background, and text layers; export; then review each file around 160 pixels wide.",
+      observed: "The workspace preserves editable layers and exports PNG, JPG, or transparent PNG for an evidence-based comparison.",
+      limitation: "The editor can improve clarity but cannot guarantee clicks or compensate for a misleading video promise.",
+    },
     faq: [{ question: "What thumbnail size should I use?", answer: "YouTube currently recommends 3840 by 2160 pixels at 16:9. Pixores also provides a practical 1280 by 720 preset; use a custom 3840 by 2160 canvas when your source assets support it, and confirm current requirements in YouTube's official help." }, { question: "Should every thumbnail include text?", answer: "No. Use text only when it improves recognition and remains readable at mobile size." }, { question: "How should two versions be tested?", answer: "Change one meaningful variable at a time and evaluate viewer satisfaction alongside clicks." }],
     related: [{ href: "/blog/how-to-create-youtube-thumbnail", label: "Complete thumbnail workflow" }, { href: "/blog/youtube-thumbnail-ab-testing", label: "Design a controlled test" }],
   },
@@ -280,6 +346,12 @@ export const toolGuides = {
     bestFor: ["Short social videos", "Simple timeline assemblies", "Text-overlay and caption workflows", "Trying a project before moving to the Windows editor"],
     watchFor: ["Browser memory and codec support vary by device.", "An editor project is not a backup of source media.", "Every export should be watched outside the editor before upload."],
     privacy: "Media handling depends on the feature and runtime. The Windows Pro editor emphasizes local media and rendering; connected browser features or server rendering can transmit project media. Use only files appropriate for the selected workflow.",
+    verification: {
+      scenario: "Short vertical project containing video, image, audio, text, and a transition",
+      method: "Assemble the timeline, export it, and play the entire deliverable outside the editor while checking sync and safe areas.",
+      observed: "The browser workflow supports common social formats and a mixed-media timeline for short projects.",
+      limitation: "Browser codec support and memory vary by device; preview playback is not proof that the final export is complete.",
+    },
     faq: [{ question: "Which aspect ratio should I choose?", answer: "Match the primary destination before editing: commonly 16:9 for landscape, 9:16 for vertical video, and 1:1 or 4:5 for selected feeds." }, { question: "Why test the exported file?", answer: "Preview and final encoding can differ in timing, codec behavior, audio, or missing media. The exported file is the actual deliverable." }, { question: "When should I use Video Maker Pro?", answer: "Use the Windows editor when local file workflows, larger projects, GPU-assisted rendering, or desktop-specific features are more appropriate." }],
     related: [{ href: "/desktop", label: "Compare Video Maker Pro" }, { href: "/youtube-thumbnail-maker", label: "Create the video's thumbnail" }],
   },
@@ -293,6 +365,12 @@ export const toolGuides = {
     bestFor: ["Short widescreen presentations", "Editable pitch or lesson drafts", "Consistent theme-based slides", "Creating a PPTX without uploading project content"],
     watchFor: ["The current layouts are focused templates, not a full desktop publishing system.", "Installed fonts and PowerPoint versions can change line breaks.", "Local autosave is not a substitute for exporting a project backup."],
     privacy: "Presentation editing and project autosave occur on the device. Exported JSON and PPTX files are downloaded locally; uploaded slide images remain part of the in-browser project workflow.",
+    verification: {
+      scenario: "Three-slide 16:9 deck with text, shapes, an image, and a theme",
+      method: "Save the JSON project, export PPTX, reopen both artifacts, and compare text editability, image crops, and slide order.",
+      observed: "The PPTX contains editable supported elements, while the Pixores JSON preserves the project for later editing.",
+      limitation: "Font substitution in another PowerPoint environment can change wrapping and spacing.",
+    },
     faq: [{ question: "Is the PowerPoint file editable?", answer: "Yes. Titles, supporting text, shapes, and supported images are created as PowerPoint elements rather than one flattened screenshot." }, { question: "How do I back up a deck?", answer: "Use Save to download the Pixores JSON project in addition to relying on local autosave, then store that file with the exported PPTX." }, { question: "Why can a font move after export?", answer: "PowerPoint may substitute fonts that are unavailable on the viewing computer, which can change wrapping and spacing." }],
     related: [{ href: "/document-converter", label: "Convert supporting documents" }, { href: "/youtube-thumbnail-maker", label: "Create presentation graphics" }],
   },

@@ -1,9 +1,11 @@
 
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { blogPosts } from "@/lib/blogPosts";
 import { retiredBlogSlugs } from "@/lib/blogRedirects";
+import { publicBlogSlugs } from "@/lib/publicBlogSlugs";
 import styles from "./blog.module.css";
 
 export const metadata: Metadata = {
@@ -28,12 +30,15 @@ export default async function BlogPage() {
     .order("created_at", { ascending: false });
 
   const databasePosts = posts || [];
+  const localSlugs = new Set(blogPosts.map((post) => post.slug));
   const publicDatabasePosts = databasePosts.filter(
-    (post) => !retiredBlogSlugs.has(post.slug),
+    (post) =>
+      !retiredBlogSlugs.has(post.slug)
+      && !localSlugs.has(post.slug)
+      && publicBlogSlugs.has(post.slug),
   );
-  const databaseSlugs = new Set(publicDatabasePosts.map((post) => post.slug));
   const localPosts = blogPosts
-    .filter((post) => !databaseSlugs.has(post.slug))
+    .filter((post) => publicBlogSlugs.has(post.slug))
     .map((post) => ({
       id: `local-${post.slug}`,
       title: post.title,
@@ -61,16 +66,21 @@ export default async function BlogPage() {
       </section>
 
       <div className={styles.grid}>
-        {allPosts.map((post) => (
+        {allPosts.map((post, index) => (
           <Link
             key={post.id}
             href={"/blog/" + post.slug}
             className={styles.card}
           >
             {post.cover_image && (
-              <img
+              <Image
                 src={post.cover_image}
                 alt={post.title}
+                width={640}
+                height={360}
+                sizes="(max-width: 720px) calc(100vw - 32px), 360px"
+                loading={index === 0 ? "eager" : "lazy"}
+                unoptimized={!post.cover_image.startsWith("/")}
                 className={styles.cover}
               />
             )}
@@ -85,7 +95,7 @@ export default async function BlogPage() {
               </p>
 
               <span className={styles.cardMeta}>
-                Pixores Editorial Team · {new Date(post.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })}
+                Pixores Product &amp; Editorial Team · {new Date(post.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })}
               </span>
             </div>
           </Link>

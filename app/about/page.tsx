@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Cloud, Layers3, LockKeyhole, MonitorDown, MonitorSmartphone, MousePointer2, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Cloud, FlaskConical, GitBranch, Layers3, LockKeyhole, MessageSquareWarning, MonitorDown, MonitorSmartphone, MousePointer2, Sparkles, Zap } from "lucide-react";
 import styles from "@/components/DiscoveryPages.module.css";
 
 export const metadata: Metadata = {
@@ -61,7 +61,16 @@ export default function AboutPage() {
       <section className={styles.missionBand}>
         <div className={styles.missionInner}>
           <h2>How we publish guidance</h2>
-          <p>Pixores guides are maintained by the Pixores Editorial Team. We review product behavior against the current implementation, link to primary platform documentation when requirements can change, disclose meaningful limitations, and consolidate pages that do not offer a distinct useful answer. Read our <Link href="/editorial-policy">editorial policy and correction standards</Link>.</p>
+          <p>Pixores guides are maintained by the same product team that builds the tools. We review behavior against the current implementation, publish reproducible checks, link to primary platform documentation when requirements can change, disclose meaningful limitations, and remove pages that do not offer a distinct useful answer. Read our <Link href="/editorial-policy">editorial policy and correction standards</Link>.</p>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}><span>Accountability</span><h2>Claims should be inspectable</h2><p>Visitors can inspect how the product is built, reproduce the checks described in our guides, and report an error to the team responsible for correcting it.</p></div>
+        <div className={styles.valueGrid}>
+          <article className={styles.valueCard}><div className={styles.valueIcon}><GitBranch size={20} /></div><h3>Public product repository</h3><p>Implementation history and active product development are visible in the Pixores repository.</p><a href="https://github.com/mejiavizcainof-cell/pixores" rel="noreferrer">Inspect the repository</a></article>
+          <article className={styles.valueCard}><div className={styles.valueIcon}><FlaskConical size={20} /></div><h3>Reproducible checks</h3><p>Primary tool pages state a reference scenario, review method, observed behavior, and known boundary.</p><Link href="/tools">Review the tools</Link></article>
+          <article className={styles.valueCard}><div className={styles.valueIcon}><MessageSquareWarning size={20} /></div><h3>Corrections channel</h3><p>Technical errors, unsupported claims, and broken workflows can be reported directly for review.</p><Link href="/contact">Report a problem</Link></article>
         </div>
       </section>
 

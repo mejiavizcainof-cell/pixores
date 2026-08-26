@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { toolGuides, type ToolGuideKey } from "@/lib/toolGuides";
+import { toolGuides, type ToolGuide, type ToolGuideKey } from "@/lib/toolGuides";
 import styles from "./ToolSeo.module.css";
 
 type ToolSeoProps = {
@@ -10,7 +10,7 @@ type ToolSeoProps = {
 };
 
 export default function ToolSeo({ title, description, benefits, tool }: ToolSeoProps) {
-  const guide = tool ? toolGuides[tool] : undefined;
+  const guide: ToolGuide | undefined = tool ? toolGuides[tool] : undefined;
 
   if (!guide) {
     return (
@@ -51,6 +51,22 @@ export default function ToolSeo({ title, description, benefits, tool }: ToolSeoP
         {guide.facts.map((fact) => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
       </dl>
 
+      {guide.verification ? (
+        <section className={styles.verification} aria-labelledby={`${tool}-verification-title`}>
+          <div className={styles.verificationHeader}>
+            <span>Implementation evidence</span>
+            <h3 id={`${tool}-verification-title`}>What we verified for this tool</h3>
+            <p>This record describes a reproducible product check, not a stock claim about image quality.</p>
+          </div>
+          <dl className={styles.verificationGrid}>
+            <div><dt>Reference scenario</dt><dd>{guide.verification.scenario}</dd></div>
+            <div><dt>Review method</dt><dd>{guide.verification.method}</dd></div>
+            <div><dt>Observed behavior</dt><dd>{guide.verification.observed}</dd></div>
+            <div><dt>Known boundary</dt><dd>{guide.verification.limitation}</dd></div>
+          </dl>
+        </section>
+      ) : null}
+
       <div className={styles.columns}>
         <section>
           <h3>How to use this tool</h3>
@@ -81,6 +97,7 @@ export default function ToolSeo({ title, description, benefits, tool }: ToolSeoP
         <strong>Continue with:</strong>
         {guide.related.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}
         <Link href="/editorial-policy">How Pixores reviews guides</Link>
+        <a href="https://github.com/mejiavizcainof-cell/pixores" rel="noreferrer">Inspect the public product repository</a>
       </nav>
     </section>
   );

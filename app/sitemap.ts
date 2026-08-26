@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { blogPosts } from "@/lib/blogPosts";
+import { publicBlogSlugs } from "@/lib/publicBlogSlugs";
 
 const baseUrl = "https://www.pixores.com";
 
@@ -21,10 +22,6 @@ const publicPages = [
   { path: "/blog", changeFrequency: "weekly" as const, priority: 0.8 },
   { path: "/jpg-to-png", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/png-to-jpg", changeFrequency: "monthly" as const, priority: 0.9 },
-  { path: "/jpg-to-webp", changeFrequency: "monthly" as const, priority: 0.9 },
-  { path: "/png-to-webp", changeFrequency: "monthly" as const, priority: 0.9 },
-  { path: "/webp-to-jpg", changeFrequency: "monthly" as const, priority: 0.9 },
-  { path: "/webp-to-png", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/heic-to-jpg", changeFrequency: "monthly" as const, priority: 0.9 },
   { path: "/jpg-to-pdf", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/compress-image", changeFrequency: "monthly" as const, priority: 0.85 },
@@ -47,13 +44,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: page.priority,
   }));
 
-  const posts = blogPosts.map((post) => ({
+  const posts = blogPosts.filter((post) => publicBlogSlugs.has(post.slug)).map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: ["history-of-png", "history-of-gif", "history-of-photoshop-image-editing"].includes(post.slug)
-      ? new Date("2026-08-15")
-      : post.date
-        ? new Date(post.date)
-        : undefined,
+    lastModified: post.date ? new Date(post.date) : undefined,
     changeFrequency: "monthly" as const,
     priority: 0.7,
     images: post.image ? [`${baseUrl}${post.image}`] : undefined,
