@@ -191,6 +191,7 @@ export type PixoresDesktopBridge = {
   removeRecentProject?: (filePath: string) => Promise<ProjectPackageRecentsResult>;
   renameRecentProject?: (payload: ProjectPackageRenameRecentInput) => Promise<ProjectPackageRecentsResult>;
   duplicateRecentProject?: (filePath: string) => Promise<ProjectPackageRecentsResult>;
+  deleteRecentProject?: (filePath: string) => Promise<ProjectPackageRecentsResult>;
   getLicenseStatus?: () => Promise<PixoresLicenseStatus>;
   saveLicenseStatus?: (input: PixoresLicenseSaveInput) => Promise<PixoresLicenseStatus>;
   clearLicenseStatus?: () => Promise<PixoresLicenseStatus>;

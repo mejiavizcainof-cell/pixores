@@ -37,6 +37,7 @@ export const PIXORES_DESKTOP_CHANNELS = Object.freeze({
   projectPackageRecentRemove: "pixores:project-package:recent-remove",
   projectPackageRecentRename: "pixores:project-package:recent-rename",
   projectPackageRecentDuplicate: "pixores:project-package:recent-duplicate",
+  projectPackageRecentDelete: "pixores:project-package:recent-delete",
   projectOpen: "pixores:project:open",
   projectSave: "pixores:project:save",
   autoSaveLoad: "pixores:autosave:load",

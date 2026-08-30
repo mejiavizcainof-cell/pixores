@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { createDesktopAuthStorage } from "../desktop/electron/services/auth-storage.mjs";
 
+const projectRoot = path.resolve(import.meta.dirname, "..");
+
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pixores-auth-storage-test-"));
 const authPath = path.join(tempRoot, "pixores-auth-session.bin");
 const storageKey = "sb-pixores-auth-token";
@@ -43,7 +45,19 @@ try {
   });
   await assert.rejects(() => unavailableStorage.setItem(storageKey, sessionValue), /Secure Windows credential encryption is unavailable/);
 
-  console.log("Desktop authentication storage encryption and legacy migration tests passed.");
+  const [mainSource, preloadSource, clientSource] = await Promise.all([
+    fs.readFile(path.join(projectRoot, "desktop", "electron", "main.mjs"), "utf8"),
+    fs.readFile(path.join(projectRoot, "desktop", "electron", "preload.cjs"), "utf8"),
+    fs.readFile(path.join(projectRoot, "lib", "supabaseClient.ts"), "utf8"),
+  ]);
+  assert.match(mainSource, /createDesktopAuthStorage\(\{ app, safeStorage \}\)/, "Electron must create the encrypted auth store");
+  assert.match(mainSource, /desktop-server\.json/, "Electron must persist its local server port across launches");
+  assert.match(mainSource, /authStorage\.setItem\(key, value\)/, "Electron must expose auth writes through IPC");
+  assert.match(preloadSource, /setAuthStorageItem:\s*\(key, value\)/, "the preload bridge must expose encrypted auth writes");
+  assert.match(clientSource, /storage:\s*desktopAuthStorage/, "Supabase must use the desktop auth store");
+  assert.match(clientSource, /persistSession:\s*true/, "Supabase desktop sessions must persist");
+
+  console.log("Desktop authentication persistence, encryption, migration, and integration tests passed.");
 } finally {
   await fs.rm(tempRoot, { recursive: true, force: true });
 }

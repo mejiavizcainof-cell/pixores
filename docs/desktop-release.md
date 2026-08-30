@@ -5,14 +5,14 @@ Use GitHub Releases for the Windows installer because the Electron `.exe` is lar
 ## Current Release
 
 - Repository: `mejiavizcainof-cell/pixores`
-- Tag: `pixores-video-maker-v0.1.3-beta.1`
-- Installer: `Pixores Video Maker Setup 0.1.3-beta.1.exe`
-- GitHub asset name: `Pixores.Video.Maker.Setup.0.1.3-beta.1.exe`
-- Local file: `C:\Users\mejia\image-tools\release\Pixores Video Maker Setup 0.1.3-beta.1.exe`
+- Tag: `pixores-video-maker-v0.1.3-beta.69`
+- Installer: `Pixores.Video.Maker.Pro.Setup.0.1.3-beta.69.exe`
+- GitHub asset name: `Pixores.Video.Maker.Pro.Setup.0.1.3-beta.69.exe`
+- Local file: `C:\Users\mejia\image-tools\release-beta69-final\Pixores.Video.Maker.Pro.Setup.0.1.3-beta.69.exe`
 - Public URL:
 
 ```text
-https://github.com/mejiavizcainof-cell/pixores/releases/download/pixores-video-maker-v0.1.3-beta.1/Pixores.Video.Maker.Setup.0.1.3-beta.1.exe
+https://github.com/mejiavizcainof-cell/pixores/releases/download/pixores-video-maker-v0.1.3-beta.69/Pixores.Video.Maker.Pro.Setup.0.1.3-beta.69.exe
 ```
 
 ## Manual Upload
@@ -21,11 +21,11 @@ https://github.com/mejiavizcainof-cell/pixores/releases/download/pixores-video-m
 2. Go to `mejiavizcainof-cell/pixores`.
 3. Open `Releases`.
 4. Create a new release.
-5. Use tag `pixores-video-maker-v0.1.3-beta.1`.
+5. Use tag `pixores-video-maker-v0.1.3-beta.69`.
 6. Upload the installer from:
 
 ```text
-C:\Users\mejia\image-tools\release\Pixores Video Maker Setup 0.1.3-beta.1.exe
+C:\Users\mejia\image-tools\release-beta69-final\Pixores.Video.Maker.Pro.Setup.0.1.3-beta.69.exe
 ```
 
 7. Upload `beta.yml` and the `.blockmap` file too if this release will be used for beta auto-update.

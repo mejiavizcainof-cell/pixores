@@ -213,6 +213,13 @@ assert.equal(isolatedSourceProject.layers[0].sourceEnd, 548, "the isolated maste
 
 const clip = createSmartClipProject(project, segments[0], getSmartClipPlatform("youtube-shorts"));
 assert.deepEqual(clip.canvas, { width: 1080, height: 1920 });
+const manuallyFramedClip = createSmartClipProject(project, {
+  ...segments[0],
+  manualReframe: { centerX: 0.72, centerY: 0.42, zoom: 1.18 },
+}, getSmartClipPlatform("youtube-shorts"));
+const manuallyFramedVideo = manuallyFramedClip.layers.find((layer) => layer.mediaKind === "video");
+assert.equal(manuallyFramedVideo.smartReframe.keyframes[0].centerX, 0.72, "manual framing must remain lightweight transform metadata");
+assert.equal(manuallyFramedVideo.smartReframe.keyframes[0].zoom, 1.18, "manual zoom must override automatic framing for that cut");
 const customPlatform = getSmartClipPlatform("custom", { width: 1440, height: 1080 });
 assert.deepEqual(
   { width: customPlatform.width, height: customPlatform.height, aspectRatio: customPlatform.aspectRatio },
@@ -255,10 +262,42 @@ assert.equal(
   "the editable cut title must never be burned into the exported video",
 );
 
+const persistenceBundle = await build({
+  entryPoints: ["src/video-maker/smart-clip-project.ts"],
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  write: false,
+  logLevel: "silent",
+});
+const persistenceModuleUrl = `data:text/javascript;base64,${Buffer.from(persistenceBundle.outputFiles[0].text).toString("base64")}`;
+const { SMART_CLIP_PROJECT_VERSION, createSmartClipProjectDocument, migrateSmartClipProject } = await import(persistenceModuleUrl);
+const persistedProject = createSmartClipProjectDocument(project, {
+  title: "Saved interview clips",
+  sourceProject: project,
+  candidates: [{ ...segments[0], title: "A relevant complete title", transcript: "The complete transcript.", score: 90, reason: "test", selected: true }],
+  activeCandidateId: segments[0].id,
+  previewOffset: 0,
+  settings: {
+    platformId: "youtube-shorts", segmentDuration: 60, customWidth: 1080, customHeight: 1920,
+    autoCaptions: true, captionTemplateId: "none", captionPosition: "bottom", captionSize: 120,
+    faceMode: "dynamic", speakerSelection: true, fastExport: true, subtitleLanguage: "auto", subtitleModel: "base",
+    faceFilters: { enabled: true, smoothing: 25, brightness: 8, contrast: 5, sharpness: 10, intensity: 45, renderMode: "preview-only" },
+  },
+});
+assert.equal(persistedProject.smartClipProjectVersion, SMART_CLIP_PROJECT_VERSION, "saved Smart Clips projects must carry an explicit version");
+assert.equal(migrateSmartClipProject(persistedProject).smartClipWorkspace.candidates[0].transcript, "The complete transcript.", "reopening must restore transcript data without analysis");
+const unversionedDraft = { ...persistedProject };
+delete unversionedDraft.smartClipProjectVersion;
+assert.equal(migrateSmartClipProject(unversionedDraft).smartClipProjectVersion, 1, "the migration must upgrade unversioned Smart Clips drafts");
+
 const editorSource = await readFile("components/VideoMaker.tsx", "utf8");
 const smartExportStart = editorSource.indexOf("async function exportSmartClips");
 const smartExportEnd = editorSource.indexOf("\n  return (", smartExportStart);
 const smartExportSource = editorSource.slice(smartExportStart, smartExportEnd);
+const smartAnalyzeStart = editorSource.indexOf("async function analyzeSmartClips");
+const smartAnalyzeEnd = editorSource.indexOf("async function cancelSmartClipsExport", smartAnalyzeStart);
+const smartAnalyzeSource = editorSource.slice(smartAnalyzeStart, smartAnalyzeEnd);
 assert.match(
   smartExportSource,
   /sourceProject\s*=\s*smartClipSourceProjectRef\.current/,
@@ -339,9 +378,34 @@ assert.match(
   "the cut preview must use the selected platform or custom dimensions",
 );
 assert.match(
+  editorSource,
+  /className=\{styles\.smartClipPreviewCaption\}/,
+  "the cut preview must render the active editable subtitle layer",
+);
+assert.match(
+  editorSource,
+  /Face \/ Skin preview/,
+  "Smart Clips must expose face-filter controls beside the live preview",
+);
+assert.match(
   smartExportSource,
-  /smartClipFastExport \? "fast"/,
+  /smartClipFastExport\s*\?\s*"fast"/,
   "Smart Clips must offer a fast local social-video render preset",
+);
+assert.doesNotMatch(
+  smartAnalyzeSource,
+  /addSmartClipFaceReframing/,
+  "initial proposal analysis must not scan faces across the complete master video",
+);
+assert.match(
+  smartExportSource,
+  /addSmartClipFaceReframing\(clipProject/,
+  "face tracking must be limited to reviewed clips during export",
+);
+assert.match(
+  editorSource,
+  /sampleFps: smartClipFaceMode === "dynamic" \? 1\.5 : 1/,
+  "face tracking must use the sparse performance-safe sampling rate",
 );
 
 const desktopRenderSource = await readFile("desktop/electron/services/render-adapter.mjs", "utf8");
@@ -359,6 +423,16 @@ assert.match(
   desktopRenderSource,
   /publishRenderedOutput\(outputPath, finalOutputPath\)/,
   "the temporary output must only be published after rendering finishes",
+);
+assert.match(
+  desktopRenderSource,
+  /RETRYABLE_PUBLISH_ERROR_CODES[\s\S]*EBUSY[\s\S]*renameFileWithRetry/,
+  "Windows file-indexing locks must be retried instead of failing a completed export",
+);
+assert.match(
+  desktopRenderSource,
+  /copyCompletedOutput\(temporaryPath, finalPath\)/,
+  "a verified copy fallback must preserve a completed render when Windows keeps the temporary name locked",
 );
 
 console.log("Smart Clips source-first import, unique file titles, cut-only previews, no burned title, locking, caption templates, atomic output, fast export, segmentation, and final geometry tests passed.");

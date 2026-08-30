@@ -187,23 +187,62 @@ function normalizeExportFileName(fileName, extension) {
   return `${safeName || "pixores-video"}.${extension}`;
 }
 
+const RETRYABLE_PUBLISH_ERROR_CODES = new Set(["EBUSY", "EPERM", "EACCES"]);
+
+function waitForFileRelease(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function renameFileWithRetry(sourcePath, destinationPath, attempts = 16) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await fs.rename(sourcePath, destinationPath);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!RETRYABLE_PUBLISH_ERROR_CODES.has(error?.code) || attempt === attempts - 1) throw error;
+      // Windows Defender, Explorer thumbnails and media-indexing services can
+      // briefly retain a completed MP4 handle after FFmpeg exits. Waiting here
+      // does not affect encoding speed and avoids discarding a finished render.
+      await waitForFileRelease(Math.min(1_000, 100 + attempt * 100));
+    }
+  }
+  throw lastError;
+}
+
+async function copyCompletedOutput(temporaryPath, finalPath) {
+  await fs.copyFile(temporaryPath, finalPath);
+  const [temporaryStat, finalStat] = await Promise.all([fs.stat(temporaryPath), fs.stat(finalPath)]);
+  if (temporaryStat.size !== finalStat.size) throw new Error("The completed video could not be verified after publishing.");
+  // A scanner may still retain the temporary name. The final file is already
+  // complete, so cleanup is best-effort and must not turn success into failure.
+  await fs.rm(temporaryPath, { force: true }).catch(() => {});
+}
+
 async function publishRenderedOutput(temporaryPath, finalPath) {
   if (!temporaryPath || !finalPath || temporaryPath === finalPath) return finalPath;
   const backupPath = `${finalPath}.pixores-backup-${crypto.randomUUID()}`;
   let hasBackup = false;
   try {
-    await fs.rename(finalPath, backupPath);
+    await renameFileWithRetry(finalPath, backupPath);
     hasBackup = true;
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
   try {
-    await fs.rename(temporaryPath, finalPath);
+    try {
+      await renameFileWithRetry(temporaryPath, finalPath);
+    } catch (error) {
+      if (!RETRYABLE_PUBLISH_ERROR_CODES.has(error?.code)) throw error;
+      await copyCompletedOutput(temporaryPath, finalPath);
+    }
   } catch (error) {
-    if (hasBackup) await fs.rename(backupPath, finalPath).catch(() => {});
+    await fs.rm(finalPath, { force: true }).catch(() => {});
+    if (hasBackup) await renameFileWithRetry(backupPath, finalPath).catch(() => {});
     throw error;
   }
-  if (hasBackup) await fs.rm(backupPath, { force: true });
+  if (hasBackup) await fs.rm(backupPath, { force: true }).catch(() => {});
   return finalPath;
 }
 
@@ -680,10 +719,18 @@ function getSafeRenderConcurrency(composition) {
     return Math.max(1, Math.min(logicalCores, Math.floor(requestedConcurrency)));
   }
   const pixels = Math.max(1, Number(composition?.width) * Number(composition?.height));
-  const resolutionLimit = pixels >= 3840 * 2160 ? 2 : pixels >= 2560 * 1440 ? 4 : pixels >= 1920 * 1080 ? 6 : 8;
-  const memoryPerWorker = pixels >= 3840 * 2160 ? 3 * 1024 ** 3 : pixels >= 2560 * 1440 ? 2 * 1024 ** 3 : 1024 ** 3;
-  const memoryLimit = Math.max(1, Math.floor(Math.max(0, os.freemem() - 2 * 1024 ** 3) / memoryPerWorker));
-  const cpuLimit = Math.max(1, Math.floor(logicalCores * 0.6));
+  const resolutionLimit = pixels >= 3840 * 2160 ? 2 : pixels >= 2560 * 1440 ? 6 : pixels >= 1920 * 1080 ? 6 : 8;
+  const memoryPerWorker = pixels >= 3840 * 2160
+    ? 2.5 * 1024 ** 3
+    : pixels >= 2560 * 1440
+      ? 1.25 * 1024 ** 3
+      : 0.9 * 1024 ** 3;
+  // Keep enough memory for the editor, Remotion's shared compositor process,
+  // Windows, and the encoder while allowing modern 32 GB systems to use more
+  // than four frame workers at 1440p.
+  const memoryReserve = Math.max(3 * 1024 ** 3, os.totalmem() * 0.1);
+  const memoryLimit = Math.max(1, Math.floor(Math.max(0, os.freemem() - memoryReserve) / memoryPerWorker));
+  const cpuLimit = Math.max(1, Math.floor(logicalCores * 0.75));
   return Math.max(1, Math.min(resolutionLimit, cpuLimit, memoryLimit));
 }
 
@@ -1086,7 +1133,7 @@ async function createHybridBasePlan(project, { includeAudio, fps }) {
     && layer.mediaKind === "video"
     && isDefaultFullCanvasVideoLayer(layer, includeAudio)
   ));
-  if (visibleVideoLayers.length < 2) return null;
+  if (visibleVideoLayers.length === 0) return null;
 
   const layersByTrack = new Map();
   for (const layer of visibleVideoLayers) {
@@ -1096,9 +1143,25 @@ async function createHybridBasePlan(project, { includeAudio, fps }) {
     layersByTrack.set(trackKey, trackLayers);
   }
 
-  const candidates = [...layersByTrack.values()]
-    .filter((layers) => layers.length >= 2)
-    .sort((left, right) => (
+  const candidates = [];
+  const candidateSignatures = new Set();
+  const addCandidate = (layers) => {
+    if (!layers.length) return;
+    const signature = layers.map((layer) => layer.id).sort().join("|");
+    if (candidateSignatures.has(signature)) return;
+    candidateSignatures.add(signature);
+    candidates.push(layers);
+  };
+
+  // Pixores intentionally places newly inserted clips on independent visual
+  // tracks. A gapless, non-overlapping timeline is still a native video base,
+  // even when every adjacent clip has a different trackId. The native planner
+  // below remains the authority: it rejects overlaps, gaps, unsupported
+  // transforms, or invalid media before this candidate can be selected.
+  addCandidate(visibleVideoLayers);
+  [...layersByTrack.values()].forEach(addCandidate);
+
+  candidates.sort((left, right) => (
       right.reduce((total, layer) => total + Math.max(0, Number(layer.duration) || 0), 0)
       - left.reduce((total, layer) => total + Math.max(0, Number(layer.duration) || 0), 0)
     ));

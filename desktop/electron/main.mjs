@@ -361,6 +361,7 @@ function registerIpcHandlers() {
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.projectPackageRecentRemove, (_event, filePath) => projectHandlers.removeRecentProject(filePath));
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.projectPackageRecentRename, (_event, payload) => projectHandlers.renameRecentProject(payload));
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.projectPackageRecentDuplicate, (_event, filePath) => projectHandlers.duplicateRecentProject(filePath));
+  ipcMain.handle(PIXORES_DESKTOP_CHANNELS.projectPackageRecentDelete, (_event, filePath) => projectHandlers.deleteRecentProject(filePath));
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.projectOpen, () => projectHandlers.openProject());
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.projectSave, (_event, payload) => projectHandlers.saveProject(payload));
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.licenseStatusGet, () => licenseHandlers.getLicenseStatus());

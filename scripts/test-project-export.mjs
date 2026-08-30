@@ -8,8 +8,10 @@ const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pixores-project-export
 const documentsDir = path.join(testRoot, "Documents");
 const userDataDir = path.join(testRoot, "UserData");
 const outputPath = path.join(documentsDir, "Pixores Video Projects", "export-test.pixores-video");
+const renamedOutputPath = path.join(documentsDir, "Pixores Video Projects", "Entrevista Juan.pixores-video");
 const parentWindow = { isDestroyed: () => false };
 const calls = [];
+let nextSavePath = outputPath;
 
 const app = {
   getPath(name) {
@@ -22,7 +24,7 @@ const app = {
 const dialog = {
   async showSaveDialog(parent, options) {
     calls.push({ type: "save", parent, options });
-    return { canceled: false, filePath: outputPath };
+    return { canceled: false, filePath: nextSavePath };
   },
   async showOpenDialog(parent, options) {
     calls.push({ type: "open", parent, options });
@@ -57,9 +59,22 @@ try {
   assert.equal(written.metadata.title, "Export Test");
   assert.deepEqual(written.project, project);
 
+  nextSavePath = renamedOutputPath;
+  const smartClipProject = {
+    ...project,
+    smartClipProjectVersion: 1,
+    smartClipWorkspace: { title: "Smart Clips project", sourceProject: project, candidates: [], settings: {} },
+  };
+  const renamed = await handlers.saveProjectPackage({ title: "Smart Clips project", project: smartClipProject });
+  assert.equal(renamed.metadata.title, "Entrevista Juan", "an explicit Save As filename must become the Recent project title");
+  const renamedWritten = JSON.parse(await fs.readFile(renamedOutputPath, "utf8"));
+  assert.equal(renamedWritten.metadata.title, "Entrevista Juan");
+  assert.equal(renamedWritten.project.smartClipWorkspace.title, "Entrevista Juan", "Smart Clips must reopen with the chosen title");
+
+  nextSavePath = outputPath;
   const opened = await handlers.openProjectPackage();
   assert.equal(opened.canceled, false);
-  assert.equal(calls[1].parent, parentWindow, "Open dialog must be modal to the Pixores window");
+  assert.equal(calls[2].parent, parentWindow, "Open dialog must be modal to the Pixores window");
   assert.equal(opened.project.canvas.width, 1920);
 
   console.log("Project export test passed: native dialog is attached and the project package is readable.");

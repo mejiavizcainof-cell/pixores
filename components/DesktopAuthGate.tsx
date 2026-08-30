@@ -90,17 +90,23 @@ export default function DesktopAuthGate({ children, required = true, showAccount
 
     setLoading(true);
     setMessage("Checking your Pixores account...");
-    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-    setLoading(false);
-    if (error || !data.user) {
-      setMessage(error?.message || "Sign in failed. Check your email and password.");
-      return;
-    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+      if (error || !data.user) {
+        setMessage(error?.message || "Sign in failed. Check your email and password.");
+        return;
+      }
 
-    cachedSignedInEmail = data.user.email || cleanEmail;
-    setUserEmail(cachedSignedInEmail);
-    setPassword("");
-    setAuthState("signed-in");
+      cachedSignedInEmail = data.user.email || cleanEmail;
+      setUserEmail(cachedSignedInEmail);
+      setPassword("");
+      setAuthState("signed-in");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "The secure session could not be saved.";
+      setMessage(`${detail} Close Pixores, reopen it, and try again.`);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function resetPassword() {

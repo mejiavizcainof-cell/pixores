@@ -51,9 +51,28 @@ async function setCurrentPackageState(state, packagePath) {
   await ensureAssetFolders(state.assetsRoot);
 }
 
-function createPackagePayload(payload) {
-  const metadata = createMetadata(payload.title);
-  const project = payload.project;
+function resolveSavedProjectTitle(requestedTitle, packagePath) {
+  const requested = String(requestedTitle || "").trim() || "Untitled video";
+  const requestedFileBase = path.basename(safePackageName(requested), ".pixores-video").toLowerCase();
+  const chosenFileBase = splitPackageName(packagePath).trim();
+  // Changing the native Save As filename is an explicit rename. Preserve the
+  // editor's capitalization when the generated default filename was accepted.
+  return chosenFileBase && chosenFileBase.toLowerCase() !== requestedFileBase
+    ? chosenFileBase
+    : requested;
+}
+
+function createPackagePayload(payload, savedTitle = payload.title) {
+  const metadata = createMetadata(savedTitle);
+  const project = payload.project?.smartClipWorkspace
+    ? {
+      ...payload.project,
+      smartClipWorkspace: {
+        ...payload.project.smartClipWorkspace,
+        title: metadata.title,
+      },
+    }
+    : payload.project;
 
   return {
     format: PACKAGE_FORMAT,
@@ -301,7 +320,8 @@ export function createDesktopProjectHandlers({ app, dialog, state, getMainWindow
 
       const packagePath = normalizePackagePath(result.filePath);
       await setCurrentPackageState(state, packagePath);
-      const packagePayload = createPackagePayload(payload);
+      const savedTitle = resolveSavedProjectTitle(payload.title, packagePath);
+      const packagePayload = createPackagePayload(payload, savedTitle);
 
       await fs.writeFile(packagePath, JSON.stringify(packagePayload, null, 2), "utf8");
       await upsertRecentProject(getRecentProjectFromPackage(packagePath, packagePayload));
@@ -360,6 +380,15 @@ export function createDesktopProjectHandlers({ app, dialog, state, getMainWindow
 
     async duplicateRecentProject(filePath) {
       return duplicateRecentProjectByPath(filePath);
+    },
+
+    async deleteRecentProject(filePath) {
+      const resolvedPath = path.resolve(String(filePath || ""));
+      if (!resolvedPath.toLowerCase().endsWith(".pixores-video")) {
+        throw new Error("Only Pixores video project files can be deleted here.");
+      }
+      await fs.unlink(resolvedPath);
+      return removeRecentProjectByPath(filePath);
     },
 
     async saveProject(payload) {

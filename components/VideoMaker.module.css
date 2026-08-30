@@ -412,6 +412,22 @@
 .smartClipTemplateSection > p strong { color: #d9cdff; }
 
 .smartClipEnhancements { display: grid; gap: 13px; padding: 15px; border: 1px solid rgba(82, 169, 255, 0.3); border-radius: 11px; background: linear-gradient(145deg, rgba(30, 74, 111, 0.18), rgba(16, 25, 39, 0.88)); }
+.smartClipProjectBar { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 9px 14px; padding: 13px; border: 1px solid rgba(91, 167, 255, 0.35); border-radius: 10px; background: rgba(10, 23, 39, 0.8); }
+.smartClipProjectBar > label { display: grid; gap: 5px; color: #9db1c8; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; }
+.smartClipProjectBar input { min-width: 0; min-height: 35px; border: 1px solid #354961; border-radius: 7px; padding: 0 10px; color: #eef7ff; background: #09121e; font: inherit; font-size: 11px; text-transform: none; letter-spacing: normal; }
+.smartClipProjectBar > div { display: flex; align-items: end; gap: 6px; }
+.smartClipProjectBar button { min-height: 35px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #38516b; border-radius: 7px; padding: 0 9px; color: #cce6fa; background: #112236; font: inherit; font-size: 9px; font-weight: 900; cursor: pointer; }
+.smartClipProjectBar button:disabled { cursor: not-allowed; opacity: 0.42; }
+.smartClipProjectBar .smartClipProjectDelete { color: #ffb8c4; border-color: #693849; }
+.smartClipProjectBar > small { grid-column: 1 / -1; overflow: hidden; color: #728ba3; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.faceFilterPanel { display: grid; gap: 13px; padding: 14px; }
+.faceFilterToggle { display: flex; align-items: center; gap: 8px; color: #e3f7f5; font-size: 11px; font-weight: 850; }
+.faceFilterToggle input { width: 17px; height: 17px; accent-color: #2bd9d1; }
+.faceFilterControl { display: grid; gap: 6px; color: #9db0c4; font-size: 10px; font-weight: 800; }
+.faceFilterControl span { display: flex; justify-content: space-between; gap: 10px; }
+.faceFilterControl output { color: #68e2da; font-weight: 950; }
+.faceFilterControl input { width: 100%; accent-color: #2bd9d1; }
+.faceFilterPanel > p { margin: 3px 0 0; padding: 10px; border: 1px solid #66562d; border-radius: 8px; color: #d4bd78; background: rgba(102, 86, 45, 0.13); font-size: 9px; line-height: 1.5; }
 .smartClipEnhancements > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .smartClipEnhancements > header span { display: inline-flex; align-items: center; gap: 7px; color: #7cc9ff; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.08em; }
 .smartClipEnhancements > header small { color: #7f91a8; font-size: 10px; }
@@ -441,6 +457,17 @@
 .smartClipTitleNotice > span { display: grid; gap: 4px; }
 .smartClipTitleNotice strong { color: #e8f8f7; font-size: 11px; }
 .smartClipTitleNotice small { color: #8fa5b5; font-size: 9px; line-height: 1.45; }
+.smartClipFacePreviewControls { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 12px; border: 1px solid rgba(168, 85, 247, 0.34); border-radius: 9px; background: rgba(35, 17, 57, 0.28); }
+.smartClipFacePreviewControls > header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.smartClipFacePreviewControls > header > span { display: grid; gap: 3px; }
+.smartClipFacePreviewControls strong { color: #f0e7ff; font-size: 11px; }
+.smartClipFacePreviewControls small { color: #9b8bb2; font-size: 9px; }
+.smartClipFacePreviewControls > header label { display: inline-flex; align-items: center; gap: 7px; color: #d9c6f8; font-size: 10px; font-weight: 900; }
+.smartClipFacePreviewControls input[type="checkbox"] { width: 16px; height: 16px; accent-color: #a855f7; }
+.smartClipFacePreviewControls > label { min-width: 0; display: grid; gap: 5px; color: #aa9abb; font-size: 9px; font-weight: 800; }
+.smartClipFacePreviewControls > label span { display: flex; justify-content: space-between; gap: 6px; }
+.smartClipFacePreviewControls output { color: #d8b4fe; font-weight: 950; }
+.smartClipFacePreviewControls input[type="range"] { min-width: 0; width: 100%; accent-color: #a855f7; }
 
 .smartClipReview { display: grid; gap: 14px; padding: 16px; border: 1px solid rgba(43, 217, 209, 0.42); border-radius: 12px; background: linear-gradient(145deg, rgba(20, 92, 94, 0.2), rgba(10, 17, 28, 0.96)); }
 .smartClipReview > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -454,11 +481,22 @@
 .smartClipPreviewStage { position: relative; height: min(430px, 50vh); max-width: 100%; overflow: hidden; border-radius: 8px; background: #000; box-shadow: 0 9px 28px rgba(0, 0, 0, 0.45); }
 .smartClipPreviewStage video { width: 100%; height: 100%; display: block; background: #000; object-fit: cover; cursor: pointer; }
 .smartClipPreviewStage > span { position: absolute; right: 8px; bottom: 8px; padding: 5px 8px; border-radius: 6px; color: #e5f3f4; background: rgba(3, 10, 18, 0.82); font-size: 9px; font-weight: 850; pointer-events: none; }
+.smartClipPreviewCaption { position: absolute; z-index: 2; box-sizing: border-box; padding: 5px 8px; color: #fff; font-size: clamp(13px, 1.75vw, 30px); line-height: 1.08; text-align: center; white-space: normal; overflow-wrap: anywhere; pointer-events: none; }
 .smartClipPreviewControls { width: min(100%, 620px); display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 9px; }
 .smartClipPreviewControls button { width: 34px; height: 31px; display: grid; place-items: center; border: 1px solid #3d566d; border-radius: 7px; color: #d7f7f5; background: #122231; cursor: pointer; }
 .smartClipPreviewControls input { min-width: 0; accent-color: #2bd9d1; }
 .smartClipPreviewControls span { color: #a8bbc9; font-size: 9px; font-variant-numeric: tabular-nums; }
 .smartClipPreviewPlayer > small { color: #758b9e; font-size: 9px; }
+.smartClipManualReframe { width: min(100%, 620px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; padding: 12px; border: 1px solid rgba(43, 217, 209, 0.28); border-radius: 9px; background: rgba(8, 25, 30, 0.72); }
+.smartClipManualReframe > header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.smartClipManualReframe > header span { display: grid; gap: 2px; }
+.smartClipManualReframe strong { color: #dffdf9; font-size: 11px; }
+.smartClipManualReframe small { color: #759b98; font-size: 9px; }
+.smartClipManualReframe button { min-height: 30px; border: 1px solid #35645f; border-radius: 7px; padding: 0 9px; color: #a9eee7; background: #102a2c; font: inherit; font-size: 9px; font-weight: 900; cursor: pointer; }
+.smartClipManualReframe label { min-width: 0; display: grid; gap: 5px; color: #8ea9ad; font-size: 9px; }
+.smartClipManualReframe label span { display: flex; justify-content: space-between; gap: 8px; }
+.smartClipManualReframe output { color: #d9faf7; font-weight: 900; }
+.smartClipManualReframe input { min-width: 0; width: 100%; accent-color: #2bd9d1; }
 .smartClipPreviewEmpty { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 10px; border: 1px dashed #385066; border-radius: 11px; color: #8198aa; background: rgba(5, 10, 17, 0.72); font-size: 11px; }
 
 .smartClipCandidateGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -505,6 +543,12 @@
   .smartClipSettings,
   .smartClipCustomSize,
   .smartClipEnhancementGrid { grid-template-columns: 1fr; }
+  .smartClipFacePreviewControls { grid-template-columns: 1fr; }
+  .smartClipFacePreviewControls > header { align-items: flex-start; flex-direction: column; }
+  .smartClipProjectBar { grid-template-columns: 1fr; }
+  .smartClipProjectBar > div { align-items: stretch; flex-wrap: wrap; }
+  .smartClipManualReframe { grid-template-columns: 1fr; }
+  .smartClipManualReframe > header { grid-column: 1; }
   .smartClipTemplateSection > header { align-items: flex-start; flex-direction: column; }
   .smartClipTemplateSection > header small { text-align: left; }
   .smartClipTemplateGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -5614,7 +5658,7 @@
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
-  cursor: grab;
+  cursor: pointer;
   touch-action: none;
   z-index: 2;
   user-select: none;
@@ -5642,7 +5686,7 @@
 }
 
 .clip:active {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .selectedClip {
@@ -5681,7 +5725,7 @@
   position: absolute;
   left: 20px;
   right: 20px;
-  top: 67%;
+  top: 38%;
   bottom: 4px;
   z-index: 0;
   overflow: hidden;
@@ -5695,13 +5739,13 @@
 }
 
 .clipWaveformFill {
-  fill: rgba(110, 231, 183, 0.6);
+  fill: rgba(52, 211, 153, 0.5);
 }
 
 .clipWaveformStroke {
   fill: none;
   stroke: rgba(209, 250, 229, 0.98);
-  stroke-width: 2.8;
+  stroke-width: 2.2;
   vector-effect: non-scaling-stroke;
 }
 
@@ -8890,6 +8934,23 @@
 .audioToggleRow label, .audioCheckbox { display: flex !important; flex-direction: row !important; align-items: center; gap: 6px; padding: 7px; border-radius: 7px; background: #0c1423; font-size: 10px !important; }
 .audioToggleRow input, .audioCheckbox input { width: auto !important; }
 .audioResetButton { width: 100%; padding: 9px; border: 1px solid #3a4964; border-radius: 8px; background: #121c2f; color: #c8d6e9; font-size: 11px; }
+.audioApplyProjectButton { width: 100%; margin-bottom: 7px; padding: 9px; border: 1px solid rgba(34, 211, 197, 0.58); border-radius: 8px; background: rgba(13, 148, 136, 0.16); color: #99f6e4; font-size: 11px; font-weight: 850; }
+.audioApplyProjectButton:hover:not(:disabled) { border-color: #5eead4; background: rgba(13, 148, 136, 0.26); }
+.audioApplyProjectButton:disabled { cursor: not-allowed; opacity: 0.48; }
+
+.playbackRateSelect {
+  min-width: 58px;
+  height: 32px;
+  border: 1px solid var(--border-subtle, #334155);
+  border-radius: 8px;
+  background: var(--control-bg, #172033);
+  color: var(--text-primary, #f8fafc);
+  padding: 0 7px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
 
 /* Direct YouTube publishing */
 .youtubeDialog { width: min(820px, 94vw); max-height: 90dvh; overflow: auto; border: 1px solid #2d3d59; border-radius: 16px; background: #101a2c; color: #eef5ff; box-shadow: 0 24px 90px rgba(0, 0, 0, .56); }

@@ -16,6 +16,11 @@ const firstPassword = `Px!Beta62-${Date.now()}-First`;
 const nextPassword = `Px!Beta62-${Date.now()}-Recovered`;
 let userId = "";
 
+function assertRedirectTarget(actionLink, expectedUrl, flowName) {
+  const redirectTo = new URL(actionLink).searchParams.get("redirect_to");
+  assert.equal(redirectTo, expectedUrl, `${flowName} must preserve the Pixores production redirect URL`);
+}
+
 try {
   const created = await admin.auth.admin.createUser({ email, password: firstPassword, email_confirm: true });
   if (created.error) throw created.error;
@@ -27,15 +32,26 @@ try {
   assert.equal(initialSignIn.data.user?.id, userId, "the temporary account must sign in through the public auth API");
   await initialClient.auth.signOut();
 
+  const confirmationRedirect = "https://www.pixores.com/account?confirmed=1";
+  const confirmation = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+    options: { redirectTo: confirmationRedirect },
+  });
+  if (confirmation.error) throw confirmation.error;
+  assertRedirectTarget(confirmation.data.properties?.action_link || "", confirmationRedirect, "account confirmation");
+
+  const recoveryRedirect = "https://www.pixores.com/reset-password";
   const recovery = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
-    options: { redirectTo: "https://www.pixores.com/reset-password" },
+    options: { redirectTo: recoveryRedirect },
   });
   if (recovery.error) throw recovery.error;
   const recoveryTokenHash = recovery.data.properties?.hashed_token;
   assert(recoveryTokenHash, "Supabase must generate a recovery token hash");
   assert.match(recovery.data.properties?.action_link || "", /reset-password|type=recovery/, "the recovery link must target the Pixores reset flow");
+  assertRedirectTarget(recovery.data.properties?.action_link || "", recoveryRedirect, "password recovery");
 
   const recoveryClient = createClient(url, anonKey, clientOptions);
   const verified = await recoveryClient.auth.verifyOtp({ type: "recovery", token_hash: recoveryTokenHash });

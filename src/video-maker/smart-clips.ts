@@ -1,4 +1,4 @@
-import type { PixoresMediaMetadata, PixoresVideoLayer, PixoresVideoProject } from "@/src/video-render/types";
+import type { PixoresMediaMetadata, PixoresSmartReframe, PixoresVideoLayer, PixoresVideoProject } from "@/src/video-render/types";
 import { isAiCaptionLayer } from "./caption-layout";
 import { sliceSmartReframe } from "./smart-reframe";
 
@@ -45,6 +45,14 @@ export type SmartClipCandidate = SmartClipSegment & {
   score: number;
   reason: string;
   selected: boolean;
+  manualReframe?: SmartClipManualReframe;
+  autoReframe?: PixoresSmartReframe;
+};
+
+export type SmartClipManualReframe = {
+  centerX: number;
+  centerY: number;
+  zoom: number;
 };
 
 export type SmartClipCandidateOptions = {
@@ -568,16 +576,37 @@ export function createSmartClipProject(
     .map((layer) => sliceLayer(layer, segment))
     .filter((layer): layer is PixoresVideoLayer => Boolean(layer));
   const includedLayerIds = new Set(slicedLayers.map((layer) => layer.id));
+  const manualReframe = "manualReframe" in segment
+    ? (segment as SmartClipCandidate).manualReframe
+    : undefined;
+  const cachedAutoReframe = "autoReframe" in segment
+    ? (segment as SmartClipCandidate).autoReframe
+    : undefined;
   const layers = slicedLayers
     .filter((layer) => layer.type !== "transition" || (
       (!layer.fromLayerId || includedLayerIds.has(layer.fromLayerId))
       && (!layer.toLayerId || includedLayerIds.has(layer.toLayerId))
     ))
-    .map((layer) => adaptLayerToVerticalCanvas(
-      layer,
-      project.canvas.width,
-      platform.width,
-    ));
+    .map((layer) => {
+      const adapted = adaptLayerToVerticalCanvas(layer, project.canvas.width, platform.width);
+      if (adapted.type !== "media" || adapted.mediaKind !== "video") return adapted;
+      if (!manualReframe) return cachedAutoReframe ? { ...adapted, smartReframe: cachedAutoReframe } : adapted;
+      const keyframe = {
+        time: 0,
+        centerX: Math.max(0, Math.min(1, manualReframe.centerX)),
+        centerY: Math.max(0, Math.min(1, manualReframe.centerY)),
+        zoom: Math.max(1, Math.min(3, manualReframe.zoom)),
+      };
+      return {
+        ...adapted,
+        smartReframe: {
+          mode: "static" as const,
+          speakerSelection: false,
+          source: "mediapipe-face-landmarker" as const,
+          keyframes: [keyframe, { ...keyframe, time: segment.duration }],
+        },
+      };
+    });
   const transitionIds = new Set(layers.filter((layer) => layer.type === "transition").map((layer) => layer.id));
   const now = new Date().toISOString();
 

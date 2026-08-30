@@ -102,6 +102,12 @@ import {
   resolveSmartReframeAtTime,
   type SmartSpeechRange,
 } from "@/src/video-maker/smart-reframe";
+import {
+  DEFAULT_SMART_CLIP_FACE_FILTERS,
+  createSmartClipProjectDocument,
+  migrateSmartClipProject,
+  type SmartClipFaceFilterSettings,
+} from "@/src/video-maker/smart-clip-project";
 import { containFrameBounds, fitFrameBoundsToMedia } from "@/src/video-maker/frame-geometry";
 import {
   EMPTY_MEDIA_LIBRARY,
@@ -139,6 +145,7 @@ const PREVIEW_FRAME_CACHE_MAX_HEIGHT = 540;
 const TIMELINE_MAX_ZOOM = 32;
 const STAGE_POSITION_LIMIT_PERCENT = 500;
 const STAGE_MAX_SIZE_PERCENT = 600;
+const PREVIEW_PLAYBACK_RATES = [0.5, 1, 1.5, 2, 3] as const;
 
 function releasePreviewMediaElement(element: HTMLMediaElement) {
   element.pause();
@@ -647,7 +654,7 @@ type CloudVideoProject = {
 };
 
 type SidebarPanel = "imports" | "elements" | "text" | "audio" | "project" | "settings";
-type ElementPanelTab = "my-library" | "assets" | "video-backgrounds" | "sound-effects" | "lower-thirds" | "animations" | "effects" | "shapes" | "frames" | "grids" | "social" | "gradients" | "transitions" | "emojis";
+type ElementPanelTab = "my-library" | "assets" | "video-backgrounds" | "sound-effects" | "lower-thirds" | "animations" | "effects" | "face" | "shapes" | "frames" | "grids" | "social" | "gradients" | "transitions" | "emojis";
 type TraditionalMenuName = "file" | "edit" | "tools" | "view" | "advanced" | "help";
 type ProjectLifecycleAction = "new" | "open" | "close-project" | "close-app";
 type ImportKindFilter = "all" | "video" | "image" | "audio";
@@ -754,6 +761,7 @@ type ClipEditState = {
   initialTrackId: string;
   initialLayers: VideoLayer[];
   hasChanged: boolean;
+  freeMovement: boolean;
 };
 
 type TransitionResizeState = {
@@ -1385,6 +1393,18 @@ function getLayerCanvasFilter(layer: VideoLayer) {
   }
 
   return filters.length ? filters.join(" ") : "none";
+}
+
+function getSmartClipFaceCanvasFilter(filters: SmartClipFaceFilterSettings, layer: VideoLayer) {
+  if (!filters.enabled || layer.type !== "media" || layer.mediaKind !== "video") return "none";
+  const intensity = clamp(filters.intensity / 100, 0, 1);
+  if (intensity <= 0) return "none";
+  return [
+    `brightness(${1 + (filters.brightness / 100) * 0.35 * intensity})`,
+    `contrast(${1 + (filters.contrast / 100) * 0.45 * intensity})`,
+    `saturate(${1 + (filters.sharpness / 100) * 0.3 * intensity})`,
+    `blur(${(filters.smoothing / 100) * 1.1 * intensity}px)`,
+  ].join(" ");
 }
 
 function applyChromaKeyToCanvas(
@@ -2833,14 +2853,14 @@ function buildWaveformPath(segmentPeaks: number[]) {
 
   const topPoints = segmentPeaks.map((peak, index) => {
     const x = segmentPeaks.length === 1 ? 0 : (index / (segmentPeaks.length - 1)) * width;
-    const shapedPeak = Math.pow(clamp(peak, 0, 1), 0.62);
+    const shapedPeak = Math.pow(clamp(peak, 0, 1), 0.9);
     const y = centerY - Math.max(2.4, shapedPeak * maxAmplitude);
     return `${x.toFixed(2)} ${y.toFixed(2)}`;
   });
   const bottomPoints = [...segmentPeaks].reverse().map((peak, reverseIndex) => {
     const index = segmentPeaks.length - 1 - reverseIndex;
     const x = segmentPeaks.length === 1 ? 0 : (index / (segmentPeaks.length - 1)) * width;
-    const shapedPeak = Math.pow(clamp(peak, 0, 1), 0.62);
+    const shapedPeak = Math.pow(clamp(peak, 0, 1), 0.9);
     const y = centerY + Math.max(2.4, shapedPeak * maxAmplitude);
     return `${x.toFixed(2)} ${y.toFixed(2)}`;
   });
@@ -2991,6 +3011,7 @@ export default function VideoMaker() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPlaybackPriming, setIsPlaybackPriming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [previewPlaybackRate, setPreviewPlaybackRate] = useState(1);
   const [masterVolume, setMasterVolume] = useState(1);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [serverExportFormatId, setServerExportFormatId] = useState<PixoresVideoExportFormatId>(PIXORES_DEFAULT_VIDEO_EXPORT_FORMAT_ID);
@@ -3025,13 +3046,16 @@ export default function VideoMaker() {
   const [smartClipCaptionSize, setSmartClipCaptionSize] = useState(SMART_CLIP_CAPTION_SIZE_DEFAULT);
   const [smartClipFaceMode, setSmartClipFaceMode] = useState<SmartClipFaceMode>("dynamic");
   const [smartClipSpeakerSelection, setSmartClipSpeakerSelection] = useState(true);
-  const [smartClipFastExport, setSmartClipFastExport] = useState(true);
+  const [smartClipFastExport, setSmartClipFastExport] = useState(false);
   const [smartClipSource, setSmartClipSource] = useState<SmartClipSourceState | null>(null);
   const [isSmartClipSourceLoading, setIsSmartClipSourceLoading] = useState(false);
   const [smartClipCandidates, setSmartClipCandidates] = useState<SmartClipCandidate[]>([]);
   const [smartClipActiveCandidateId, setSmartClipActiveCandidateId] = useState("");
   const [smartClipPreviewSource, setSmartClipPreviewSource] = useState("");
   const [smartClipPreviewOffset, setSmartClipPreviewOffset] = useState(0);
+  const [smartClipProjectTitle, setSmartClipProjectTitle] = useState("Smart Clips project");
+  const [smartClipProjectFilePath, setSmartClipProjectFilePath] = useState("");
+  const [smartClipFaceFilters, setSmartClipFaceFilters] = useState<SmartClipFaceFilterSettings>(DEFAULT_SMART_CLIP_FACE_FILTERS);
   const [smartClipsProgress, setSmartClipsProgress] = useState<SmartClipsProgressState>({
     running: false,
     cancelling: false,
@@ -3517,19 +3541,19 @@ export default function VideoMaker() {
   playbackTargetsRef.current = playbackTargets;
 
   useEffect(() => {
-    if (isPlaying || isRecording) return;
+    if (isRecording) return;
+    const preloadLookaheadSeconds = Math.max(2, previewPlaybackRate * 2);
     const nextLayer = layers
-      .filter((layer) => layer.visible && layer.type === "media" && layer.mediaKind === "video" && layer.start > currentTime && layer.start <= currentTime + 2)
+      .filter((layer) => layer.visible && layer.type === "media" && layer.mediaKind === "video" && layer.start > currentTime && layer.start <= currentTime + preloadLookaheadSeconds)
       .sort((first, second) => first.start - second.start)[0];
     if (!nextLayer) return;
     const asset = mediaAssetsRef.current.get(nextLayer.assetKey || nextLayer.id);
     if (!asset || asset.kind !== "video" || !asset.video) return;
-    if (!layerVideoElementsRef.current.has(nextLayer.id) && layerVideoElementsRef.current.size >= MAX_PREVIEW_VIDEO_ELEMENTS) return;
     const element = getLayerVideoElement(nextLayer, asset);
     if (!element || element.readyState === 0) return;
     const preloadTime = clamp(getLayerSourceStart(nextLayer), 0, Number.isFinite(element.duration) ? Math.max(0, element.duration - 0.05) : getLayerSourceStart(nextLayer));
     if (Math.abs(element.currentTime - preloadTime) > 0.08 && !element.seeking) element.currentTime = preloadTime;
-  }, [currentTime, getLayerVideoElement, isPlaying, isRecording, layers]);
+  }, [currentTime, getLayerVideoElement, isPlaying, isRecording, layers, previewPlaybackRate]);
 
   const timelineMarks = useMemo(() => {
     const niceMajorSteps = [0.5, 1, 2, 5, 10, 15, 30, 60, 150, 300, 600, 900, 1800];
@@ -3628,6 +3652,7 @@ export default function VideoMaker() {
       const drawMediaSource = (source: CanvasImageSource, sourceWidth: number, sourceHeight: number) => {
         const canvasFilter = mergeCanvasFilters(
           getLayerCanvasFilter(layer),
+          getSmartClipFaceCanvasFilter(smartClipFaceFilters, layer),
           getLayerAnimationCanvasFilter(animationStyle),
           transitionFilter,
         );
@@ -3860,7 +3885,11 @@ export default function VideoMaker() {
         context.globalAlpha *= (mediaLayer.opacity ?? 1) * mediaAnimationStyle.opacityMultiplier;
         applyLayerTransform(context, { ...mediaLayer, angle: 0 }, 0, 0, bounds.width, bounds.height, mediaAnimationStyle);
         applyLayerAnimationClip(context, mediaAnimationStyle, bounds.width, bounds.height);
-        context.filter = mergeCanvasFilters(getLayerCanvasFilter(mediaLayer), getLayerAnimationCanvasFilter(mediaAnimationStyle));
+        context.filter = mergeCanvasFilters(
+          getLayerCanvasFilter(mediaLayer),
+          getSmartClipFaceCanvasFilter(smartClipFaceFilters, mediaLayer),
+          getLayerAnimationCanvasFilter(mediaAnimationStyle),
+        );
         drawLayerMedia(
           context,
           source,
@@ -4275,7 +4304,7 @@ export default function VideoMaker() {
         && time <= getLayerEnd(layer)
       ))
       .forEach((layer) => drawTransitionOverlay(context, layer, width, height, time));
-  }, [background, fontLoadRevision, getLayerVideoElement, isPlaying, isRecording, layers, projectDuration, selectedFormat.height, selectedFormat.width, trackSettings]);
+  }, [background, fontLoadRevision, getLayerVideoElement, isPlaying, isRecording, layers, projectDuration, selectedFormat.height, selectedFormat.width, smartClipFaceFilters, trackSettings]);
 
   useEffect(() => {
     layersRef.current = layers;
@@ -4663,7 +4692,7 @@ export default function VideoMaker() {
 
       const startElement = () => {
         if (!isPlaybackActive || !shouldPlay) return;
-        element.playbackRate = 1;
+        element.playbackRate = previewPlaybackRate;
         void element.play().catch(() => {
           setIsPlaying(false);
           setStatus("Preview audio needs another tap on Play to start");
@@ -4680,9 +4709,13 @@ export default function VideoMaker() {
         element.pause();
         element.playbackRate = 1;
       } else if (isPlaybackActive && shouldPlay && !element.seeking && drift > 0.04) {
-        element.playbackRate = clamp(1 + (targetTime - (element.currentTime || 0)) * 0.12, 0.97, 1.03);
-      } else if (Math.abs(element.playbackRate - 1) > 0.001) {
-        element.playbackRate = 1;
+        element.playbackRate = clamp(
+          previewPlaybackRate + (targetTime - (element.currentTime || 0)) * 0.12,
+          Math.max(0.25, previewPlaybackRate - 0.03),
+          previewPlaybackRate + 0.03,
+        );
+      } else if (isPlaybackActive && shouldPlay && Math.abs(element.playbackRate - previewPlaybackRate) > 0.001) {
+        element.playbackRate = previewPlaybackRate;
       }
     });
 
@@ -4707,7 +4740,7 @@ export default function VideoMaker() {
     return () => {
       seekListeners.forEach(({ element, listener }) => element.removeEventListener("seeked", listener));
     };
-  }, [isPlaying, isRecording, playbackTargets]);
+  }, [isPlaying, isRecording, playbackTargets, previewPlaybackRate]);
 
   useEffect(() => {
     const activeLayerIds = new Set(layers.map((layer) => layer.id));
@@ -5032,6 +5065,7 @@ export default function VideoMaker() {
 
     const handlePointerUp = () => {
       endClipEdit();
+      finishVolumeDrag(true);
       const transitionEdit = transitionResizeRef.current;
       if (transitionEdit) {
         if (transitionEdit.hasChanged) {
@@ -5100,7 +5134,7 @@ export default function VideoMaker() {
     let lastCanvasDrawAt = startedAt - (1000 / 30);
 
     const tick = (now: number) => {
-      const performanceClockTime = startTime + (now - startedAt) / 1000;
+      const performanceClockTime = startTime + ((now - startedAt) / 1000) * previewPlaybackRate;
       const audioMaster = Array.from(playbackTargetsRef.current.values()).find((target) => (
         target.shouldPlay && target.volume > 0 && !target.element.paused && !target.element.seeking && target.element.readyState >= 2
       ));
@@ -5142,7 +5176,7 @@ export default function VideoMaker() {
 
     animationFrame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrame);
-  }, [drawScene, isPlaying, isRecording, previewRangeEnd]);
+  }, [drawScene, isPlaying, isRecording, previewPlaybackRate, previewRangeEnd]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -6804,12 +6838,14 @@ export default function VideoMaker() {
   }
 
   function selectLayer(layerId: string, trackId?: string) {
+    finishVolumeDrag(true);
     setSelectedLayerId(layerId);
     setSelectedLayerIds(layerId ? [layerId] : []);
     if (trackId) setSelectedTrackId(trackId);
   }
 
   function selectTimelineLayer(layer: VideoLayer, additive = false) {
+    finishVolumeDrag(true);
     const layerIdsToToggle = layer.groupId
       ? layersRef.current.filter((item) => item.groupId === layer.groupId).map((item) => item.id)
       : [layer.id];
@@ -6837,6 +6873,7 @@ export default function VideoMaker() {
   }
 
   function clearLayerSelection() {
+    finishVolumeDrag(true);
     stageEditRef.current = null;
     setSelectedLayerId("");
     setSelectedLayerIds([]);
@@ -7595,6 +7632,8 @@ export default function VideoMaker() {
   function updateClipFromPointer(clientX: number, clientY: number, bypassSnapping = false, pointerId?: number) {
     const edit = clipEditRef.current;
     if (!edit || (pointerId !== undefined && edit.pointerId !== pointerId)) return;
+    if (edit.mode === "move" && (!snappingEnabled || bypassSnapping)) edit.freeMovement = true;
+    const useMagneticRipple = edit.mode === "move" && snappingEnabled && !edit.freeMovement;
 
     const deltaSeconds = ((clientX - edit.startX) / edit.timelineWidth) * timelineViewportDuration;
     const targetTrack = edit.mode === "move" ? getTimelineTrackAtPoint(clientX, clientY) : null;
@@ -7610,7 +7649,7 @@ export default function VideoMaker() {
         if (!primaryInitial) return current;
 
         const sourceTrackIds = new Set(initialMovingLayers.filter(isTrackBlockingClip).map(getTrackId));
-        if (initialMovingLayers.every(isTrackBlockingClip) && sourceTrackIds.size === 1) {
+        if (useMagneticRipple && initialMovingLayers.every(isTrackBlockingClip) && sourceTrackIds.size === 1) {
           const sourceTrackId = getTrackId(primaryInitial);
           const targetTrackId = targetTrack?.trackId || sourceTrackId;
           const earliestStart = Math.min(...initialMovingLayers.map((layer) => layer.start));
@@ -7703,7 +7742,7 @@ export default function VideoMaker() {
       const singleMovingLayer = edit.mode === "move"
         ? edit.initialLayers.find((layer) => layer.id === edit.layerId)
         : undefined;
-      if (singleMovingLayer && isTrackBlockingClip(singleMovingLayer)) {
+      if (useMagneticRipple && singleMovingLayer && isTrackBlockingClip(singleMovingLayer)) {
         const desiredStart = clamp(edit.initialStart + deltaSeconds, 0, Math.max(0, timelineViewportDuration - edit.initialDuration));
         const targetTrackId = targetTrack?.trackId || edit.initialTrackId;
         const snapResult = snapTimelineTime(desiredStart, singleMovingLayer.id, edit.timelineWidth, desiredStart + edit.initialDuration, bypassSnapping, edit.initialLayers);
@@ -7993,8 +8032,10 @@ export default function VideoMaker() {
 
     event.preventDefault();
     event.stopPropagation();
+    finishVolumeDrag(true);
     setStageAlignmentGuides(null);
     setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
     setActivePanel("settings");
     if (layer.locked) return;
 
@@ -8041,7 +8082,9 @@ export default function VideoMaker() {
       clearLayerSelection();
       return;
     }
+    finishVolumeDrag(true);
     setSelectedLayerId(clickedLayer.id);
+    setSelectedLayerIds([clickedLayer.id]);
     setActivePanel("settings");
   }
 
@@ -8059,6 +8102,7 @@ export default function VideoMaker() {
     mode: ClipEditState["mode"],
   ) {
     if (layer.locked) return;
+    finishVolumeDrag(true);
     const additiveSelection = event.ctrlKey || event.metaKey;
     if (mode === "move" && additiveSelection) {
       event.preventDefault();
@@ -8100,6 +8144,7 @@ export default function VideoMaker() {
       initialTrackId: layer.trackId || layer.id,
       initialLayers: applyTrackSettingsToLayers(layersRef.current, trackSettings),
       hasChanged: false,
+      freeMovement: !snappingEnabled,
     };
     if (mode === "move") {
       setClipDragPreview({
@@ -8118,7 +8163,9 @@ export default function VideoMaker() {
         timelineInnerRef.current.releasePointerCapture(edit.pointerId);
       }
       if (edit.hasChanged) {
-        if (edit.mode === "move") setLayers((current) => resolveBlockingTrackOverlaps(current));
+        if (edit.mode === "move" && snappingEnabled && !edit.freeMovement) {
+          setLayers((current) => resolveBlockingTrackOverlaps(current));
+        }
         setHistory((current) => ({
           past: [...current.past, edit.initialLayers].slice(-60),
           future: [],
@@ -8235,6 +8282,15 @@ export default function VideoMaker() {
   function fitTimelineToView() {
     setTimelineZoom(1);
     setStatus("Timeline fitted to view");
+  }
+
+  function toggleTimelineSnapping() {
+    setSnappingEnabled((current) => {
+      const next = !current;
+      localStorage.setItem("pixores-timeline-snapping-enabled", String(next));
+      setStatus(next ? "Magnetic snapping enabled · clips join and ripple" : "Magnetic snapping disabled · free clip placement");
+      return next;
+    });
   }
 
   function zoomTimeline(delta: number) {
@@ -9950,6 +10006,7 @@ export default function VideoMaker() {
     };
     setActiveVolumeLayerId(layer.id);
     setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
     setSelectedTrackId(getTrackId(layer));
     updateVolumeLineFromPointer(layer.id, event.currentTarget, event.clientX, event.clientY);
   }
@@ -9962,12 +10019,24 @@ export default function VideoMaker() {
   }
 
   function endVolumeDrag(event: ReactPointerEvent<HTMLElement>) {
-    const drag = volumeDragRef.current;
-    if (!drag) return;
+    if (!volumeDragRef.current) return;
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    if (drag.hasChanged) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    finishVolumeDrag(true);
+  }
+
+  function finishVolumeDrag(commitHistory: boolean) {
+    const drag = volumeDragRef.current;
+    if (!drag) {
+      setActiveVolumeLayerId("");
+      setVolumeTooltip(null);
+      return;
+    }
+
+    if (commitHistory && drag.hasChanged) {
       setHistory((historyState) => ({
         past: [...historyState.past, drag.initialLayers].slice(-60),
         future: [],
@@ -10045,6 +10114,23 @@ export default function VideoMaker() {
     if (!selectedLayer || !isAudioControllableLayer(selectedLayer) || selectedLayer.locked) return;
     updateLayer(selectedLayer.id, { audioEffects: { ...DEFAULT_AUDIO_EFFECTS, ...AUDIO_EFFECT_PRESETS[preset] } });
     setStatus(`${preset.replace(/([A-Z])/g, " $1")} audio preset applied to ${selectedLayer.name}`);
+  }
+
+  function applySelectedAudioSettingsToProject() {
+    if (!selectedLayer || !isAudioControllableLayer(selectedLayer)) return;
+    const settings = {
+      volume: selectedLayer.volume ?? 1,
+      muted: Boolean(selectedLayer.muted),
+      audioFadeIn: selectedLayer.audioFadeIn || 0,
+      audioFadeOut: selectedLayer.audioFadeOut || 0,
+      audioEffects: { ...resolveAudioEffects(selectedLayer.audioEffects) },
+    };
+    const updatedCount = layersRef.current.filter((layer) => isAudioControllableLayer(layer) && !layer.locked).length;
+    commitLayers((current) => current.map((layer) => {
+      if (!isAudioControllableLayer(layer) || layer.locked) return layer;
+      return { ...layer, ...settings, audioEffects: { ...settings.audioEffects } };
+    }));
+    setStatus(`Audio level and effects applied to ${updatedCount} unlocked clip${updatedCount === 1 ? "" : "s"}`);
   }
 
   async function synchronizeSelectedAudio() {
@@ -11241,7 +11327,11 @@ export default function VideoMaker() {
       });
       smartClipSourceProjectRef.current = sourceProject;
       setSmartClipSource({ assetId, name: file.name, duration, width, height });
-      setSmartClipPreviewSource(createDesktopMediaUrl(imported.url || mediaAsset?.url || sourceUrl));
+      setSmartClipProjectTitle(file.name.replace(/\.[^.]+$/, "") || "Smart Clips project");
+      setSmartClipProjectFilePath("");
+      // Smart Clips are reviewed for framing and sharpness, so prefer the original
+      // persistent source. The regular timeline can keep using its lightweight proxy.
+      setSmartClipPreviewSource(createDesktopMediaUrl(sourceUrl));
       setSmartClipPreviewOffset(0);
       setSmartClipsProgress((current) => ({
         ...current,
@@ -11269,6 +11359,27 @@ export default function VideoMaker() {
   function selectSmartClipDuration(duration: number) {
     resetSmartClipCandidates();
     setSmartClipDuration(duration);
+  }
+
+  function invalidatePreparedSmartClipFaceTrack() {
+    const prepared = smartClipPreparedProjectRef.current;
+    if (!prepared) return;
+    smartClipPreparedProjectRef.current = {
+      ...prepared,
+      layers: prepared.layers.map((layer) => layer.smartReframe ? { ...layer, smartReframe: undefined } : layer),
+    };
+  }
+
+  function selectSmartClipFaceMode(mode: SmartClipFaceMode) {
+    invalidatePreparedSmartClipFaceTrack();
+    setSmartClipCandidates((current) => current.map((candidate) => ({ ...candidate, autoReframe: undefined })));
+    setSmartClipFaceMode(mode);
+  }
+
+  function selectSmartClipSpeakerSelection(enabled: boolean) {
+    invalidatePreparedSmartClipFaceTrack();
+    setSmartClipCandidates((current) => current.map((candidate) => ({ ...candidate, autoReframe: undefined })));
+    setSmartClipSpeakerSelection(enabled);
   }
 
   function openAudioAiDialog(tab: AudioAiTab) {
@@ -11420,6 +11531,26 @@ export default function VideoMaker() {
     setIsTextEffectsPanelOpen(true);
     setInlineEditingTextId("");
     setStatus(`${orderedCaptions.length} editable Smart Clip subtitle${orderedCaptions.length === 1 ? "" : "s"} ready · edit the text individually and use Styles → Apply to all`);
+  }
+
+  function openActiveSmartClipInEditor() {
+    const preparedProject = smartClipPreparedProjectRef.current;
+    const candidate = smartClipCandidates.find((item) => item.id === smartClipActiveCandidateId) || smartClipCandidates[0];
+    if (!preparedProject || !candidate) {
+      setStatus("Analyze Smart Clips and select a proposal before opening it in the editor");
+      return;
+    }
+
+    const platform = getSmartClipPlatform(smartClipPlatformId, { width: smartClipCustomWidth, height: smartClipCustomHeight });
+    const editableProject = applySelectedSmartClipTemplateToProject(
+      createSmartClipProject(preparedProject, candidate, platform),
+      platform,
+    );
+    const editableCaptions = editableProject.layers.filter((layer) => isAiCaptionLayer(layer));
+    applyProjectJson(editableProject);
+    setProjectTitle(candidate.title.trim() || smartClipProjectTitle.trim() || "Smart Clip");
+    setCurrentCloudProjectId("");
+    window.requestAnimationFrame(() => openSmartClipCaptionEditor(editableCaptions));
   }
 
   async function prepareEditableSmartClipCaptions() {
@@ -11721,7 +11852,10 @@ export default function VideoMaker() {
         sourceUrls,
         sourceStart,
         sourceEnd,
-        sampleFps: smartClipFaceMode === "dynamic" ? 4 : 2,
+        // Sparse observations are interpolated into the smooth metadata track.
+        // 1.5 fps is enough for talking-head clips and avoids thousands of
+        // expensive landmark passes on long source videos.
+        sampleFps: smartClipFaceMode === "dynamic" ? 1.5 : 1,
         maxFaces: smartClipSpeakerSelection ? 6 : 3,
         shouldCancel: () => smartClipExportCoordinatorRef.current.shouldCancel(sessionId),
         onProgress: (progress, message) => {
@@ -11943,6 +12077,133 @@ export default function VideoMaker() {
     setSmartClipCandidates((current) => current.map((candidate) => candidate.id === candidateId ? { ...candidate, ...patch } : candidate));
   }
 
+  function updateSmartClipCandidateReframe(candidateId: string, manualReframe: SmartClipCandidate["manualReframe"]) {
+    setSmartClipCandidates((current) => current.map((candidate) => candidate.id === candidateId
+      ? { ...candidate, manualReframe }
+      : candidate));
+  }
+
+  async function saveSmartClipProject() {
+    const sourceProject = smartClipSourceProjectRef.current;
+    const preparedProject = smartClipPreparedProjectRef.current || sourceProject;
+    if (!sourceProject || !preparedProject || !smartClipSource) {
+      setSmartClipsProgress((current) => ({ ...current, error: "Choose a master video before saving.", message: "No Smart Clips project is loaded." }));
+      return;
+    }
+    const title = smartClipProjectTitle.trim() || smartClipSource.name.replace(/\.[^.]+$/, "") || "Smart Clips project";
+    const document = createSmartClipProjectDocument(preparedProject, {
+      title,
+      sourceProject,
+      candidates: smartClipCandidates,
+      activeCandidateId: smartClipActiveCandidateId,
+      previewOffset: smartClipPreviewOffset,
+      settings: {
+        platformId: smartClipPlatformId,
+        segmentDuration: smartClipDuration,
+        customWidth: smartClipCustomWidth,
+        customHeight: smartClipCustomHeight,
+        autoCaptions: smartClipAutoCaptions,
+        captionTemplateId: smartClipCaptionTemplateId,
+        captionPosition: smartClipCaptionPosition,
+        captionSize: smartClipCaptionSize,
+        faceMode: smartClipFaceMode,
+        speakerSelection: smartClipSpeakerSelection,
+        fastExport: smartClipFastExport,
+        subtitleLanguage,
+        subtitleModel,
+        faceFilters: smartClipFaceFilters,
+      },
+    });
+    try {
+      setSmartClipsProgress((current) => ({ ...current, error: "", message: "Saving the complete Smart Clips project…" }));
+      const result = await adapters.projectPackageAdapter.saveProjectPackage({ title, project: document });
+      if (result.canceled) return;
+      setSmartClipProjectTitle(title);
+      setSmartClipProjectFilePath(result.filePath);
+      setSmartClipsProgress((current) => ({ ...current, error: "", message: "Project saved. It can reopen without analysis." }));
+      setStatus(`Smart Clips project saved · ${title}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The Smart Clips project could not be saved.";
+      setSmartClipsProgress((current) => ({ ...current, error: message, message: "Project save failed." }));
+    }
+  }
+
+  async function openSmartClipProject() {
+    try {
+      const result = await adapters.projectPackageAdapter.openProjectPackage();
+      if (result.canceled) return;
+      const document = migrateSmartClipProject(result.project);
+      if (!document) throw new Error("This file is not a saved Smart Clips project.");
+      const workspace = document.smartClipWorkspace;
+      const sourceProject = workspace.sourceProject;
+      const sourceLayer = sourceProject.layers.find((layer) => layer.type === "media" && layer.mediaKind === "video");
+      const sourceAsset = sourceProject.assets.find((asset) => asset.id === sourceLayer?.assetKey) || sourceProject.assets.find((asset) => asset.kind === "video");
+      const sourceUrl = sourceAsset?.persistentUrl || sourceAsset?.url || sourceLayer?.src || "";
+      if (!sourceLayer || !sourceUrl) throw new Error("The saved master video path is unavailable.");
+
+      const { smartClipProjectVersion: _savedVersion, smartClipWorkspace: _savedWorkspace, ...preparedProject } = document;
+      void _savedVersion;
+      void _savedWorkspace;
+      smartClipSourceProjectRef.current = sourceProject;
+      // Persistence metadata is deliberately removed before render so the IPC
+      // payload and renderer receive the same lean project shape as before.
+      smartClipPreparedProjectRef.current = preparedProject;
+      smartClipSpeechRangesRef.current = new Map();
+      setSmartClipSource({
+        assetId: sourceAsset?.id || sourceLayer.assetKey || sourceLayer.id,
+        name: sourceAsset?.name || sourceLayer.name,
+        duration: sourceProject.duration,
+        width: sourceProject.canvas.width,
+        height: sourceProject.canvas.height,
+      });
+      setSmartClipPreviewSource(createDesktopMediaUrl(sourceUrl));
+      setSmartClipPreviewOffset(workspace.previewOffset);
+      setSmartClipCandidates(workspace.candidates);
+      setSmartClipActiveCandidateId(workspace.activeCandidateId || workspace.candidates[0]?.id || "");
+      setSmartClipProjectTitle(workspace.title);
+      setSmartClipProjectFilePath(result.filePath);
+      setSmartClipPlatformId(workspace.settings.platformId);
+      setSmartClipDuration(workspace.settings.segmentDuration);
+      setSmartClipCustomWidth(workspace.settings.customWidth);
+      setSmartClipCustomHeight(workspace.settings.customHeight);
+      setSmartClipAutoCaptions(workspace.settings.autoCaptions);
+      setSmartClipCaptionTemplateId(workspace.settings.captionTemplateId);
+      setSmartClipCaptionPosition(workspace.settings.captionPosition);
+      setSmartClipCaptionSize(workspace.settings.captionSize);
+      setSmartClipFaceMode(workspace.settings.faceMode);
+      setSmartClipSpeakerSelection(workspace.settings.speakerSelection);
+      setSmartClipFastExport(workspace.settings.fastExport);
+      setSubtitleLanguage(workspace.settings.subtitleLanguage);
+      setSubtitleModel(workspace.settings.subtitleModel);
+      setSmartClipFaceFilters(workspace.settings.faceFilters);
+      setSmartClipsProgress({
+        running: false, cancelling: false, completed: workspace.candidates.length, total: workspace.candidates.length,
+        currentClip: workspace.candidates.length, progress: workspace.candidates.length ? 100 : 0,
+        message: "Project opened from saved analysis; no transcription or face scan was repeated.", error: "",
+      });
+      setStatus(`Smart Clips project opened · ${workspace.title}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The Smart Clips project could not be opened.";
+      setSmartClipsProgress((current) => ({ ...current, error: message, message: "Project open failed." }));
+    }
+  }
+
+  async function duplicateSmartClipProject() {
+    const bridge = getPixoresDesktopBridge();
+    if (!smartClipProjectFilePath || !bridge?.duplicateRecentProject) return;
+    await bridge.duplicateRecentProject(smartClipProjectFilePath);
+    setSmartClipsProgress((current) => ({ ...current, error: "", message: "A separate copy of this Smart Clips project was created." }));
+  }
+
+  async function deleteSmartClipProject() {
+    const bridge = getPixoresDesktopBridge();
+    if (!smartClipProjectFilePath || !bridge?.deleteRecentProject) return;
+    if (!window.confirm("Delete this saved Smart Clips project? The original video will not be deleted.")) return;
+    await bridge.deleteRecentProject(smartClipProjectFilePath);
+    setSmartClipProjectFilePath("");
+    setSmartClipsProgress((current) => ({ ...current, error: "", message: "Saved project deleted. The open work and source video remain available." }));
+  }
+
   async function analyzeSmartClips() {
     if (!adapters.isDesktop) {
       setSmartClipsProgress((current) => ({ ...current, error: "Local Smart Clip analysis is available in Pixores Video Maker Pro.", message: "Desktop local processing is required." }));
@@ -11987,6 +12248,9 @@ export default function VideoMaker() {
       const candidates = generateLocalSmartClipCandidates(transcriptCues, sourceProject.duration, safeDuration);
       if (!candidates.length) throw new Error("No complete spoken moments were found in this video.");
 
+      // Face analysis is intentionally deferred until export, when only the
+      // reviewed/selected cuts are scanned. The initial proposal pass should
+      // never scan a long master video frame by frame.
       smartClipPreparedProjectRef.current = captionResult.project;
       smartClipSpeechRangesRef.current = captionResult.speechRangesByLayer;
       setSmartClipCandidates(candidates);
@@ -12093,13 +12357,11 @@ export default function VideoMaker() {
 
     const platform = getSmartClipPlatform(platformId, { width: customWidth, height: customHeight });
     try {
-      let speechRangesByLayer = smartClipSpeechRangesRef.current;
       if (!smartClipPreparedProjectRef.current) {
         const captionResult = await addAutomaticSmartClipCaptions(sourceProject, platform, sessionId);
         sourceProject = captionResult.project;
-        speechRangesByLayer = captionResult.speechRangesByLayer;
+        smartClipPreparedProjectRef.current = sourceProject;
       }
-      sourceProject = await addSmartClipFaceReframing(sourceProject, speechRangesByLayer, sessionId);
       if (coordinator.shouldCancel(sessionId)) throw new Error("Smart Clips export cancelled");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Smart enhancements could not be prepared.";
@@ -12141,11 +12403,23 @@ export default function VideoMaker() {
         const segment = segments[index];
         const candidate = reviewedCandidates[index];
         const candidateTitle = candidate?.title.trim() || `Smart Clip ${index + 1}`;
-        const clipProject = createSmartClipProject(sourceProject, segment, platform);
+        let clipProject = createSmartClipProject(sourceProject, segment, platform);
+        if (smartClipFaceMode !== "off" && candidate && !candidate.manualReframe && !candidate.autoReframe) {
+          setSmartClipsProgress((current) => ({
+            ...current,
+            message: `Framing faces in selected clip ${index + 1} of ${segments.length}…`,
+          }));
+          clipProject = await addSmartClipFaceReframing(clipProject, new Map(), sessionId);
+          const autoReframe = clipProject.layers.find((layer) => layer.type === "media" && layer.mediaKind === "video")?.smartReframe;
+          if (autoReframe) {
+            setSmartClipCandidates((current) => current.map((item) => item.id === candidate.id ? { ...item, autoReframe } : item));
+          }
+        }
         const clipNumber = String(index + 1).padStart(2, "0");
         const candidateFileName = candidate
           ? `${sanitizeProjectFileName(candidateTitle) || platform.fileSuffix}-${clipNumber}`
           : `${sanitizeProjectFileName(projectTitle)}-${platform.fileSuffix}-${clipNumber}`;
+        const selectedSmartClipQuality = normalizeExportQualityPreset(exportSettings.qualityPreset);
         const clipSettings = applyExportQualityPreset({
           ...createDefaultExportSettings({
             projectTitle: candidateFileName,
@@ -12158,7 +12432,11 @@ export default function VideoMaker() {
           renderMethod: "local",
           acceleration: smartClipFastExport ? "auto" : exportSettings.acceleration,
           includeAudio: exportSettings.includeAudio,
-        }, smartClipFastExport ? "fast" : normalizeExportQualityPreset(exportSettings.qualityPreset));
+        }, smartClipFastExport
+          ? "fast"
+          : selectedSmartClipQuality === "fast"
+            ? "recommended"
+            : selectedSmartClipQuality);
 
         setSmartClipsProgress((current) => ({
           ...current,
@@ -12513,6 +12791,7 @@ export default function VideoMaker() {
                   ["lower-thirds", "Lower thirds"],
                   ["animations", "Animations"],
                   ["effects", "Effects"],
+                  ["face", "Face / Skin"],
                   ["shapes", "Shapes"],
                   ["frames", "Frames"],
                   ["grids", "Grids"],
@@ -12942,6 +13221,31 @@ export default function VideoMaker() {
                 </div>
               )}
 
+              {activeElementTab === "face" && (
+                <div className={styles.faceFilterPanel}>
+                  <div className={styles.elementsLibraryHeader}>
+                    <span><strong><Sparkles size={15} /> Face / Skin</strong><small>Lightweight controls prepared for Smart Clips</small></span>
+                  </div>
+                  <label className={styles.faceFilterToggle}>
+                    <input type="checkbox" checked={smartClipFaceFilters.enabled} onChange={(event) => setSmartClipFaceFilters((current) => ({ ...current, enabled: event.target.checked }))} />
+                    Enable preview
+                  </label>
+                  {([
+                    ["smoothing", "Smooth skin"],
+                    ["brightness", "Face brightness"],
+                    ["contrast", "Contrast"],
+                    ["sharpness", "Sharpness"],
+                    ["intensity", "Overall intensity"],
+                  ] as Array<[keyof Pick<SmartClipFaceFilterSettings, "smoothing" | "brightness" | "contrast" | "sharpness" | "intensity">, string]>).map(([key, label]) => (
+                    <label key={key} className={styles.faceFilterControl}>
+                      <span>{label}<output>{smartClipFaceFilters[key]}%</output></span>
+                      <input type="range" min="0" max="100" step="1" value={smartClipFaceFilters[key]} onChange={(event) => setSmartClipFaceFilters((current) => ({ ...current, [key]: Number(event.target.value) }))} />
+                    </label>
+                  ))}
+                  <p>Preview only for now. Export keeps the fast native/GPU path; no face AI runs frame by frame.</p>
+                </div>
+              )}
+
               {activeElementTab === "shapes" && (
                 <div className={styles.assetGrid}>
                   {shapePresets.map((shape) => (
@@ -13259,6 +13563,7 @@ export default function VideoMaker() {
                     <label className={styles.audioCheckbox}><input type="checkbox" checked={selectedAudioEffects.echoEnabled} disabled={selectedLayer.locked} onChange={(event) => updateSelectedAudioEffects({ echoEnabled: event.target.checked })} /> Enable echo</label>
                     {selectedAudioEffects.echoEnabled && <><label>Delay {selectedAudioEffects.echoDelayMs} ms<input disabled={selectedLayer.locked} type="range" min="40" max="1000" step="10" value={selectedAudioEffects.echoDelayMs} onChange={(event) => updateSelectedAudioEffects({ echoDelayMs: Number(event.target.value) })} /></label><label>Decay {Math.round(selectedAudioEffects.echoDecay * 100)}%<input disabled={selectedLayer.locked} type="range" min="0.05" max="0.9" step="0.05" value={selectedAudioEffects.echoDecay} onChange={(event) => updateSelectedAudioEffects({ echoDecay: Number(event.target.value) })} /></label></>}
                   </details>
+                  <button type="button" className={styles.audioApplyProjectButton} disabled={selectedLayer.locked} onClick={applySelectedAudioSettingsToProject}>Apply this level &amp; effects to the whole project</button>
                   <button type="button" className={styles.audioResetButton} disabled={selectedLayer.locked} onClick={() => resetSelectedClipVolume(selectedLayer)}>Reset all audio settings</button>
                 </>
               )}
@@ -14336,7 +14641,7 @@ export default function VideoMaker() {
                 <div className={styles.traditionalMenuDropdown} role="menu">
                   <button type="button" onClick={() => runTraditionalMenuAction(() => openToolPanel("project"))}>Project Settings…</button>
                   <button type="button" onClick={() => runTraditionalMenuAction(addEmptyTrack)}>Create Empty Track</button>
-                  <button type="button" onClick={() => runTraditionalMenuAction(() => setSnappingEnabled((value) => !value))}>{snappingEnabled ? "Disable" : "Enable"} Snapping</button>
+                  <button type="button" onClick={() => runTraditionalMenuAction(toggleTimelineSnapping)}>{snappingEnabled ? "Disable" : "Enable"} Snapping</button>
                   <div className={styles.traditionalMenuSeparator} />
                   <button type="button" disabled={!selectedLayer || selectedLayer.type !== "media" || selectedLayer.mediaKind !== "video"} onClick={() => runTraditionalMenuAction(extractAudioFromSelectedVideo)}>Detach Audio</button>
                   <button type="button" onClick={() => runTraditionalMenuAction(setExportMarkIn)}>Set In Point</button>
@@ -14887,6 +15192,15 @@ export default function VideoMaker() {
                 />
               </label>
               <select
+                className={styles.playbackRateSelect}
+                value={previewPlaybackRate}
+                onChange={(event) => setPreviewPlaybackRate(Number(event.target.value))}
+                aria-label="Preview playback speed"
+                title="Preview playback speed (export speed is unchanged)"
+              >
+                {PREVIEW_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}x</option>)}
+              </select>
+              <select
                 className={styles.canvasZoomSelect}
                 value={canvasZoom}
                 onChange={(event) => {
@@ -14938,11 +15252,7 @@ export default function VideoMaker() {
               <button
                 type="button"
                 className={snappingEnabled ? styles.activeSnappingButton : ""}
-                onClick={() => setSnappingEnabled((value) => {
-                  const next = !value;
-                  localStorage.setItem("pixores-timeline-snapping-enabled", String(next));
-                  return next;
-                })}
+                onClick={toggleTimelineSnapping}
                 title={`${snappingEnabled ? "Disable" : "Enable"} snapping (${snappingShortcut.toUpperCase()}). Hold Alt for free movement.`}
                 aria-label={snappingEnabled ? "Disable snapping" : "Enable snapping"}
                 aria-pressed={snappingEnabled}
@@ -15213,16 +15523,23 @@ export default function VideoMaker() {
                         const volumePercent = Math.round(clipVolume * 100);
                         const entranceAnimation = getLayerAnimationForPhase(layer, "in");
                         const exitAnimation = getLayerAnimationForPhase(layer, "out");
+                        const clipOverlapsTrack = hasTrackOverlap(layers, layer);
                         return (
                           <span
                             key={layer.id}
-                            className={`${styles.clip} ${layer.type === "audio" ? styles.audioClip : ""} ${hasAudioControl ? styles.audioWaveClip : ""} ${layer.muted ? styles.clipMuted : ""} ${selectedLayerIdSet.has(layer.id) ? styles.selectedClip : ""} ${hasTrackOverlap(layers, layer) ? styles.overlappingClip : ""}`}
-                            onPointerDown={(event) => beginClipEdit(event, layer, "move")}
+                            className={`${styles.clip} ${layer.type === "audio" ? styles.audioClip : ""} ${hasAudioControl ? styles.audioWaveClip : ""} ${layer.muted ? styles.clipMuted : ""} ${selectedLayerIdSet.has(layer.id) ? styles.selectedClip : ""} ${clipOverlapsTrack ? styles.overlappingClip : ""}`}
+                            onPointerDown={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              selectTimelineLayer(layer, event.ctrlKey || event.metaKey);
+                              setIsPlaying(false);
+                            }}
                             onContextMenu={(event) => openTimelineClipContextMenu(event, layer)}
                             style={{
                               left: `${(layer.start / timelineViewportDuration) * 100}%`,
                               width: `${(layer.duration / timelineViewportDuration) * 100}%`,
                             }}
+                            title={clipOverlapsTrack ? "Red outline: this clip overlaps another clip on the same track" : "Select clip. Use the center grip to move it."}
                           >
                             {entranceAnimation && (
                               <span
@@ -15661,6 +15978,10 @@ export default function VideoMaker() {
         activeCandidateId={smartClipActiveCandidateId}
         previewSource={smartClipPreviewSource}
         previewOffset={smartClipPreviewOffset}
+        previewCaptions={smartClipPreparedProjectRef.current?.layers.filter((layer) => isAiCaptionLayer(layer)) || []}
+        projectTitle={smartClipProjectTitle}
+        projectFilePath={smartClipProjectFilePath}
+        faceFilters={smartClipFaceFilters}
         onSourceFileChange={(file) => void selectSmartClipSourceFile(file)}
         onPlatformChange={selectSmartClipPlatform}
         onDurationChange={selectSmartClipDuration}
@@ -15677,8 +15998,8 @@ export default function VideoMaker() {
           resetSmartClipCandidates();
           selectSmartClipCaptionSize(sizePercent);
         }}
-        onFaceModeChange={setSmartClipFaceMode}
-        onSpeakerSelectionChange={setSmartClipSpeakerSelection}
+        onFaceModeChange={selectSmartClipFaceMode}
+        onSpeakerSelectionChange={selectSmartClipSpeakerSelection}
         onFastExportChange={setSmartClipFastExport}
         onSubtitleLanguageChange={(language) => {
           resetSmartClipCandidates();
@@ -15694,9 +16015,17 @@ export default function VideoMaker() {
           setSmartClipCustomHeight(height);
         }}
         onAnalyze={() => void analyzeSmartClips()}
+        onEditActiveClip={openActiveSmartClipInEditor}
         onCandidateChange={updateSmartClipCandidate}
+        onCandidateReframeChange={updateSmartClipCandidateReframe}
         onActiveCandidateChange={setSmartClipActiveCandidateId}
         onChooseDestination={() => void chooseExportDestination()}
+        onProjectTitleChange={setSmartClipProjectTitle}
+        onFaceFiltersChange={setSmartClipFaceFilters}
+        onSaveProject={() => void saveSmartClipProject()}
+        onOpenProject={() => void openSmartClipProject()}
+        onDuplicateProject={() => void duplicateSmartClipProject()}
+        onDeleteProject={() => void deleteSmartClipProject()}
         onClose={() => {
           if (smartClipsProgress.running) return;
           setIsSmartClipsDialogOpen(false);
@@ -15879,6 +16208,10 @@ type SmartClipsDialogProps = {
   activeCandidateId: string;
   previewSource: string;
   previewOffset: number;
+  previewCaptions: PixoresVideoLayer[];
+  projectTitle: string;
+  projectFilePath: string;
+  faceFilters: SmartClipFaceFilterSettings;
   onSourceFileChange: (file: File) => void;
   onPlatformChange: (platformId: SmartClipPlatformId) => void;
   onDurationChange: (duration: number) => void;
@@ -15892,10 +16225,18 @@ type SmartClipsDialogProps = {
   onSubtitleLanguageChange: (language: "auto" | "Spanish" | "English") => void;
   onSubtitleModelChange: (model: "tiny" | "base") => void;
   onAnalyze: () => void;
+  onEditActiveClip: () => void;
   onCandidateChange: (candidateId: string, patch: Partial<Pick<SmartClipCandidate, "title" | "selected">>) => void;
+  onCandidateReframeChange: (candidateId: string, reframe: SmartClipCandidate["manualReframe"]) => void;
   onActiveCandidateChange: (candidateId: string) => void;
   onCustomSizeChange: (width: number, height: number) => void;
   onChooseDestination: () => void;
+  onProjectTitleChange: (title: string) => void;
+  onFaceFiltersChange: (filters: SmartClipFaceFilterSettings) => void;
+  onSaveProject: () => void;
+  onOpenProject: () => void;
+  onDuplicateProject: () => void;
+  onDeleteProject: () => void;
   onClose: () => void;
   onCancel: () => void;
   onExport: () => void;
@@ -15922,11 +16263,15 @@ function SmartClipCandidatePreview({
   candidate,
   sourceOffset,
   platform,
+  faceFilters,
+  captions,
 }: {
   source: string;
   candidate?: SmartClipCandidate;
   sourceOffset: number;
   platform: SmartClipPlatform;
+  faceFilters: SmartClipFaceFilterSettings;
+  captions: PixoresVideoLayer[];
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -15934,6 +16279,15 @@ function SmartClipCandidatePreview({
   const previewStart = Math.max(0, sourceOffset + (candidate?.start || 0));
   const previewEnd = Math.max(previewStart, sourceOffset + (candidate?.end || 0));
   const previewDuration = Math.max(0.05, previewEnd - previewStart);
+  const manualReframe = candidate?.manualReframe;
+  const filterStrength = faceFilters.enabled ? faceFilters.intensity / 100 : 0;
+  const previewFilter = faceFilters.enabled
+    ? `brightness(${1 + (faceFilters.brightness / 100) * 0.12 * filterStrength}) contrast(${1 + (faceFilters.contrast / 100) * 0.12 * filterStrength}) saturate(${1 + (faceFilters.sharpness / 100) * 0.06 * filterStrength}) blur(${(faceFilters.smoothing / 100) * 0.35 * filterStrength}px)`
+    : undefined;
+  const activeCaption = captions.find((caption) => {
+    const sourceTime = previewStart + elapsed;
+    return caption.start <= sourceTime && caption.start + caption.duration > sourceTime;
+  });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -15983,6 +16337,11 @@ function SmartClipCandidatePreview({
           src={source}
           preload="metadata"
           playsInline
+          style={{
+            objectPosition: manualReframe ? `${manualReframe.centerX * 100}% ${manualReframe.centerY * 100}%` : undefined,
+            transform: manualReframe ? `scale(${manualReframe.zoom})` : undefined,
+            filter: previewFilter,
+          }}
           onClick={() => void togglePreview()}
           onLoadedMetadata={(event) => {
             event.currentTarget.currentTime = previewStart;
@@ -16001,6 +16360,25 @@ function SmartClipCandidatePreview({
             setElapsed(Math.min(previewDuration, currentElapsed));
           }}
         />
+        {activeCaption?.text && (
+          <div
+            className={styles.smartClipPreviewCaption}
+            style={{
+              left: `${activeCaption.x}%`,
+              top: `${activeCaption.y}%`,
+              width: `${activeCaption.width}%`,
+              color: activeCaption.color || "#ffffff",
+              fontFamily: activeCaption.fontFamily || "Arial",
+              fontWeight: activeCaption.isBold === false ? 500 : 900,
+              fontStyle: activeCaption.isItalic ? "italic" : undefined,
+              textTransform: activeCaption.isUppercase ? "uppercase" : undefined,
+              textAlign: activeCaption.textAlign || "center",
+              background: activeCaption.hasTextBg ? activeCaption.textBgColor || "rgba(0,0,0,.72)" : undefined,
+              borderRadius: activeCaption.hasTextBg ? 7 : undefined,
+              textShadow: activeCaption.shadowColor ? `0 2px 6px ${activeCaption.shadowColor}` : "0 2px 6px rgba(0,0,0,.9)",
+            }}
+          >{activeCaption.text}</div>
+        )}
         <span>{platform.aspectRatio} · {platform.width} × {platform.height}</span>
       </div>
       <div className={styles.smartClipPreviewControls}>
@@ -16048,6 +16426,10 @@ function SmartClipsDialog({
   activeCandidateId,
   previewSource,
   previewOffset,
+  previewCaptions,
+  projectTitle,
+  projectFilePath,
+  faceFilters,
   onSourceFileChange,
   onPlatformChange,
   onDurationChange,
@@ -16061,10 +16443,18 @@ function SmartClipsDialog({
   onSubtitleLanguageChange,
   onSubtitleModelChange,
   onAnalyze,
+  onEditActiveClip,
   onCandidateChange,
+  onCandidateReframeChange,
   onActiveCandidateChange,
   onCustomSizeChange,
   onChooseDestination,
+  onProjectTitleChange,
+  onFaceFiltersChange,
+  onSaveProject,
+  onOpenProject,
+  onDuplicateProject,
+  onDeleteProject,
   onClose,
   onCancel,
   onExport,
@@ -16089,6 +16479,16 @@ function SmartClipsDialog({
         </header>
 
         <div className={styles.smartClipsBody}>
+          <section className={styles.smartClipProjectBar} aria-label="Smart Clips project file">
+            <label>Project name<input value={projectTitle} maxLength={96} onChange={(event) => onProjectTitleChange(event.target.value)} /></label>
+            <div>
+              <button type="button" onClick={onSaveProject} disabled={!source || progress.running}><Download size={14} /> Save</button>
+              <button type="button" onClick={onOpenProject} disabled={progress.running}><FolderOpen size={14} /> Open</button>
+              <button type="button" onClick={onDuplicateProject} disabled={!projectFilePath || progress.running}><Copy size={14} /> Duplicate</button>
+              <button type="button" onClick={onDeleteProject} disabled={!projectFilePath || progress.running} className={styles.smartClipProjectDelete}><Trash2 size={14} /> Delete</button>
+            </div>
+            <small>{projectFilePath || "Not saved yet · analysis, titles, reframes and edits will be stored together."}</small>
+          </section>
           <div className={styles.smartClipSteps}>
             <span data-complete={Boolean(source)}><b>1</b> Master video</span>
             <span data-complete={Boolean(source && candidates.length)}><b>2</b> Format & analyze</span>
@@ -16282,14 +16682,41 @@ function SmartClipsDialog({
               </div>
               <label className={styles.smartClipEnhancementToggle}>
                 <input type="checkbox" checked={fastExport} disabled={progress.running || !isDesktop} onChange={(event) => onFastExportChange(event.target.checked)} />
-                <span><strong>Fast local export</strong><small>Uses the fast social-video preset and hardware acceleration when available.</small></span>
+                <span><strong>Draft-quality export</strong><small>Creates a faster, more compressed preview. Leave this off for the final high-quality video.</small></span>
               </label>
               <div className={styles.smartClipTitleNotice}>
                 <Type size={16} />
                 <span><strong>Cut titles name the files only</strong><small>Pixores never places the cut title over the video. Automatic subtitles remain separate.</small></span>
               </div>
+              <div className={styles.smartClipFacePreviewControls}>
+                <header>
+                  <span><strong>Face / Skin preview</strong><small>Visible immediately in the preview; export stays on the fast path.</small></span>
+                  <label><input type="checkbox" checked={faceFilters.enabled} onChange={(event) => onFaceFiltersChange({ ...faceFilters, enabled: event.target.checked })} /> Enable</label>
+                </header>
+                {([
+                  ["smoothing", "Smooth skin"],
+                  ["brightness", "Face brightness"],
+                  ["contrast", "Contrast"],
+                  ["sharpness", "Sharpness"],
+                  ["intensity", "Intensity"],
+                ] as Array<[keyof Pick<SmartClipFaceFilterSettings, "smoothing" | "brightness" | "contrast" | "sharpness" | "intensity">, string]>).map(([key, label]) => (
+                  <label key={key}><span>{label}<output>{faceFilters[key]}%</output></span><input type="range" min="0" max="100" step="1" value={faceFilters[key]} disabled={!faceFilters.enabled} onChange={(event) => onFaceFiltersChange({ ...faceFilters, [key]: Number(event.target.value) })} /></label>
+                ))}
+              </div>
             </div>
           </section>
+
+          {candidates.length > 0 && (
+            <section className={styles.smartClipCaptionEditorCard} aria-label="Edit selected Smart Clip">
+              <span>
+                <strong>Preview and edit the selected cut on the main canvas</strong>
+                <small>Opens this cut with its generated subtitles as editable timeline layers. Use the regular Export button after reviewing it.</small>
+              </span>
+              <button type="button" onClick={onEditActiveClip} disabled={progress.running || !activeCandidate}>
+                <Type size={15} /> Edit selected cut
+              </button>
+            </section>
+          )}
 
           {candidates.length > 0 && (
             <section className={styles.smartClipReview} aria-label="Local Smart Clip proposals">
@@ -16303,7 +16730,20 @@ function SmartClipsDialog({
                   <button type="button" onClick={() => candidates.forEach((candidate) => onCandidateChange(candidate.id, { selected: false }))}>Clear</button>
                 </div>
               </header>
-              <SmartClipCandidatePreview source={previewSource} candidate={activeCandidate} sourceOffset={previewOffset} platform={platform} />
+              <SmartClipCandidatePreview source={previewSource} candidate={activeCandidate} sourceOffset={previewOffset} platform={platform} faceFilters={faceFilters} captions={previewCaptions} />
+              {activeCandidate && (
+                <div className={styles.smartClipManualReframe}>
+                  <header><span><strong>Manual reframe</strong><small>Overrides automatic framing only for this cut.</small></span><button type="button" onClick={() => onCandidateReframeChange(activeCandidate.id, undefined)}>Use Auto</button></header>
+                  {([
+                    ["centerX", "Horizontal", 0, 1, 0.01],
+                    ["centerY", "Vertical", 0, 1, 0.01],
+                    ["zoom", "Zoom", 1, 3, 0.01],
+                  ] as const).map(([key, label, min, max, step]) => {
+                    const reframe = activeCandidate.manualReframe || { centerX: 0.5, centerY: 0.5, zoom: 1 };
+                    return <label key={key}><span>{label}<output>{key === "zoom" ? `${reframe[key].toFixed(2)}×` : `${Math.round(reframe[key] * 100)}%`}</output></span><input type="range" min={min} max={max} step={step} value={reframe[key]} onChange={(event) => onCandidateReframeChange(activeCandidate.id, { ...reframe, [key]: Number(event.target.value) })} /></label>;
+                  })}
+                </div>
+              )}
               <div className={styles.smartClipCandidateGrid}>
                 {candidates.map((candidate) => (
                   <article key={candidate.id} className={styles.smartClipCandidateCard} data-selected={candidate.selected}>
@@ -16339,7 +16779,7 @@ function SmartClipsDialog({
           <div className={styles.smartClipPlan}>
             <div><strong>{candidates.length || segments.length}</strong><span>{candidates.length ? "proposals" : "estimated files"}</span></div>
             <div><strong>{platform.aspectRatio}</strong><span>vertical</span></div>
-            <div><strong>{platform.width}p</strong><span>width</span></div>
+            <div><strong>{platform.width} × {platform.height}</strong><span>output resolution</span></div>
             <div><strong>{formatExportSeconds(projectDuration)}</strong><span>source</span></div>
             <p>{candidates.length ? `${selectedCandidateCount} reviewed proposal${selectedCandidateCount === 1 ? " is" : "s are"} ready for selective export.` : `${platform.description} Local analysis will find complete spoken moments instead of exporting every consecutive block.`}</p>
           </div>
