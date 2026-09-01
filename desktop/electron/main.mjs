@@ -313,7 +313,14 @@ function registerIpcHandlers() {
   const downloadImageWatcher = createDownloadImageWatcher({ app });
   const audioStudio = createAudioStudioService({ app, dialog, shell });
   const imageAiHandlers = createImageAiHandlers();
-  const authStorage = createDesktopAuthStorage({ app, safeStorage });
+  const authStorage = createDesktopAuthStorage({
+    app,
+    safeStorage,
+    onDiagnostic: ({ operation, code, message }) => {
+      void writeStartupLog(`Authentication storage ${operation} failed (${code}): ${message}`);
+    },
+  });
+  void writeStartupLog(`Authentication storage encryption available=${safeStorage.isEncryptionAvailable()}`);
   const youtubePublisher = createYouTubePublisher({ app, dialog, safeStorage, shell });
 
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.assetsImport, (_event, payload) => assetHandlers.importAsset(payload));

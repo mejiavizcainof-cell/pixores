@@ -12,9 +12,17 @@ function assertAuthStorageKey(value) {
   return key;
 }
 
-export function createDesktopAuthStorage({ app, safeStorage }) {
+export function createDesktopAuthStorage({ app, safeStorage, onDiagnostic }) {
   const filePath = path.join(app.getPath("userData"), AUTH_FILE_NAME);
   let pendingWrite = Promise.resolve();
+
+  function reportDiagnostic(operation, error) {
+    onDiagnostic?.({
+      operation,
+      code: typeof error?.code === "string" ? error.code : "UNKNOWN",
+      message: error instanceof Error ? error.message : String(error || "Unknown authentication storage error"),
+    });
+  }
 
   async function readStore() {
     try {
@@ -31,6 +39,7 @@ export function createDesktopAuthStorage({ app, safeStorage }) {
       return store;
     } catch (error) {
       if (error?.code === "ENOENT") return {};
+      reportDiagnostic("read", error);
       return {};
     }
   }
@@ -39,10 +48,15 @@ export function createDesktopAuthStorage({ app, safeStorage }) {
     if (!safeStorage.isEncryptionAvailable()) {
       throw new Error("Secure Windows credential encryption is unavailable. Pixores will not persist the account session.");
     }
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    const serialized = JSON.stringify(store);
-    const contents = safeStorage.encryptString(serialized);
-    await fs.writeFile(filePath, contents);
+    try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      const serialized = JSON.stringify(store);
+      const contents = safeStorage.encryptString(serialized);
+      await fs.writeFile(filePath, contents);
+    } catch (error) {
+      reportDiagnostic("write", error);
+      throw error;
+    }
   }
 
   function updateStore(update) {

@@ -65,6 +65,10 @@ export default function DesktopAuthGate({ children, required = true, showAccount
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      // getSession() above owns the initial signed-out decision. Supabase can
+      // deliver an older, empty INITIAL_SESSION snapshot after SIGNED_IN when
+      // first-run desktop storage is slow, so it must never revoke a newer login.
+      if (event === "INITIAL_SESSION" && !session) return;
       if (!session && event !== "INITIAL_SESSION" && event !== "SIGNED_OUT") return;
       cachedSignedInEmail = session?.user.email || "";
       setUserEmail(cachedSignedInEmail);

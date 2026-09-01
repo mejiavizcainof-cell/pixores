@@ -22,7 +22,12 @@ const safeStorage = {
 };
 
 try {
-  const storage = createDesktopAuthStorage({ app: { getPath: () => tempRoot }, safeStorage });
+  const diagnostics = [];
+  const storage = createDesktopAuthStorage({
+    app: { getPath: () => tempRoot },
+    safeStorage,
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+  });
   await storage.setItem(storageKey, sessionValue);
   assert.equal(await storage.getItem(storageKey), sessionValue);
   const encryptedContents = await fs.readFile(authPath, "utf8");
@@ -39,25 +44,35 @@ try {
   assert.match(migratedContents, /^encrypted:/);
   assert(!migratedContents.includes("secret-session-token"));
 
+  await fs.writeFile(authPath, "corrupted-encrypted-session");
+  assert.equal(await storage.getItem(storageKey), null, "a corrupt encrypted session must fail closed");
+  assert.equal(diagnostics.at(-1)?.operation, "read", "desktop auth read failures must be recorded for support diagnostics");
+
   const unavailableStorage = createDesktopAuthStorage({
     app: { getPath: () => path.join(tempRoot, "unavailable") },
     safeStorage: { ...safeStorage, isEncryptionAvailable: () => false },
   });
   await assert.rejects(() => unavailableStorage.setItem(storageKey, sessionValue), /Secure Windows credential encryption is unavailable/);
 
-  const [mainSource, preloadSource, clientSource] = await Promise.all([
+  const [mainSource, preloadSource, clientSource, gateSource] = await Promise.all([
     fs.readFile(path.join(projectRoot, "desktop", "electron", "main.mjs"), "utf8"),
     fs.readFile(path.join(projectRoot, "desktop", "electron", "preload.cjs"), "utf8"),
     fs.readFile(path.join(projectRoot, "lib", "supabaseClient.ts"), "utf8"),
+    fs.readFile(path.join(projectRoot, "components", "DesktopAuthGate.tsx"), "utf8"),
   ]);
-  assert.match(mainSource, /createDesktopAuthStorage\(\{ app, safeStorage \}\)/, "Electron must create the encrypted auth store");
+  assert.match(mainSource, /createDesktopAuthStorage\(\{\s*app,\s*safeStorage,/, "Electron must create the encrypted auth store");
   assert.match(mainSource, /desktop-server\.json/, "Electron must persist its local server port across launches");
   assert.match(mainSource, /authStorage\.setItem\(key, value\)/, "Electron must expose auth writes through IPC");
   assert.match(preloadSource, /setAuthStorageItem:\s*\(key, value\)/, "the preload bridge must expose encrypted auth writes");
   assert.match(clientSource, /storage:\s*desktopAuthStorage/, "Supabase must use the desktop auth store");
   assert.match(clientSource, /persistSession:\s*true/, "Supabase desktop sessions must persist");
+  assert.match(
+    gateSource,
+    /event === "INITIAL_SESSION" && !session\) return/,
+    "an empty delayed INITIAL_SESSION event must not revoke a newly accepted desktop login",
+  );
 
-  console.log("Desktop authentication persistence, encryption, migration, and integration tests passed.");
+  console.log("Desktop authentication race prevention, diagnostics, persistence, encryption, migration, and integration tests passed.");
 } finally {
   await fs.rm(tempRoot, { recursive: true, force: true });
 }
