@@ -66,13 +66,16 @@ try {
   assert.match(preloadSource, /setAuthStorageItem:\s*\(key, value\)/, "the preload bridge must expose encrypted auth writes");
   assert.match(clientSource, /storage:\s*desktopAuthStorage/, "Supabase must use the desktop auth store");
   assert.match(clientSource, /persistSession:\s*true/, "Supabase desktop sessions must persist");
-  assert.match(
+  assert.doesNotMatch(
     gateSource,
-    /event === "INITIAL_SESSION" && !session\) return/,
-    "an empty delayed INITIAL_SESSION event must not revoke a newly accepted desktop login",
+    /supabase\.auth\.getSession/,
+    "desktop auth initialization must have one authority; a concurrent getSession result can overwrite SIGNED_IN",
   );
+  assert.match(gateSource, /onAuthStateChange/, "desktop auth must initialize from Supabase's ordered event stream");
+  assert.match(gateSource, /logAuthDiagnostic/, "desktop auth events must be recorded without credentials or tokens");
+  assert.match(mainSource, /Authentication event=\$\{authEvent\} hasSession=/, "safe auth event diagnostics must reach the startup log");
 
-  console.log("Desktop authentication race prevention, diagnostics, persistence, encryption, migration, and integration tests passed.");
+  console.log("Desktop single-authority authentication, diagnostics, persistence, encryption, migration, and integration tests passed.");
 } finally {
   await fs.rm(tempRoot, { recursive: true, force: true });
 }

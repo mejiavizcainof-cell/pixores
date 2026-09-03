@@ -28,6 +28,7 @@ export const PIXORES_DESKTOP_CHANNELS = Object.freeze({
   authStorageGet: "pixores:auth-storage:get",
   authStorageSet: "pixores:auth-storage:set",
   authStorageRemove: "pixores:auth-storage:remove",
+  authDiagnostic: "pixores:auth:diagnostic",
   projectPackageOpen: "pixores:project-package:open",
   projectPackageOpenRecent: "pixores:project-package:open-recent",
   projectPackageSave: "pixores:project-package:save",

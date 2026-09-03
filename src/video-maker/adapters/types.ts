@@ -179,6 +179,7 @@ export type PixoresDesktopBridge = {
   getAuthStorageItem?: (key: string) => Promise<string | null>;
   setAuthStorageItem?: (key: string, value: string) => Promise<{ ok: true }>;
   removeAuthStorageItem?: (key: string) => Promise<{ ok: true }>;
+  logAuthDiagnostic?: (payload: { event: string; hasSession: boolean }) => void;
   openProjectPackage?: () => Promise<ProjectPackageOpenResult>;
   openRecentProjectPackage?: (filePath: string) => Promise<ProjectPackageOpenResult>;
   saveProjectPackage?: (payload: ProjectPackageSaveInput) => Promise<ProjectPackageSaveResult>;

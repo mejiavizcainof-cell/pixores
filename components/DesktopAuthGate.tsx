@@ -54,21 +54,10 @@ export default function DesktopAuthGate({ children, required = true, showAccount
       };
     }
 
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      const sessionEmail = data.session?.user.email || "";
-      cachedSignedInEmail = sessionEmail;
-      setUserEmail(sessionEmail);
-      setAuthState(data.session?.user && !error ? "signed-in" : "signed-out");
-      if (error) setMessage("Your session expired. Sign in again to continue.");
-    });
-
+    const bridge = getPixoresDesktopBridge();
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-      // getSession() above owns the initial signed-out decision. Supabase can
-      // deliver an older, empty INITIAL_SESSION snapshot after SIGNED_IN when
-      // first-run desktop storage is slow, so it must never revoke a newer login.
-      if (event === "INITIAL_SESSION" && !session) return;
+      bridge?.logAuthDiagnostic?.({ event, hasSession: Boolean(session) });
       if (!session && event !== "INITIAL_SESSION" && event !== "SIGNED_OUT") return;
       cachedSignedInEmail = session?.user.email || "";
       setUserEmail(cachedSignedInEmail);

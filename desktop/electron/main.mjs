@@ -356,6 +356,12 @@ function registerIpcHandlers() {
     assertMainWindowSender(event);
     return authStorage.removeItem(key);
   });
+  ipcMain.on(PIXORES_DESKTOP_CHANNELS.authDiagnostic, (event, payload) => {
+    assertMainWindowSender(event);
+    const allowedEvents = new Set(["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED", "USER_UPDATED", "PASSWORD_RECOVERY", "MFA_CHALLENGE_VERIFIED"]);
+    const authEvent = allowedEvents.has(payload?.event) ? payload.event : "UNKNOWN";
+    void writeStartupLog(`Authentication event=${authEvent} hasSession=${Boolean(payload?.hasSession)}`);
+  });
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.autoSaveLoad, () => autoSaveHandlers.load());
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.autoSaveSave, (_event, contents) => autoSaveHandlers.save(contents));
   ipcMain.handle(PIXORES_DESKTOP_CHANNELS.autoSaveClear, () => autoSaveHandlers.clear());
