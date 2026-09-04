@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Film, LockKeyhole, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getAuthRedirectUrl } from "@/lib/authRedirect";
+import { shouldApplyAuthSnapshot } from "@/lib/authState";
 import styles from "./AccountPortal.module.css";
 
 type AccountPortalProps = {
@@ -20,11 +21,11 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const [signedInEmail, setSignedInEmail] = useState("");
+  const authTracker = useRef({ hasAuthenticatedSession: false });
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setSignedInEmail(data.session?.user.email || ""));
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!shouldApplyAuthSnapshot(authTracker.current, event, session)) return;
       setSignedInEmail(session?.user.email || "");
     });
 
@@ -60,7 +61,10 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
         setMessage(error.message);
         return;
       }
-      if (data.session?.user) setSignedInEmail(data.session.user.email || cleanEmail);
+      if (data.session?.user) {
+        authTracker.current.hasAuthenticatedSession = true;
+        setSignedInEmail(data.session.user.email || cleanEmail);
+      }
       setMessage(data.session ? "Your account is ready." : "Account created. Check your email to confirm it, then sign in to Pixores Video Maker Pro.");
       return;
     }
@@ -71,6 +75,7 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
       setMessage(error?.message || "Sign in failed.");
       return;
     }
+    authTracker.current.hasAuthenticatedSession = true;
     setSignedInEmail(data.user.email || cleanEmail);
     setMessage("Signed in successfully. You can return to Pixores Video Maker Pro.");
   }
@@ -97,6 +102,7 @@ export default function AccountPortal({ initialMode = "login", initialMessage = 
       setMessage(error.message);
       return;
     }
+    authTracker.current.hasAuthenticatedSession = false;
     setSignedInEmail("");
     setMessage("Signed out successfully.");
   }

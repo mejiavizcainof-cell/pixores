@@ -1,30 +1,24 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import ThumbnailEditorV2 from "@/components/ThumbnailEditorV2";
 import { supabase } from "@/lib/supabaseClient";
+import { shouldApplyAuthSnapshot } from "@/lib/authState";
 
 type AuthState = "checking" | "signed-out" | "signed-in";
 
 export default function StudioDesktopGate() {
   const [authState, setAuthState] = useState<AuthState>("checking");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const authTracker = useRef({ hasAuthenticatedSession: false });
 
   useEffect(() => {
     let active = true;
 
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-
-      setUserEmail(data.session?.user.email || null);
-      setAuthState(data.session?.user ? "signed-in" : "signed-out");
-    };
-
-    void checkSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!shouldApplyAuthSnapshot(authTracker.current, event, session)) return;
       setUserEmail(session?.user.email || null);
       setAuthState(session?.user ? "signed-in" : "signed-out");
     });

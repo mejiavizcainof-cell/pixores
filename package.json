@@ -1,6 +1,6 @@
 {
   "name": "image-tools",
-  "version": "0.1.3-beta.71",
+  "version": "0.1.3-beta.72",
   "description": "Pixores creative desktop suite for video, audio, images, and presentations.",
   "author": "Pixores",
   "private": true,
@@ -33,6 +33,7 @@
     "test:audio-effects": "node scripts/test-audio-effects.mjs",
     "test:audio-studio": "node scripts/test-audio-studio.mjs",
     "test:auth-storage": "node scripts/test-auth-storage.mjs",
+    "test:auth-state": "node scripts/test-auth-state.mjs",
     "test:auth-recovery": "node scripts/test-auth-recovery.mjs",
     "test:lower-third-colors": "node scripts/test-lower-third-colors.mjs",
     "test:youtube-publisher": "node scripts/test-youtube-publisher.mjs",

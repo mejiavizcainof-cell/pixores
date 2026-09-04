@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getAuthRedirectUrl } from "@/lib/authRedirect";
+import { shouldApplyAuthSnapshot } from "@/lib/authState";
 
 export default function AuthButton() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -14,13 +15,11 @@ export default function AuthButton() {
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const authTracker = useRef({ hasAuthenticatedSession: false });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email || null);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!shouldApplyAuthSnapshot(authTracker.current, event, session)) return;
       setUserEmail(session?.user?.email || null);
       if (session?.user) setModalOpen(false);
     });
@@ -87,6 +86,7 @@ export default function AuthButton() {
     }
 
     if (data.user) {
+      authTracker.current.hasAuthenticatedSession = true;
       await createCreditsIfNeeded(data.user.id);
     }
 
@@ -150,6 +150,7 @@ export default function AuthButton() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    authTracker.current.hasAuthenticatedSession = false;
     setUserEmail(null);
   };
 

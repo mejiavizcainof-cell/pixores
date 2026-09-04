@@ -2,26 +2,23 @@
 
 import Link from "next/link";
 import { LogOut, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { shouldApplyAuthSnapshot } from "@/lib/authState";
 import styles from "./HeaderAccount.module.css";
 
 export default function HeaderAccount() {
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const authTracker = useRef({ hasAuthenticatedSession: false });
 
   useEffect(() => {
     let active = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-      setEmail(data.session?.user.email || null);
-      setReady(true);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
+      if (!shouldApplyAuthSnapshot(authTracker.current, event, session)) return;
       setEmail(session?.user.email || null);
       setReady(true);
     });

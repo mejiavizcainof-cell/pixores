@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { ArrowRight, ExternalLink, Eye, EyeOff, LockKeyhole, LogOut, Mail, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { shouldApplyAuthSnapshot } from "@/lib/authState";
 import { getPixoresDesktopBridge, isPixoresDesktop } from "@/src/video-maker/adapters/runtime";
 import styles from "./DesktopAuthGate.module.css";
 
@@ -37,6 +38,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
   const [message, setMessage] = useState("Sign in with the Pixores account you use on the web.");
   const [loading, setLoading] = useState(false);
   const [userEmail, setUserEmail] = useState(cachedSignedInEmail);
+  const authTracker = useRef({ hasAuthenticatedSession: Boolean(cachedSignedInEmail) });
   const authContextValue = useMemo(() => ({ userEmail }), [userEmail]);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       bridge?.logAuthDiagnostic?.({ event, hasSession: Boolean(session) });
-      if (!session && event !== "INITIAL_SESSION" && event !== "SIGNED_OUT") return;
+      if (!shouldApplyAuthSnapshot(authTracker.current, event, session)) return;
       cachedSignedInEmail = session?.user.email || "";
       setUserEmail(cachedSignedInEmail);
       setAuthState(session?.user ? "signed-in" : "signed-out");
@@ -91,6 +93,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
       }
 
       cachedSignedInEmail = data.user.email || cleanEmail;
+      authTracker.current.hasAuthenticatedSession = true;
       setUserEmail(cachedSignedInEmail);
       setPassword("");
       setAuthState("signed-in");
@@ -128,6 +131,7 @@ export default function DesktopAuthGate({ children, required = true, showAccount
 
   async function signOut() {
     await supabase.auth.signOut();
+    authTracker.current.hasAuthenticatedSession = false;
     cachedSignedInEmail = "";
     setUserEmail("");
     setAuthState("signed-out");
