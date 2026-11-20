@@ -126,6 +126,7 @@
     "pdf-poppler": "^0.2.3",
     "pdfjs-dist": "^6.2.108",
     "pptxgenjs": "^4.0.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-image-crop": "^11.0.10",
@@ -136,6 +137,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.0",

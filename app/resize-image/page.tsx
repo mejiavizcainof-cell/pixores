@@ -108,7 +108,7 @@ export default function ResizeImagePage() {
           marginBottom: "20px",
         }}
       >
-        Resize Image Online
+        Free Image Resizer
       </h1>
 
       <p
@@ -118,9 +118,18 @@ export default function ResizeImagePage() {
           fontSize: "18px",
         }}
       >
-        Resize JPG, PNG and WebP images online for free.
-        Change image dimensions while maintaining quality.
+        Use this free image resizer to change the size of a JPG, PNG, WebP or HEIC image online. Enter the exact width and height, or pick a preset for Instagram, YouTube, Facebook, LinkedIn, Pinterest, X or TikTok, and download your resized image in seconds — no sign-up and no watermark.
       </p>
+
+      <section style={{ marginBottom: "30px", lineHeight: "1.8" }}>
+        <h2>What is an image resizer?</h2>
+        <p>
+          An image resizer changes the pixel dimensions of a photo — its width and height — so it fits a website, a social media post, a document or an email attachment. Resizing is different from compressing: resizing changes the dimensions, compression changes the file size.
+        </p>
+        <p>
+          <a href="/blog/jpg-vs-png">JPG vs PNG: which format is better?</a>
+        </p>
+      </section>
 
       <ImageUploader
         onChange={handleFileChange}

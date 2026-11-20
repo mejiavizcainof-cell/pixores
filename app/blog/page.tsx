@@ -34,8 +34,7 @@ export default async function BlogPage() {
   const publicDatabasePosts = databasePosts.filter(
     (post) =>
       !retiredBlogSlugs.has(post.slug)
-      && !localSlugs.has(post.slug)
-      && publicBlogSlugs.has(post.slug),
+      && !localSlugs.has(post.slug),
   );
   const localPosts = blogPosts
     .filter((post) => publicBlogSlugs.has(post.slug))

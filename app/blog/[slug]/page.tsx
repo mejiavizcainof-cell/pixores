@@ -97,7 +97,7 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.description,
-    robots: publicBlogSlugs.has(slug)
+    robots: (!localPost || publicBlogSlugs.has(slug))
       ? { index: true, follow: true }
       : { index: false, follow: true },
     authors: [{ name: "Pixores Product & Editorial Team", url: `${SITE_URL}/editorial-policy` }],

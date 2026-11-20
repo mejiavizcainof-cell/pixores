@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
+import { createClient } from "@supabase/supabase-js";
 import { blogPosts } from "@/lib/blogPosts";
+import { retiredBlogSlugs } from "@/lib/blogRedirects";
 import { publicBlogSlugs } from "@/lib/publicBlogSlugs";
 
 const baseUrl = "https://www.pixores.com";
@@ -26,6 +28,13 @@ const publicPages = [
   { path: "/jpg-to-pdf", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/compress-image", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/resize-image", changeFrequency: "monthly" as const, priority: 0.85 },
+  { path: "/resize-images", changeFrequency: "monthly" as const, priority: 0.9 },
+  { path: "/avif-to-jpg", changeFrequency: "monthly" as const, priority: 0.9 },
+  { path: "/avif-to-png", changeFrequency: "monthly" as const, priority: 0.9 },
+  { path: "/qr-code-generator", changeFrequency: "monthly" as const, priority: 0.85 },
+  { path: "/merge-pdf", changeFrequency: "monthly" as const, priority: 0.85 },
+  { path: "/remove-image-metadata", changeFrequency: "monthly" as const, priority: 0.8 },
+  { path: "/round-profile-picture", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/rotate-image", changeFrequency: "monthly" as const, priority: 0.85 },
   { path: "/favicon-generator", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/about", changeFrequency: "monthly" as const, priority: 0.65 },
@@ -37,7 +46,9 @@ const publicPages = [
   { path: "/cookie-policy", changeFrequency: "yearly" as const, priority: 0.2 },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages = publicPages.map((page) => ({
     url: `${baseUrl}${page.path}`,
     changeFrequency: page.changeFrequency,
@@ -52,5 +63,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     images: post.image ? [`${baseUrl}${post.image}`] : undefined,
   }));
 
-  return [...pages, ...posts];
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  const { data: databasePosts } = await supabase
+    .from("blog_posts")
+    .select("slug,created_at")
+    .eq("published", true);
+  const localSlugs = new Set(blogPosts.map((post) => post.slug));
+  const cmsPosts = (databasePosts || [])
+    .filter((post) => !retiredBlogSlugs.has(post.slug) && !localSlugs.has(post.slug))
+    .map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post.created_at ? new Date(post.created_at) : undefined,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    }));
+
+  return [...pages, ...posts, ...cmsPosts];
 }
