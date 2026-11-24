@@ -44,7 +44,7 @@ export default function BatchImageResizer() {
     });
     const issues: string[] = [];
     if (picked.length > MAX_FILES) issues.push(`Choose up to ${MAX_FILES} images per batch.`);
-    if (valid.length !== picked.length) issues.push("Only JPG, PNG and WebP files up to 10 MB each are accepted.");
+    if (valid.length !== picked.length) issues.push("Only JPG, PNG and WebP files up to 4 MB each are accepted.");
     setFiles(valid.slice(0, MAX_FILES));
     setError(issues.join(" "));
     setMessage("");
